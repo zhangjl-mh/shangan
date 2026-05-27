@@ -9,9 +9,6 @@
       "type": "string",
       "format": "date-time"
     },
-    "profileHash": {
-      "type": "string"
-    },
     "sourceScope": {
       "type": "array",
       "items": { "type": "string" }
@@ -76,6 +73,17 @@
         "educationRequirement": { "type": "string" },
         "majorRequirement": { "type": "string" },
         "freshGraduateRequirement": { "type": "string" },
+        "matchScore": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "matchLevel": { "type": "string" },
+        "riskLevel": { "type": "string" },
+        "recommendation": { "type": "string" },
+        "matchReasons": { "type": "array", "items": { "type": "string" } },
+        "riskReminders": { "type": "array", "items": { "type": "string" } },
+        "studyAdvice": { "type": "array", "items": { "type": "string" } },
+        "benefits": { "type": "array", "items": { "type": "string" } },
+        "housingReference": { "type": "string" },
+        "householdReference": { "type": "string" },
+        "officialOnlyNotice": { "type": "string" },
         "eligibilityBasis": {
           "type": "array",
           "items": { "type": "string" }

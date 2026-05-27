@@ -4,12 +4,10 @@ node_modules/
 .env.local
 .env.*.local
 
-# Private user data and outputs derived from a local profile.
+# Private user state.
 data/profile.local.json
 data/job-tracking.local.json
-content/local/job/
-content/local/markdown/*-job-scan.md
-content/local/scan/
+# Archived work products may contain raw profile prompts or prior snapshots.
 deliverables/
 
 __pycache__/

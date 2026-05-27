@@ -119,8 +119,22 @@ def render_job_markdown(report: dict) -> str:
                     "",
                 ]
             )
+            if position.get("recommendation"):
+                lines.extend(
+                    [
+                        f"- 推荐结论：{position['recommendation']}",
+                        f"- 匹配度：{position.get('matchScore', '未评估')} / 风险等级：{position.get('riskLevel', '未评估')}",
+                        "",
+                    ]
+                )
             if position.get("responsibilities"):
                 lines.extend([f"- 工作内容：{position['responsibilities']}", ""])
+            for reason in position.get("matchReasons", []):
+                lines.append(f"- 匹配原因：{reason}")
+            for risk in position.get("riskReminders", []):
+                lines.append(f"- 风险提醒：{risk}")
+            for advice in position.get("studyAdvice", []):
+                lines.append(f"- 备考建议：{advice}")
             for history in position.get("historicalReferences", []):
                 lines.append(
                     f"- {history['year']}参考：进面/入围分 {history.get('finalEntryScore', '官方未公开')}；"
@@ -132,6 +146,10 @@ def render_job_markdown(report: dict) -> str:
             if position.get("compensationReference"):
                 pay = position["compensationReference"]
                 lines.extend(["", f"- 薪资估算：{pay['text']}（{pay['disclaimer']}）"])
+            if position.get("housingReference"):
+                lines.append(f"- 房子：{position['housingReference']}")
+            if position.get("householdReference"):
+                lines.append(f"- 户口：{position['householdReference']}")
             lines.append("")
     lines.extend(["## 已扫描权威渠道", ""])
     for source in report.get("searchedSources", []):

@@ -25,6 +25,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(os.getenv("GONGKAO_DATA_DIR", ROOT / "data"))
 CONTENT_DIR = Path(os.getenv("GONGKAO_CONTENT_DIR", ROOT / "content" / "local"))
 REPORT_PATH = CONTENT_DIR / "job" / "eligible-jobs.json"
+OFFICIAL_SNAPSHOT_DIR = ROOT / "content" / "official" / "job" / "source-files"
 
 MAIN_RESOURCE_ID = "8a81f6d19780e4080199e13f881f0153"
 INTERVIEW_RESOURCE_ID = "8a81f6d09bb1deaf019bbfaf036b0011"
@@ -66,6 +67,19 @@ def fetch(url: str) -> bytes:
     request = urllib.request.Request(url, headers={"User-Agent": "wo-yao-shang-an/0.1"})
     with urllib.request.urlopen(request, timeout=30) as response:
         return response.read()
+
+
+def fetch_with_official_snapshot(url: str, snapshot_name: str) -> bytes:
+    snapshot_path = OFFICIAL_SNAPSHOT_DIR / snapshot_name
+    try:
+        data = fetch(url)
+        snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+        snapshot_path.write_bytes(data)
+        return data
+    except Exception:
+        if snapshot_path.exists():
+            return snapshot_path.read_bytes()
+        raise
 
 
 def page_exists(url: str) -> bool:
@@ -270,6 +284,50 @@ def describe_institution_work(unit: str, position: str) -> str:
     return f"岗位表未提供职责正文。根据单位名称与岗位类别推断，工作通常涉及{work}；具体以用人单位分工为准。"
 
 
+def education_requirement(education: str, degree: str) -> str:
+    return " / ".join(item for item in [education, degree] if item) or "以公告为准"
+
+
+def judgement_fields(
+    category: str,
+    major: str,
+    status: str,
+    conditions: str = "",
+    has_score: bool = False,
+) -> dict:
+    exact_major = "计算机类" in major or "计算机科学与技术" in major
+    score = 92 if category == "公务员" and exact_major else 89 if exact_major else 83
+    risk_level = "高" if status in {"已截止", "已结束"} else "中"
+    reasons = [
+        "专业要求覆盖计算机类或计算机科学与技术",
+        "学历学位条件为本科、学士可覆盖范围",
+        "工作地区属于当前关注区域",
+    ]
+    risks = ["该批公告报名已结束，仅适合作为下一轮同类岗位参照"] if risk_level == "高" else []
+    if "最低服务期限" in conditions:
+        risks.append("公告包含最低服务期限，录用后短期内调整地域的灵活性有限")
+    study_advice = (
+        ["持续关注下一年度国考职位表", "重点准备行测与申论，并积累税收征管、数字政务相关时政"]
+        if category == "公务员"
+        else ["关注同地区事业单位统一招聘公告", "按综合管理类或自然科学专技类笔试大纲安排刷题"]
+    )
+    return {
+        "matchScore": score,
+        "matchLevel": "高度适配" if score >= 90 else "较为适配",
+        "riskLevel": risk_level,
+        "recommendation": (
+            "报考条件与方向较适配，可作为下一轮同类岗位重点关注对象；当前公告已结束，不能直接报名。"
+        ),
+        "matchReasons": reasons,
+        "riskReminders": risks or ["公告条件需在报名前再次以职位表原文核验"],
+        "studyAdvice": study_advice,
+        "benefits": ["薪酬、社会保险和住房公积金执行录用单位政策，公告未列明的待遇不可视为承诺。"],
+        "housingReference": "官方招聘材料未载明人才住房、配租或住房补贴安排。",
+        "householdReference": "官方招聘材料未载明落户承诺，户口事项以录用后属地与单位政策为准。",
+        "officialOnlyNotice": "岗位条件与考试数据来自官方附件；匹配结论、工作归纳和薪资区间为辅助判断信息。",
+    }
+
+
 def parse_sjz_positions(data: bytes, profile: dict, captured_at: str) -> list[dict]:
     rows = xlsx_rows(data)
     districts = ["井陉县", "鹿泉区", "井陉矿区", "藁城区", "栾城区", "正定县"]
@@ -292,7 +350,7 @@ def parse_sjz_positions(data: bytes, profile: dict, captured_at: str) -> list[di
                 "region": f"河北省石家庄市{district}",
                 "recruitCount": int(float(count)),
                 "responsibilities": describe_institution_work(unit, title),
-                "educationRequirement": f"{education} / {degree}",
+                "educationRequirement": education_requirement(education, degree),
                 "majorRequirement": major,
                 "freshGraduateRequirement": conditions or "以公告为准",
                 "applicationNotes": [
@@ -301,6 +359,7 @@ def parse_sjz_positions(data: bytes, profile: dict, captured_at: str) -> list[di
                 ],
                 "historicalReferences": [],
                 "compensationReference": estimated_compensation(f"河北省石家庄市{district}", "事业单位"),
+                **judgement_fields("事业单位", major, "已结束", conditions),
                 "status": "已结束",
                 "sourceName": "石家庄市人社局：2026年事业单位公开招聘岗位信息表",
                 "sourceUrl": SJZ_ANNOUNCEMENT_URL,
@@ -331,7 +390,7 @@ def parse_xiongan_positions(data: bytes, profile: dict, captured_at: str) -> lis
                 "region": f"河北雄安新区 / {location}",
                 "recruitCount": int(float(count)),
                 "responsibilities": describe_institution_work(unit, title.replace("\n", "")),
-                "educationRequirement": f"{education} / {degree}",
+                "educationRequirement": education_requirement(education, degree),
                 "majorRequirement": major,
                 "freshGraduateRequirement": conditions or "无额外条件",
                 "applicationNotes": [
@@ -340,6 +399,7 @@ def parse_xiongan_positions(data: bytes, profile: dict, captured_at: str) -> lis
                 ],
                 "historicalReferences": [],
                 "compensationReference": estimated_compensation("河北雄安新区", "事业单位"),
+                **judgement_fields("事业单位", major, "已结束", conditions),
                 "status": "已结束",
                 "sourceName": "中国雄安官网：2026年事业单位公开招聘岗位信息表",
                 "sourceUrl": XIONGAN_ANNOUNCEMENT_URL,
@@ -385,7 +445,7 @@ def parse_main_positions(data: bytes, profile: dict, scores: dict[tuple[str, str
                     "region": location,
                     "recruitCount": int(float(row["\u62db\u8003\u4eba\u6570"])),
                     "responsibilities": describe_work(row),
-                    "educationRequirement": f"{row['\u5b66\u5386']} / {row['\u5b66\u4f4d']}",
+                    "educationRequirement": education_requirement(row["\u5b66\u5386"], row["\u5b66\u4f4d"]),
                     "majorRequirement": row["\u4e13\u4e1a"],
                     "freshGraduateRequirement": "\u4e0d\u9650\u5e94\u5c4a\uff08\u6839\u636e\u804c\u4f4d\u5907\u6ce8\u6838\u9a8c\uff09",
                     "applicationNotes": [
@@ -403,6 +463,7 @@ def parse_main_positions(data: bytes, profile: dict, scores: dict[tuple[str, str
                         }
                     ],
                     "compensationReference": estimated_compensation(location),
+                    **judgement_fields("\u516c\u52a1\u5458", row["\u4e13\u4e1a"], "\u5df2\u7ed3\u675f", row["\u5907\u6ce8"], bool(score)),
                     "status": "\u5df2\u7ed3\u675f",
                     "sourceName": "\u56fd\u5bb6\u516c\u52a1\u5458\u5c40\uff1a2026\u5e74\u5ea6\u62db\u8003\u7b80\u7ae0",
                     "sourceUrl": MAIN_URL,
@@ -416,25 +477,46 @@ def main() -> None:
     profile = read_json(DATA_DIR / "profile.local.json")
     report = read_json(REPORT_PATH) if REPORT_PATH.exists() else {"positions": []}
     now = datetime.now().astimezone().isoformat(timespec="seconds")
-    positions = parse_main_positions(
+    national_positions = parse_main_positions(
         fetch(MAIN_URL),
         profile,
         interview_scores(fetch(INTERVIEW_URL)),
     )
+    captured_at = now
+    sjz_positions = parse_sjz_positions(
+        fetch_with_official_snapshot(SJZ_POSITIONS_URL, "shijiazhuang-2026-unified-positions.xlsx"),
+        profile,
+        captured_at,
+    )
+    xiongan_positions = parse_xiongan_positions(
+        fetch_with_official_snapshot(XIONGAN_POSITIONS_URL, "xiongan-2026-unified-positions.xlsx"),
+        profile,
+        captured_at,
+    )
     upcoming_portal_published = page_exists(UPCOMING_PORTAL_URL)
 
     existing_sources = [
-        source
+        {
+            **source,
+            "result": (
+                "公告面向2026届高校毕业生，未纳入本轮可报岗位列表"
+                if "高校毕业生" in source.get("result", "") and "届别条件" in source.get("result", "")
+                else source.get("result", "")
+            ),
+        }
         for source in report.get("searchedSources", [])
         if source.get("name") != "\u56fd\u5bb6\u516c\u52a1\u5458\u5c40"
         and not source.get("name", "").startswith("\u56fd\u5bb6\u516c\u52a1\u5458\u5c40\uff1a")
+        and not source.get("name", "").startswith("石家庄市人社局")
+        and not source.get("name", "").startswith("中国雄安官网")
+        and not source.get("name", "").startswith("北京市规划")
     ]
     official_sources = [
         {
             "name": "\u56fd\u5bb6\u516c\u52a1\u5458\u5c40\uff1a2026\u5e74\u5ea6\u62db\u8003\u7b80\u7ae0\u4e0e\u9762\u8bd5\u540d\u5355",
             "url": MAIN_URL,
             "checkedAt": now,
-            "result": f"\u5b98\u65b9\u4e3b\u62db\u9644\u4ef6\u4e0e\u9762\u8bd5\u540d\u5355\u5df2\u89e3\u6790\uff1b\u6309\u5f53\u524d\u753b\u50cf\u53ca\u76ee\u6807\u5730\u57df\u53ef\u786e\u8ba4\u7684\u5386\u53f2\u53c2\u8003\u5c97\u4f4d {len(positions)} \u4e2a\u3002",
+            "result": f"\u5b98\u65b9\u4e3b\u62db\u9644\u4ef6\u4e0e\u9762\u8bd5\u540d\u5355\u5df2\u89e3\u6790\uff1b\u6309\u5f53\u524d\u753b\u50cf\u53ca\u76ee\u6807\u5730\u57df\u53ef\u786e\u8ba4\u7684\u5386\u53f2\u53c2\u8003\u5c97\u4f4d {len(national_positions)} \u4e2a\u3002",
         },
         {
             "name": "\u56fd\u5bb6\u516c\u52a1\u5458\u5c40\uff1a2026\u5e74\u5ea6\u8865\u5145\u5f55\u7528\u516c\u544a\u4e0e\u804c\u4f4d\u8868",
@@ -452,15 +534,33 @@ def main() -> None:
                 else f"截至 {now[:10]}，官方专题入口 /kl2027 访问返回 404，暂无可导入的 2027年度职位表。"
             ),
         },
+        {
+            "name": "石家庄市人社局：2026年事业单位统一招聘岗位表",
+            "url": SJZ_ANNOUNCEMENT_URL,
+            "checkedAt": now,
+            "result": f"已解析指定区县官方岗位附件，确认可作为历史参考的岗位 {len(sjz_positions)} 个。",
+        },
+        {
+            "name": "中国雄安官网：2026年事业单位统一招聘岗位表",
+            "url": XIONGAN_ANNOUNCEMENT_URL,
+            "checkedAt": now,
+            "result": f"已解析官方岗位附件，确认可作为历史参考的岗位 {len(xiongan_positions)} 个。",
+        },
+        {
+            "name": "北京市规划和自然资源委员会所属事业单位公开招聘",
+            "url": BEIJING_PLANNING_ANNOUNCEMENT_URL,
+            "checkedAt": now,
+            "result": "公告报名窗口为2026年5月28日至6月4日，包含计算机相关岗位；社会人员岗位载明北京市常住户口要求，未纳入符合岗位列表。",
+        },
     ]
     other_positions = [
         position
         for position in report.get("positions", [])
-        if not position.get("id", "").startswith("scs-2026-")
+        if not position.get("id", "").startswith(("scs-2026-", "sjz-sydw-2026-", "xiongan-sydw-2026-"))
     ]
     national_note = (
         "\u672c\u8f6e\u5df2\u4ece\u56fd\u5bb6\u516c\u52a1\u5458\u5c40\u5b98\u65b9\u62db\u8003\u7b80\u7ae0\u548c\u8fdb\u5165\u9762\u8bd5\u4eba\u5458\u540d\u5355\u4e2d\u8bc6\u522b\u51fa"
-        f"{len(positions)}\u4e2a\u4e0e\u5f53\u524d\u753b\u50cf\u53ca\u6307\u5b9a\u5730\u533a\u7b26\u5408\u7684\u5c97\u4f4d\uff0c\u5747\u4e3a2026\u5e74\u5ea6\u5df2\u7ed3\u675f\u7684\u5b98\u65b9\u5386\u53f2\u53c2\u8003\u3002"
+        f"{len(national_positions)}\u4e2a\u4e0e\u5f53\u524d\u753b\u50cf\u53ca\u6307\u5b9a\u5730\u533a\u7b26\u5408\u7684\u5c97\u4f4d\uff0c\u5747\u4e3a2026\u5e74\u5ea6\u5df2\u7ed3\u675f\u7684\u5b98\u65b9\u5386\u53f2\u53c2\u8003\u3002"
         "\u540c\u65f6\u6838\u9a8c\u56fd\u8003\u8865\u5f55\u516c\u544a\uff1a\u8865\u5f55\u62a5\u540d\u5df2\u4e8e2026\u5e745\u670810\u65e5\u7ed3\u675f\uff0c\u4e14\u9700\u6709\u672c\u5e74\u5ea6\u7b14\u8bd5\u6210\u7ee9\uff0c\u4e0d\u5c06\u5176\u6807\u6210\u53ef\u62a5\u3002"
         + (
             "\u56fd\u5bb6\u516c\u52a1\u5458\u5c402027\u5e74\u5ea6\u62db\u5f55\u4e13\u9898\u5165\u53e3\u5df2\u53d1\u5e03\uff0c\u672c\u6b21\u626b\u63cf\u5fc5\u987b\u8f6c\u5411\u65b0\u5e74\u5ea6\u9644\u4ef6\u3002"
@@ -468,7 +568,11 @@ def main() -> None:
             else f"\u622a\u81f3{now[:10]}\uff0c\u56fd\u5bb6\u516c\u52a1\u5458\u5c40 /kl2027 \u4e13\u9898\u5165\u53e3\u672a\u53d1\u5e03\uff08\u8bbf\u95ee\u8fd4\u56de404\uff09\uff0c\u65e0\u5b98\u65b92027\u5e74\u5ea6\u804c\u4f4d\u8868\u53ef\u5bfc\u5165\u3002"
         )
     )
-    regional_note = report.get("regionalScanNote", "")
+    regional_note = (
+        f"已解析石家庄市事业单位官方附件，指定区县命中 {len(sjz_positions)} 个历史参考岗位；"
+        f"已解析雄安新区事业单位官方附件，命中 {len(xiongan_positions)} 个历史参考岗位；"
+        "北京市规划自然资源委当前公告含计算机相关岗位，但载明社会人员北京户籍条件，未纳入岗位列表。"
+    )
     report.update(
         {
             "generatedAt": now,
@@ -479,12 +583,15 @@ def main() -> None:
             "screeningNote": national_note
             + (f"\u5730\u65b9\u4e0e\u56fd\u4f01\u626b\u63cf\uff1a{regional_note}" if regional_note else ""),
             "searchedSources": official_sources + existing_sources,
-            "positions": positions + other_positions,
+            "regionalScanNote": regional_note,
+            "positions": national_positions + sjz_positions + xiongan_positions + other_positions,
         }
     )
+    report.pop("profileHash", None)
     write_json(REPORT_PATH, report)
     print(
-        f"[\u56fd\u8003\u5c97\u4f4d\u540c\u6b65\u5b8c\u6210] \u5386\u53f2\u7b26\u5408\u5c97\u4f4d {len(positions)} \u4e2a | "
+        f"[岗位同步完成] 国考 {len(national_positions)} 个 | 石家庄事业单位 {len(sjz_positions)} 个 | "
+        f"雄安事业单位 {len(xiongan_positions)} 个 | "
         f"\u6765\u6e90 {ARTICLE_URL}"
     )
 

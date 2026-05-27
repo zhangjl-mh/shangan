@@ -1,6 +1,5 @@
 import "server-only";
 
-import { createHash } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import type {
@@ -79,15 +78,4 @@ export async function readNewsByDate(date: string) {
   return readJsonFile<DailyNews>(
     path.join(localContentDirectory, "news", `${date}.json`),
   );
-}
-
-export function profileHash(profile: Profile | null) {
-  if (!profile) {
-    return null;
-  }
-
-  return createHash("sha256")
-    .update(JSON.stringify(profile))
-    .digest("hex")
-    .slice(0, 16);
 }

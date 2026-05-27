@@ -254,6 +254,17 @@ export interface EligiblePosition {
   educationRequirement?: string;
   majorRequirement?: string;
   freshGraduateRequirement?: string;
+  matchScore?: number;
+  matchLevel?: string;
+  riskLevel?: string;
+  recommendation?: string;
+  matchReasons?: string[];
+  riskReminders?: string[];
+  studyAdvice?: string[];
+  benefits?: string[];
+  housingReference?: string;
+  householdReference?: string;
+  officialOnlyNotice?: string;
   eligibilityBasis?: string[];
   advantages?: string[];
   risks?: string[];
@@ -285,7 +296,6 @@ export interface EligiblePosition {
 
 export interface EligibleJobsReport {
   generatedAt: string;
-  profileHash?: string;
   sourceScope?: string[];
   referencePolicy?: string;
   regionalScanNote?: string;

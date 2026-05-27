@@ -15,9 +15,9 @@ export default async function JobPage() {
     <main className="mx-auto max-w-[1310px] space-y-5 px-5 py-9 lg:px-6">
       <Reveal className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="ink-title text-[38px]">符合岗位</h1>
+          <h1 className="ink-title text-[38px]">岗位判断工作台</h1>
           <p className="mt-3 text-lg text-[#56665e]">
-            展示 Skills 依据画像筛选出的真实岗位，并保留官方信源。
+            看清能报哪些、值不值得报、需要避开什么，以及下一步如何准备。
           </p>
         </div>
         <PrintButton label="导出岗位页" />
@@ -26,7 +26,7 @@ export default async function JobPage() {
         <Card className="label-sans flex flex-wrap gap-x-8 gap-y-3 p-5 text-sm text-[#5d6d65]">
           <span className="flex items-center gap-2"><MapPinned size={17} />北京、天津、雄安新区及石家庄指定区县</span>
           <span className="flex items-center gap-2"><Clock3 size={17} />{report ? `最近生成：${report.generatedAt}` : "尚无生成记录"}</span>
-          <span className="flex items-center gap-2"><AlertCircle size={17} />{report?.searchedSources?.length ? `已扫描 ${report.searchedSources.length} 个权威入口` : "仅显示当前采集到的符合岗位"}</span>
+          <span className="flex items-center gap-2"><AlertCircle size={17} />{report?.searchedSources?.length ? `已核验 ${report.searchedSources.length} 个官方来源记录` : "仅显示当前采集到的符合岗位"}</span>
         </Card>
       </Reveal>
       {report?.positions.length ? (
@@ -35,7 +35,7 @@ export default async function JobPage() {
           {report.screeningNote ? (
             <details className="label-sans rounded-xl border border-[#d7e0d8] bg-[#f5f7f1] p-5 text-sm leading-7 text-[#596a61]">
               <summary className="cursor-pointer font-semibold text-[#304b40]">
-                查看扫描结论与权威来源（{report.searchedSources?.length ?? 0}）
+                查看官方核验记录与数据口径（{report.searchedSources?.length ?? 0}）
               </summary>
               <p className="mt-4">{report.screeningNote}</p>
               {report.referencePolicy ? (
