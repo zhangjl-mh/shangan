@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gongkao-agent.local/schema/daily-news.schema.json",
+  "title": "每日时政数据",
+  "type": "object",
+  "required": ["date", "title", "summary", "items"],
+  "properties": {
+    "date": { "type": "string", "format": "date" },
+    "title": { "type": "string" },
+    "summary": { "type": "string" },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "source", "url", "publishTime", "summary", "keywords"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "source": { "type": "string" },
+          "url": { "type": "string", "format": "uri" },
+          "publishTime": { "type": "string" },
+          "summary": { "type": "string" },
+          "keywords": { "type": "array", "items": { "type": "string" } },
+          "policyBackground": { "type": "string" },
+          "shenlunAngles": { "type": "array" },
+          "xingceLinks": { "type": "array" },
+          "materials": { "type": "array", "items": { "type": "string" } },
+          "examQuestions": { "type": "array", "items": { "type": "string" } },
+          "importance": { "type": "integer", "minimum": 1, "maximum": 5 }
+          ,
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "verification": {
+            "type": "object",
+            "required": ["verifiedAt", "status", "note"],
+            "properties": {
+              "verifiedAt": { "type": "string" },
+              "status": { "const": "verified" },
+              "note": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

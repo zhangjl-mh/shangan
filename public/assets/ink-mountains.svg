@@ -1,0 +1,18 @@
+<svg width="1720" height="520" viewBox="0 0 1720 520" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="fade" x1="861" y1="55" x2="861" y2="490" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9AA69D" stop-opacity=".19"/>
+      <stop offset=".66" stop-color="#BFC4BC" stop-opacity=".1"/>
+      <stop offset="1" stop-color="#F8F6F1" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="mist" x1="850" y1="0" x2="850" y2="480" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#87968C" stop-opacity=".14"/>
+      <stop offset="1" stop-color="#BEC4BD" stop-opacity=".02"/>
+    </linearGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="10"/></filter>
+  </defs>
+  <path d="M0 392C136 333 211 349 328 307C432 270 474 177 575 185C648 191 699 247 753 254C837 264 891 154 984 141C1070 129 1113 191 1184 198C1287 208 1346 77 1439 81C1532 85 1576 180 1720 194V520H0V392Z" fill="url(#fade)" filter="url(#blur)"/>
+  <path d="M0 421C161 366 205 378 334 348C427 327 493 244 574 231C645 219 704 286 772 294C862 305 916 200 1007 191C1101 182 1153 246 1228 251C1329 258 1391 128 1474 132C1568 137 1610 220 1720 242V520H0V421Z" fill="url(#mist)"/>
+  <path d="M910 301C974 278 1007 243 1061 233C1116 222 1137 261 1195 266C1248 270 1290 218 1337 207" stroke="#87958B" stroke-opacity=".13" stroke-width="2"/>
+  <path d="M1178 306C1243 285 1273 247 1338 241C1402 235 1443 281 1496 274C1546 267 1585 229 1647 230" stroke="#87958B" stroke-opacity=".12" stroke-width="2"/>
+</svg>

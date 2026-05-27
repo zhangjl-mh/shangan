@@ -1,0 +1,197 @@
+"""Finalize files produced by the today-scan skill.
+
+This script does not scrape sites or call a model. The skill prepares verified
+JSON facts, then this deterministic step validates and renders display files.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from datetime import date, datetime
+from pathlib import Path
+
+from jsonschema import validate
+
+
+ROOT = Path(__file__).resolve().parent.parent
+CONTENT_DIR = Path(os.getenv("GONGKAO_CONTENT_DIR", ROOT / "content" / "local"))
+DATA_DIR = Path(os.getenv("GONGKAO_DATA_DIR", ROOT / "data"))
+SCHEMA_DIR = ROOT / "agents" / "schema"
+
+
+def read_json(path: Path) -> dict:
+    with path.open("r", encoding="utf-8") as file:
+        return json.load(file)
+
+
+def write_text(path: Path, contents: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(contents.rstrip() + "\n", encoding="utf-8")
+
+
+def write_json(path: Path, contents: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(contents, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def render_news_markdown(report: dict) -> str:
+    lines = [
+        f"# {report['title']}",
+        "",
+        f"> 原文链接核验时间：{report.get('meta', {}).get('verifiedAt', '未记录')}。事实来自所列信源；备考角度为整理内容。",
+        "",
+        report["summary"],
+        "",
+    ]
+    for item in report["items"]:
+        lines.extend(
+            [
+                f"## {item['title']}",
+                "",
+                f"- 来源：[{item['source']}]({item['url']})",
+                f"- 发布时间：{item['publishTime']}",
+                f"- 关键词：{'、'.join(item['keywords'])}",
+                "",
+                item["summary"],
+                "",
+            ]
+        )
+        if item.get("policyBackground"):
+            lines.extend(["### 政策背景", "", item["policyBackground"], ""])
+        if item.get("shenlunAngles"):
+            lines.extend(["### 申论角度", ""])
+            for angle in item["shenlunAngles"]:
+                lines.append(f"- {angle['title']}：{angle['explanation']}")
+            lines.append("")
+        if item.get("xingceLinks"):
+            lines.extend(["### 行测关联", ""])
+            for link in item["xingceLinks"]:
+                lines.append(f"- {link['module']} / {link['point']}：{link['explanation']}")
+            lines.append("")
+        if item.get("materials"):
+            lines.extend(["### 积累表达", ""])
+            lines.extend(f"- {text}" for text in item["materials"])
+            lines.append("")
+        if item.get("examQuestions"):
+            lines.extend(["### 可能出题方向", ""])
+            lines.extend(f"- {question}" for question in item["examQuestions"])
+            lines.append("")
+    return "\n".join(lines)
+
+
+def render_job_markdown(report: dict) -> str:
+    positions = report.get("positions", [])
+    lines = [
+        "# 今日岗位扫描报告",
+        "",
+        f"- 生成时间：{report['generatedAt']}",
+        f"- 符合岗位数量：{len(positions)}",
+        f"- 扫描渠道数量：{len(report.get('searchedSources', []))}",
+        "",
+        "## 筛选结论",
+        "",
+        report.get("screeningNote", "暂无说明。"),
+        "",
+        "## 参考数据规则",
+        "",
+        report.get("referencePolicy", "仅展示有可追溯信源的信息。"),
+        "",
+    ]
+    if positions:
+        lines.extend(["## 符合岗位", ""])
+        for position in positions:
+            lines.extend(
+                [
+                    f"### {position['organization']} - {position['title']}",
+                    "",
+                    f"- 地区：{position['region']}{(' / ' + position['district']) if position.get('district') else ''}",
+                    f"- 状态：{position['status']}",
+                    f"- 招录人数：{position.get('recruitCount', '官方未公开')}",
+                    f"- 学历：{position.get('educationRequirement', '以公告为准')}",
+                    f"- 专业：{position.get('majorRequirement', '以公告为准')}",
+                    f"- 岗位代码：{position.get('positionCode', '官方未公开')}",
+                    f"- 原文：[{position['sourceName']}]({position['sourceUrl']})",
+                    "",
+                ]
+            )
+            if position.get("responsibilities"):
+                lines.extend([f"- 工作内容：{position['responsibilities']}", ""])
+            for history in position.get("historicalReferences", []):
+                lines.append(
+                    f"- {history['year']}参考：进面/入围分 {history.get('finalEntryScore', '官方未公开')}；"
+                    f"报录比 {history.get('applicationRatio', '官方未公开')}；"
+                    f"来源 [{history['sourceName']}]({history['sourceUrl']})"
+                )
+            for note in position.get("applicationNotes", []):
+                lines.append(f"- 报考提示：{note}")
+            if position.get("compensationReference"):
+                pay = position["compensationReference"]
+                lines.extend(["", f"- 薪资估算：{pay['text']}（{pay['disclaimer']}）"])
+            lines.append("")
+    lines.extend(["## 已扫描权威渠道", ""])
+    for source in report.get("searchedSources", []):
+        lines.append(f"- [{source['name']}]({source['url']})：{source['result']}")
+    return "\n".join(lines)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Finalize today's news and job scan data.")
+    parser.add_argument("--date", default=date.today().isoformat(), dest="scan_date")
+    args = parser.parse_args()
+
+    news_path = CONTENT_DIR / "news" / f"{args.scan_date}.json"
+    jobs_path = CONTENT_DIR / "job" / "eligible-jobs.json"
+    if not news_path.exists():
+        raise SystemExit(f"缺少当日时政文件：{news_path}")
+    if not jobs_path.exists():
+        raise SystemExit(f"缺少岗位扫描文件：{jobs_path}")
+
+    news = read_json(news_path)
+    jobs = read_json(jobs_path)
+    validate(news, read_json(SCHEMA_DIR / "daily-news.schema.json"))
+    validate(jobs, read_json(SCHEMA_DIR / "eligible-jobs.schema.json"))
+
+    markdown_dir = CONTENT_DIR / "markdown"
+    news_markdown = markdown_dir / f"{args.scan_date}-daily-news.md"
+    jobs_markdown = markdown_dir / f"{args.scan_date}-job-scan.md"
+    write_text(news_markdown, render_news_markdown(news))
+    write_text(jobs_markdown, render_job_markdown(jobs))
+
+    source_registry = read_json(DATA_DIR / "job-sources.json")
+    manifest = {
+        "scanDate": args.scan_date,
+        "finalizedAt": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "news": {
+            "file": str(news_path),
+            "items": len(news["items"]),
+            "verifiedAt": news.get("meta", {}).get("verifiedAt"),
+        },
+        "jobs": {
+            "file": str(jobs_path),
+            "positions": len(jobs.get("positions", [])),
+            "searchedSources": len(jobs.get("searchedSources", [])),
+            "registeredOfficialSources": len(source_registry.get("sources", [])),
+        },
+        "outputs": [str(news_markdown), str(jobs_markdown)],
+    }
+    manifest_path = CONTENT_DIR / "scan" / f"{args.scan_date}.json"
+    write_json(manifest_path, manifest)
+
+    print(
+        f"[今日扫描完成] {args.scan_date} | "
+        f"时政 {manifest['news']['items']} 条 | "
+        f"符合岗位 {manifest['jobs']['positions']} 个 | "
+        f"权威入口 {manifest['jobs']['searchedSources']} 个"
+    )
+    print(f"[输出] {news_markdown}")
+    print(f"[输出] {jobs_markdown}")
+    print(f"[清单] {manifest_path}")
+
+
+if __name__ == "__main__":
+    main()

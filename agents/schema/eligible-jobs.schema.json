@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gongkao-agent.local/schema/eligible-jobs.schema.json",
+  "title": "当前采集到的符合用户画像岗位",
+  "type": "object",
+  "required": ["generatedAt", "positions"],
+  "properties": {
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "profileHash": {
+      "type": "string"
+    },
+    "sourceScope": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "referencePolicy": {
+      "type": "string"
+    },
+    "regionalScanNote": {
+      "type": "string"
+    },
+    "screeningNote": {
+      "type": "string"
+    },
+    "searchedSources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "url", "checkedAt", "result"],
+        "properties": {
+          "name": { "type": "string" },
+          "url": { "type": "string", "format": "uri" },
+          "checkedAt": { "type": "string", "format": "date-time" },
+          "result": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "positions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/position" }
+    }
+  },
+  "$defs": {
+    "position": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "organization",
+        "category",
+        "region",
+        "status",
+        "sourceName",
+        "sourceUrl",
+        "capturedAt"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "organization": { "type": "string" },
+        "category": {
+          "type": "string",
+          "description": "例如公务员、事业单位、教师、医疗卫生、军队文职、社区工作者、国有企业"
+        },
+        "department": { "type": "string" },
+        "positionCode": { "type": "string" },
+        "recruitmentType": { "type": "string" },
+        "region": { "type": "string" },
+        "district": { "type": "string" },
+        "recruitCount": { "type": "integer", "minimum": 1 },
+        "responsibilities": { "type": "string" },
+        "educationRequirement": { "type": "string" },
+        "majorRequirement": { "type": "string" },
+        "freshGraduateRequirement": { "type": "string" },
+        "eligibilityBasis": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "advantages": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "risks": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "applicationNotes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "historicalReferences": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["year", "sourceName", "sourceUrl"],
+            "properties": {
+              "year": { "type": "string" },
+              "finalEntryScore": { "type": "string" },
+              "applicationRatio": { "type": "string" },
+              "recruitmentCount": { "type": "string" },
+              "note": { "type": "string" },
+              "sourceName": { "type": "string" },
+              "sourceUrl": { "type": "string", "format": "uri" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "compensationReference": {
+          "type": "object",
+          "required": ["text", "disclaimer"],
+          "properties": {
+            "text": { "type": "string" },
+            "source": { "type": "string" },
+            "sourceUrl": { "type": "string", "format": "uri" },
+            "disclaimer": {
+              "type": "string",
+              "description": "必须说明此信息非当前岗位官方薪资承诺"
+            }
+          },
+          "additionalProperties": false
+        },
+        "announcementDate": { "type": "string", "format": "date" },
+        "registrationStartDate": { "type": "string", "format": "date" },
+        "registrationEndDate": { "type": "string", "format": "date" },
+        "examDate": { "type": "string", "format": "date" },
+        "status": {
+          "enum": ["即将报名", "报名中", "已截止", "已结束"]
+        },
+        "sourceName": { "type": "string" },
+        "sourceUrl": { "type": "string", "format": "uri" },
+        "capturedAt": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

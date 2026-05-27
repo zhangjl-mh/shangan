@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gongkao-agent.local/schema/xingce-roadmap.schema.json",
+  "title": "行测系统训练知识库",
+  "type": "object",
+  "required": ["title", "description", "examProfile", "stages", "moduleGuides", "references"],
+  "properties": {
+    "title": { "type": "string" },
+    "description": { "type": "string" },
+    "examProfile": {
+      "type": "object",
+      "required": ["syllabusTitle", "durationMinutes", "score", "officialModules"]
+    },
+    "stages": {
+      "type": "array",
+      "minItems": 1
+    },
+    "moduleGuides": {
+      "type": "array",
+      "minItems": 6
+    },
+    "formulaCards": {
+      "type": "array"
+    },
+    "timePlan": {
+      "type": "array"
+    },
+    "references": {
+      "type": "array",
+      "minItems": 1
+    }
+  }
+}

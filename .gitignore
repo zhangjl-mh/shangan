@@ -1,0 +1,18 @@
+node_modules/
+.next/
+.env
+.env.local
+.env.*.local
+
+# Private user data and outputs derived from a local profile.
+data/profile.local.json
+data/job-tracking.local.json
+content/local/job/
+content/local/markdown/*-job-scan.md
+content/local/scan/
+deliverables/
+
+__pycache__/
+*.pyc
+*.tsbuildinfo
+.DS_Store

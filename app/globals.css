@@ -1,0 +1,199 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8f6f1;
+  --foreground: #24312d;
+  --deep-green: #153a35;
+  --sage: #779180;
+  --sage-light: #dbe2d8;
+  --sand: #d2a966;
+  --blue: #6288bc;
+  --border: #e7e0d5;
+  --muted: #68746e;
+  --accent: #ba6452;
+  --card: rgba(255, 253, 249, 0.9);
+  --shadow: 0 4px 22px rgba(48, 52, 47, 0.055);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-deep-green: var(--deep-green);
+  --color-sage: var(--sage);
+  --color-sand: var(--sand);
+  --color-accent: var(--accent);
+  --font-serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", SimSun, serif;
+  --font-sans: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  min-width: 320px;
+  background: var(--background);
+}
+
+body {
+  margin: 0;
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-serif);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.page-atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 51% 9%, rgba(255, 255, 255, 0.75), transparent 38%),
+    radial-gradient(circle at 90% 82%, rgba(211, 220, 211, 0.22), transparent 27%),
+    #f8f6f1;
+}
+
+.page-atmosphere::before {
+  content: "";
+  position: absolute;
+  top: 44px;
+  left: 0;
+  width: 100%;
+  height: min(46vw, 520px);
+  background: url("/assets/ink-mountains.svg") center top / cover no-repeat;
+  opacity: 0.7;
+}
+
+.page-atmosphere::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: min(45vw, 500px);
+  width: min(22vw, 250px);
+  background: url("/assets/bamboo-left.svg") left bottom / contain no-repeat;
+}
+
+.surface {
+  border: 1px solid rgba(224, 217, 205, 0.82);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(3px);
+}
+
+.hover-lift {
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  border-color: rgba(174, 185, 171, 0.6);
+  box-shadow: 0 11px 31px rgba(45, 53, 48, 0.085);
+}
+
+.ink-title {
+  color: var(--deep-green);
+  letter-spacing: 0.07em;
+  font-weight: 650;
+}
+
+.section-title {
+  position: relative;
+  padding-left: 17px;
+  color: var(--deep-green);
+  font-size: 1.18rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+}
+
+.section-title::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.15em;
+  width: 2px;
+  height: 1.05em;
+  background: #567366;
+}
+
+.hero-wash {
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-wash::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("/assets/ink-mountains.svg") right bottom / auto 100% no-repeat;
+  opacity: 0.62;
+}
+
+.hero-wash::after {
+  content: "";
+  position: absolute;
+  bottom: -38px;
+  left: -8px;
+  height: 230px;
+  width: 110px;
+  background: url("/assets/bamboo-left.svg") left bottom / contain no-repeat;
+  opacity: 0.82;
+}
+
+.ornament-pavilion::after {
+  content: "";
+  position: absolute;
+  right: -8px;
+  bottom: -5px;
+  width: 112px;
+  height: 118px;
+  background: url("/assets/pavilion.svg") bottom right / contain no-repeat;
+}
+
+.muted-copy {
+  color: var(--muted);
+  font-family: var(--font-sans);
+}
+
+.label-sans {
+  font-family: var(--font-sans);
+}
+
+.subtle-rule {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(143, 153, 145, 0.27), transparent);
+}
+
+@media print {
+  header,
+  .no-print,
+  .pipeline-footnote {
+    display: none !important;
+  }
+
+  .page-atmosphere {
+    position: absolute;
+  }
+
+  body {
+    background: white;
+  }
+
+  .surface {
+    box-shadow: none;
+  }
+}

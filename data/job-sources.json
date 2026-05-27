@@ -1,0 +1,142 @@
+{
+  "updatedAt": "2026-05-27T09:48:00+08:00",
+  "scope": "覆盖用户指定地区内公务员、事业单位、教师、医疗卫生、军队文职与官方发布国企正式招聘的权威入口。",
+  "sources": [
+    {
+      "id": "national-civil-service",
+      "region": "全国/目标地区",
+      "categories": ["公务员"],
+      "name": "国家公务员局",
+      "url": "https://www.scs.gov.cn",
+      "authority": "国家公务员局"
+    },
+    {
+      "id": "national-civil-service-next-cycle",
+      "region": "全国/目标地区",
+      "categories": ["公务员"],
+      "name": "国家公务员局下一招录年度专题监测",
+      "url": "https://www.scs.gov.cn/",
+      "authority": "国家公务员局"
+    },
+    {
+      "id": "military-civilian",
+      "region": "全国/目标地区",
+      "categories": ["军队文职"],
+      "name": "军队人才网",
+      "url": "http://81rc.81.cn/",
+      "authority": "中国人民解放军专业技术人才网"
+    },
+    {
+      "id": "beijing-government-institutions",
+      "region": "北京",
+      "categories": ["事业单位", "教师", "医疗卫生"],
+      "name": "首都之窗事业单位招聘",
+      "url": "https://www.beijing.gov.cn/gongkai/rsxx/sydwzp/",
+      "authority": "北京市人民政府"
+    },
+    {
+      "id": "beijing-civil-service",
+      "region": "北京",
+      "categories": ["公务员"],
+      "name": "北京组工网",
+      "url": "https://www.bjdj.gov.cn/index.html",
+      "authority": "中共北京市委组织部"
+    },
+    {
+      "id": "tianjin-government-institutions",
+      "region": "天津",
+      "categories": ["事业单位", "教师", "医疗卫生"],
+      "name": "天津市人社局事业单位公开招聘",
+      "url": "https://hrss.tj.gov.cn/ztzl/ztzl1/sydwgkzp/",
+      "authority": "天津市人力资源和社会保障局"
+    },
+    {
+      "id": "tianjin-civil-service",
+      "region": "天津",
+      "categories": ["公务员"],
+      "name": "天津先锋网",
+      "url": "https://www.tjzzb.gov.cn/",
+      "authority": "中共天津市委组织部"
+    },
+    {
+      "id": "tianjin-soe",
+      "region": "天津",
+      "categories": ["国有企业"],
+      "name": "天津市国资委",
+      "url": "https://sasac.tj.gov.cn/",
+      "authority": "天津市人民政府国有资产监督管理委员会"
+    },
+    {
+      "id": "xiongan-notices",
+      "region": "雄安新区",
+      "categories": ["事业单位", "教师", "国有企业"],
+      "name": "中国雄安官网通知公告",
+      "url": "https://www.xiongan.gov.cn/tzgg.html",
+      "authority": "河北雄安新区管理委员会"
+    },
+    {
+      "id": "shijiazhuang-hrss",
+      "region": "石家庄指定区县",
+      "categories": ["事业单位", "教师", "医疗卫生"],
+      "name": "石家庄市人社局",
+      "url": "https://rsj.sjz.gov.cn/",
+      "authority": "石家庄市人力资源和社会保障局"
+    },
+    {
+      "id": "shijiazhuang-soe",
+      "region": "石家庄指定区县",
+      "categories": ["国有企业"],
+      "name": "石家庄市国资委",
+      "url": "https://gzw.sjz.gov.cn/",
+      "authority": "石家庄市人民政府国有资产监督管理委员会"
+    },
+    {
+      "id": "jingxing-government",
+      "region": "石家庄市井陉县",
+      "categories": ["事业单位", "教师", "医疗卫生", "国有企业"],
+      "name": "井陉县人民政府",
+      "url": "http://www.sjzjx.gov.cn",
+      "authority": "井陉县人民政府"
+    },
+    {
+      "id": "luquan-government",
+      "region": "石家庄市鹿泉区",
+      "categories": ["事业单位", "教师", "医疗卫生", "国有企业"],
+      "name": "鹿泉区人民政府",
+      "url": "http://www.sjzlq.gov.cn/",
+      "authority": "石家庄市鹿泉区人民政府"
+    },
+    {
+      "id": "mining-district-government",
+      "region": "石家庄市井陉矿区",
+      "categories": ["事业单位", "教师", "医疗卫生", "国有企业"],
+      "name": "井陉矿区人民政府",
+      "url": "http://www.sjzkq.gov.cn/",
+      "authority": "石家庄市井陉矿区人民政府"
+    },
+    {
+      "id": "gaocheng-government",
+      "region": "石家庄市藁城区",
+      "categories": ["事业单位", "教师", "医疗卫生", "国有企业"],
+      "name": "藁城区人民政府",
+      "url": "http://www.gc.gov.cn/",
+      "authority": "石家庄市藁城区人民政府"
+    },
+    {
+      "id": "luancheng-government",
+      "region": "石家庄市栾城区",
+      "categories": ["事业单位", "教师", "医疗卫生", "国有企业"],
+      "name": "栾城区人民政府",
+      "url": "http://www.luancheng.gov.cn/",
+      "authority": "石家庄市栾城区人民政府"
+    },
+    {
+      "id": "zhengding-government",
+      "region": "石家庄市正定县",
+      "categories": ["事业单位", "教师", "医疗卫生", "国有企业"],
+      "name": "正定县人民政府",
+      "url": "http://www.zd.gov.cn/",
+      "authority": "正定县人民政府"
+    }
+  ]
+}
