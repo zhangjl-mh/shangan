@@ -85,12 +85,15 @@ def render_news_markdown(report: dict) -> str:
 
 
 def render_job_markdown(report: dict) -> str:
-    positions = report.get("positions", [])
+    positions = [
+        position for position in report.get("positions", [])
+        if position.get("status") in {"报名中", "即将报名"}
+    ]
     lines = [
         "# 今日岗位扫描报告",
         "",
         f"- 生成时间：{report['generatedAt']}",
-        f"- 符合岗位数量：{len(positions)}",
+        f"- 当前可展示岗位数量：{len(positions)}",
         f"- 扫描渠道数量：{len(report.get('searchedSources', []))}",
         "",
         "## 筛选结论",
@@ -103,7 +106,7 @@ def render_job_markdown(report: dict) -> str:
         "",
     ]
     if positions:
-        lines.extend(["## 符合岗位", ""])
+        lines.extend(["## 当前可报或即将开放岗位", ""])
         for position in positions:
             lines.extend(
                 [
@@ -112,8 +115,7 @@ def render_job_markdown(report: dict) -> str:
                     f"- 地区：{position['region']}{(' / ' + position['district']) if position.get('district') else ''}",
                     f"- 状态：{position['status']}",
                     f"- 招录人数：{position.get('recruitCount', '官方未公开')}",
-                    f"- 学历：{position.get('educationRequirement', '以公告为准')}",
-                    f"- 专业：{position.get('majorRequirement', '以公告为准')}",
+                    f"- 报名截止：{position.get('registrationEndDate', '以官方公告为准')}",
                     f"- 岗位代码：{position.get('positionCode', '官方未公开')}",
                     f"- 原文：[{position['sourceName']}]({position['sourceUrl']})",
                     "",
@@ -146,10 +148,9 @@ def render_job_markdown(report: dict) -> str:
             if position.get("compensationReference"):
                 pay = position["compensationReference"]
                 lines.extend(["", f"- 薪资估算：{pay['text']}（{pay['disclaimer']}）"])
-            if position.get("housingReference"):
-                lines.append(f"- 房子：{position['housingReference']}")
-            if position.get("householdReference"):
-                lines.append(f"- 户口：{position['householdReference']}")
+            lines.append(f"- 福利待遇：{'；'.join(position.get('benefits', [])) or '官方公告未载明。'}")
+            lines.append(f"- 房子：{position.get('housingReference', '官方公告未载明住房安排。')}")
+            lines.append(f"- 户口：{position.get('householdReference', '官方公告未载明落户安排。')}")
             lines.append("")
     lines.extend(["## 已扫描权威渠道", ""])
     for source in report.get("searchedSources", []):
@@ -171,8 +172,13 @@ def main() -> None:
 
     news = read_json(news_path)
     jobs = read_json(jobs_path)
+    jobs["positions"] = [
+        position for position in jobs.get("positions", [])
+        if position.get("status") in {"报名中", "即将报名"}
+    ]
     validate(news, read_json(SCHEMA_DIR / "daily-news.schema.json"))
     validate(jobs, read_json(SCHEMA_DIR / "eligible-jobs.schema.json"))
+    write_json(jobs_path, jobs)
 
     markdown_dir = CONTENT_DIR / "markdown"
     news_markdown = markdown_dir / f"{args.scan_date}-daily-news.md"
@@ -203,7 +209,7 @@ def main() -> None:
     print(
         f"[今日扫描完成] {args.scan_date} | "
         f"时政 {manifest['news']['items']} 条 | "
-        f"符合岗位 {manifest['jobs']['positions']} 个 | "
+        f"当前可展示岗位 {manifest['jobs']['positions']} 个 | "
         f"权威入口 {manifest['jobs']['searchedSources']} 个"
     )
     print(f"[输出] {news_markdown}")

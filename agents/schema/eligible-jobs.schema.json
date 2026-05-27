@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://gongkao-agent.local/schema/eligible-jobs.schema.json",
-  "title": "当前采集到的符合用户画像岗位",
+  "title": "当前仍可报或即将开放且符合用户画像的岗位",
   "type": "object",
   "required": ["generatedAt", "positions"],
   "properties": {
@@ -60,8 +60,8 @@
         "title": { "type": "string" },
         "organization": { "type": "string" },
         "category": {
-          "type": "string",
-          "description": "例如公务员、事业单位、教师、医疗卫生、军队文职、社区工作者、国有企业"
+          "enum": ["公务员", "编制", "国企"],
+          "description": "页面顶层分类只保留公务员、编制和国企"
         },
         "department": { "type": "string" },
         "positionCode": { "type": "string" },
@@ -136,7 +136,7 @@
         "registrationEndDate": { "type": "string", "format": "date" },
         "examDate": { "type": "string", "format": "date" },
         "status": {
-          "enum": ["即将报名", "报名中", "已截止", "已结束"]
+          "enum": ["即将报名", "报名中"]
         },
         "sourceName": { "type": "string" },
         "sourceUrl": { "type": "string", "format": "uri" },

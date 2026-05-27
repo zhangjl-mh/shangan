@@ -1,9 +1,8 @@
-"""Import confirmed National Civil Service reference positions for the profile.
+"""Build the active eligible-position report from official recruitment checks.
 
-This pipeline downloads official recruitment attachments, filters positions
-whose hard conditions can be confirmed from the local profile, and writes the
-result consumed by the front end. Salary ranges are clearly marked estimates
-when the recruiting authority has not published a figure.
+This pipeline downloads official attachments for audit and filtering, but only
+writes positions that are still open or about to open. Expired tables stay in
+the scan record and never become display cards.
 """
 
 from __future__ import annotations
@@ -58,6 +57,22 @@ XIONGAN_POSITIONS_URL = (
 )
 BEIJING_PLANNING_ANNOUNCEMENT_URL = (
     "https://www.beijing.gov.cn/gongkai/rsxx/sydwzp/202605/t20260526_4666099.html"
+)
+BEIJING_DISABLED_ANNOUNCEMENT_URL = (
+    "https://www.beijing.gov.cn/gongkai/rsxx/sydwzp/202605/t20260526_4667242.html"
+)
+BEIJING_VETERAN_ANNOUNCEMENT_URL = (
+    "https://www.beijing.gov.cn/gongkai/rsxx/sydwzp/202605/t20260525_4664125.html"
+)
+BEIJING_CUPES_ANNOUNCEMENT_URL = (
+    "https://www.beijing.gov.cn/gongkai/rsxx/sydwzp/202605/t20260525_4664117.html"
+)
+BEIJING_MIYUN_ANNOUNCEMENT_URL = (
+    "https://www.beijing.gov.cn/gongkai/rsxx/sydwzp/202605/t20260525_4664084.html"
+)
+SJZ_LATEST_SELECTION_URL = (
+    "https://rsj.sjz.gov.cn/columns/cb3d71c6-1f88-4881-99e5-3ca252d801b0/"
+    "202605/14/f64e89fc-bf91-477d-a601-17e45727dfd6.html"
 )
 
 NS = {"a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
@@ -476,7 +491,7 @@ def parse_main_positions(data: bytes, profile: dict, scores: dict[tuple[str, str
 def main() -> None:
     profile = read_json(DATA_DIR / "profile.local.json")
     report = read_json(REPORT_PATH) if REPORT_PATH.exists() else {"positions": []}
-    now = datetime.now().astimezone().isoformat(timespec="seconds")
+    now = datetime.now().astimezone().isoformat(timespec="minutes")
     national_positions = parse_main_positions(
         fetch(MAIN_URL),
         profile,
@@ -508,15 +523,20 @@ def main() -> None:
         if source.get("name") != "\u56fd\u5bb6\u516c\u52a1\u5458\u5c40"
         and not source.get("name", "").startswith("\u56fd\u5bb6\u516c\u52a1\u5458\u5c40\uff1a")
         and not source.get("name", "").startswith("石家庄市人社局")
+        and not source.get("name", "").startswith("石家庄市人事考试中心")
         and not source.get("name", "").startswith("中国雄安官网")
         and not source.get("name", "").startswith("北京市规划")
+        and not source.get("name", "").startswith("北京市人社局：近期定向")
+        and not source.get("name", "").startswith("首都体育学院")
+        and not source.get("name", "").startswith("北京市密云区教育委员会")
+        and not source.get("name", "").startswith("军队人才网")
     ]
     official_sources = [
         {
             "name": "\u56fd\u5bb6\u516c\u52a1\u5458\u5c40\uff1a2026\u5e74\u5ea6\u62db\u8003\u7b80\u7ae0\u4e0e\u9762\u8bd5\u540d\u5355",
             "url": MAIN_URL,
             "checkedAt": now,
-            "result": f"\u5b98\u65b9\u4e3b\u62db\u9644\u4ef6\u4e0e\u9762\u8bd5\u540d\u5355\u5df2\u89e3\u6790\uff1b\u6309\u5f53\u524d\u753b\u50cf\u53ca\u76ee\u6807\u5730\u57df\u53ef\u786e\u8ba4\u7684\u5386\u53f2\u53c2\u8003\u5c97\u4f4d {len(national_positions)} \u4e2a\u3002",
+            "result": f"\u5b98\u65b9\u4e3b\u62db\u9644\u4ef6\u4e0e\u9762\u8bd5\u540d\u5355\u5df2\u4e0b\u8f7d\u5e76\u5168\u91cf\u7b5b\u9009\uff1b\u8be5\u6279\u6b21\u5df2\u8003\u8bd5\u7ed3\u675f\uff0c\u547d\u4e2d\u7684 {len(national_positions)} \u4e2a\u5386\u53f2\u6761\u76ee\u4e0d\u8fdb\u5165\u5c97\u4f4d\u9875\u3002",
         },
         {
             "name": "\u56fd\u5bb6\u516c\u52a1\u5458\u5c40\uff1a2026\u5e74\u5ea6\u8865\u5145\u5f55\u7528\u516c\u544a\u4e0e\u804c\u4f4d\u8868",
@@ -538,13 +558,19 @@ def main() -> None:
             "name": "石家庄市人社局：2026年事业单位统一招聘岗位表",
             "url": SJZ_ANNOUNCEMENT_URL,
             "checkedAt": now,
-            "result": f"已解析指定区县官方岗位附件，确认可作为历史参考的岗位 {len(sjz_positions)} 个。",
+            "result": f"已下载并筛选指定区县官方岗位附件；该批次笔试已结束，命中的 {len(sjz_positions)} 个历史条目不进入岗位页。",
+        },
+        {
+            "name": "石家庄市人事考试中心：2026年公开选聘公告",
+            "url": SJZ_LATEST_SELECTION_URL,
+            "checkedAt": now,
+            "result": "公告发布于2026年5月14日，现场报名为5月18日至22日；截至本次检索已经截止，不纳入可展示岗位。",
         },
         {
             "name": "中国雄安官网：2026年事业单位统一招聘岗位表",
             "url": XIONGAN_ANNOUNCEMENT_URL,
             "checkedAt": now,
-            "result": f"已解析官方岗位附件，确认可作为历史参考的岗位 {len(xiongan_positions)} 个。",
+            "result": f"已下载并筛选官方岗位附件；报名已于2026年2月13日结束且笔试已举行，命中的 {len(xiongan_positions)} 个历史条目不进入岗位页。",
         },
         {
             "name": "北京市规划和自然资源委员会所属事业单位公开招聘",
@@ -552,15 +578,44 @@ def main() -> None:
             "checkedAt": now,
             "result": "公告报名窗口为2026年5月28日至6月4日，包含计算机相关岗位；社会人员岗位载明北京市常住户口要求，未纳入符合岗位列表。",
         },
+        {
+            "name": "北京市人社局：近期定向编制招聘公告",
+            "url": BEIJING_DISABLED_ANNOUNCEMENT_URL,
+            "checkedAt": now,
+            "result": "面向残疾人定向招聘，报名为2026年5月28日至6月3日；公告要求残疾人证和北京市户籍，未纳入可报岗位。",
+        },
+        {
+            "name": "北京市人社局：近期定向编制招聘公告（退役大学生士兵）",
+            "url": BEIJING_VETERAN_ANNOUNCEMENT_URL,
+            "checkedAt": now,
+            "result": "岗位附件已在官方公告提供，报名截至2026年6月1日17时；仅面向符合北京市定向条件的退役大学生士兵，未纳入可报岗位。",
+        },
+        {
+            "name": "首都体育学院2026年公开招聘公告",
+            "url": BEIJING_CUPES_ANNOUNCEMENT_URL,
+            "checkedAt": now,
+            "result": "事业编制岗位报名截至2026年6月8日18时；公告要求社会人员具有北京市常住户口，且应届口径为2025/2026届或符合条件的2024年离校未就业人员，未纳入可报岗位。",
+        },
+        {
+            "name": "北京市密云区教育委员会2026年第二次招聘公告",
+            "url": BEIJING_MIYUN_ANNOUNCEMENT_URL,
+            "checkedAt": now,
+            "result": "编制招聘报名截至2026年6月1日17时；公告要求社会人员具有北京市常住户口，未纳入可报岗位。",
+        },
     ]
-    other_positions = [
-        position
-        for position in report.get("positions", [])
-        if not position.get("id", "").startswith(("scs-2026-", "sjz-sydw-2026-", "xiongan-sydw-2026-"))
-    ]
+    category_map = {"事业单位": "编制", "教师": "编制", "医疗卫生": "编制", "国有企业": "国企"}
+    other_positions = []
+    for position in report.get("positions", []):
+        if position.get("id", "").startswith(("scs-2026-", "sjz-sydw-2026-", "xiongan-sydw-2026-")):
+            continue
+        if position.get("status") not in {"报名中", "即将报名"}:
+            continue
+        normalized = {**position, "category": category_map.get(position.get("category"), position.get("category"))}
+        if normalized.get("category") in {"公务员", "编制", "国企"}:
+            other_positions.append(normalized)
     national_note = (
-        "\u672c\u8f6e\u5df2\u4ece\u56fd\u5bb6\u516c\u52a1\u5458\u5c40\u5b98\u65b9\u62db\u8003\u7b80\u7ae0\u548c\u8fdb\u5165\u9762\u8bd5\u4eba\u5458\u540d\u5355\u4e2d\u8bc6\u522b\u51fa"
-        f"{len(national_positions)}\u4e2a\u4e0e\u5f53\u524d\u753b\u50cf\u53ca\u6307\u5b9a\u5730\u533a\u7b26\u5408\u7684\u5c97\u4f4d\uff0c\u5747\u4e3a2026\u5e74\u5ea6\u5df2\u7ed3\u675f\u7684\u5b98\u65b9\u5386\u53f2\u53c2\u8003\u3002"
+        "\u672c\u8f6e\u5df2\u4e0b\u8f7d\u5e76\u7b5b\u9009\u56fd\u5bb6\u516c\u52a1\u5458\u5c40\u5b98\u65b9\u62db\u8003\u7b80\u7ae0\u548c\u8fdb\u5165\u9762\u8bd5\u4eba\u5458\u540d\u5355\uff1b"
+        f"\u5176\u4e2d\u547d\u4e2d\u753b\u50cf\u4e0e\u5730\u533a\u7684 {len(national_positions)} \u4e2a\u6761\u76ee\u5747\u5df2\u5b8c\u6210\u8003\u8bd5\uff0c\u5df2\u4ece\u5c97\u4f4d\u5c55\u793a\u4e2d\u79fb\u9664\u3002"
         "\u540c\u65f6\u6838\u9a8c\u56fd\u8003\u8865\u5f55\u516c\u544a\uff1a\u8865\u5f55\u62a5\u540d\u5df2\u4e8e2026\u5e745\u670810\u65e5\u7ed3\u675f\uff0c\u4e14\u9700\u6709\u672c\u5e74\u5ea6\u7b14\u8bd5\u6210\u7ee9\uff0c\u4e0d\u5c06\u5176\u6807\u6210\u53ef\u62a5\u3002"
         + (
             "\u56fd\u5bb6\u516c\u52a1\u5458\u5c402027\u5e74\u5ea6\u62db\u5f55\u4e13\u9898\u5165\u53e3\u5df2\u53d1\u5e03\uff0c\u672c\u6b21\u626b\u63cf\u5fc5\u987b\u8f6c\u5411\u65b0\u5e74\u5ea6\u9644\u4ef6\u3002"
@@ -569,29 +624,37 @@ def main() -> None:
         )
     )
     regional_note = (
-        f"已解析石家庄市事业单位官方附件，指定区县命中 {len(sjz_positions)} 个历史参考岗位；"
-        f"已解析雄安新区事业单位官方附件，命中 {len(xiongan_positions)} 个历史参考岗位；"
-        "北京市规划自然资源委当前公告含计算机相关岗位，但载明社会人员北京户籍条件，未纳入岗位列表。"
+        f"石家庄统一招聘官方附件命中 {len(sjz_positions)} 个条目但考试已结束，5月公开选聘也已于5月22日报名截止；"
+        f"雄安统一招聘官方附件命中 {len(xiongan_positions)} 个条目但报名与笔试均已结束；"
+        "北京市近期尚在窗口内的规划自然资源委、残疾人定向、退役大学生士兵定向、首都体育学院与密云教委编制公告，"
+        "分别存在北京市常住户口、定向身份或届别等硬限制，未纳入岗位列表。"
     )
     report.update(
         {
             "generatedAt": now,
+            "sourceScope": [
+                "国家公务员局公务员招录官方入口",
+                "北京市、天津市公务员与编制招聘官方入口",
+                "天津市国资委及石家庄市国资委国企招聘官方入口",
+                "中国雄安官网编制与国企通知公告",
+                "石家庄市人社局及井陉县、鹿泉区、井陉矿区、藁城区、栾城区、正定县政府门户",
+            ],
             "referencePolicy": (
-                "所有已确认符合硬性条件的岗位均保留并显示真实状态；进面分和报录比仅展示可追溯官方数据。"
-                "薪资无官方金额时，可按岗位类别与地区展示明确标为非官方承诺的宽区间推算。"
+                "岗位页仅展示仍在报名期或即将开放、且经画像硬条件筛选确认可报的公务员、编制和国企岗位；已考试或已结束批次只保留检索留痕。"
+                "待遇、房子与户口优先采用公告原文，未载明时明确显示官方未载明；进面分和报录比仅展示可追溯官方数据。"
             ),
             "screeningNote": national_note
             + (f"\u5730\u65b9\u4e0e\u56fd\u4f01\u626b\u63cf\uff1a{regional_note}" if regional_note else ""),
             "searchedSources": official_sources + existing_sources,
             "regionalScanNote": regional_note,
-            "positions": national_positions + sjz_positions + xiongan_positions + other_positions,
+            "positions": other_positions,
         }
     )
     report.pop("profileHash", None)
     write_json(REPORT_PATH, report)
     print(
-        f"[岗位同步完成] 国考 {len(national_positions)} 个 | 石家庄事业单位 {len(sjz_positions)} 个 | "
-        f"雄安事业单位 {len(xiongan_positions)} 个 | "
+        f"[岗位同步完成] 当前可展示 {len(other_positions)} 个 | 已排除历史国考 {len(national_positions)} 个 | "
+        f"已排除历史石家庄编制 {len(sjz_positions)} 个 | 已排除历史雄安编制 {len(xiongan_positions)} 个 | "
         f"\u6765\u6e90 {ARTICLE_URL}"
     )
 

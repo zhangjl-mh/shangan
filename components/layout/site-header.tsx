@@ -47,10 +47,14 @@ export function SiteHeader() {
           })}
         </nav>
         <div className="label-sans ml-auto flex shrink-0 items-center gap-2 text-[#303b37] lg:gap-6">
-          <span className="hidden items-center gap-2.5 border-r border-[#e5ded2] pr-6 lg:flex">
+          <Link
+            href="/job#sources"
+            aria-label="查看文件数据与官方检索记录"
+            className="hidden items-center gap-2.5 border-r border-[#e5ded2] px-2 py-2 pr-6 transition-colors hover:text-deep-green lg:flex"
+          >
             <Folder size={20} strokeWidth={1.8} />
             文件数据
-          </span>
+          </Link>
           <Link
             href="/profile"
             className={cn(

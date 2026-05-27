@@ -22,7 +22,7 @@ DEFAULT_REGIONS = [
     "石家庄市栾城区",
     "石家庄市正定县",
 ]
-DEFAULT_UNIT_TYPES = ["公务员", "事业单位", "国有企业"]
+DEFAULT_UNIT_TYPES = ["公务员", "编制", "国企"]
 DEFAULT_JOB_TYPES = ["信息化", "综合管理", "技术类"]
 
 
