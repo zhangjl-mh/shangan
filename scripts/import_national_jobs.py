@@ -1,8 +1,8 @@
 """Build the active eligible-position report from official recruitment checks.
 
-This pipeline downloads official attachments for audit and filtering, but only
-writes positions that are still open or about to open. Expired tables stay in
-the scan record and never become display cards.
+This pipeline downloads official attachments for audit and filtering, and only
+writes positions whose examination has not yet taken place. Completed exam
+tables stay in the scan record and never become display cards.
 """
 
 from __future__ import annotations
@@ -55,6 +55,19 @@ XIONGAN_POSITIONS_URL = (
     "https://www.xiongan.gov.cn/20260205/135b7cfce4064382b7604b1e6963ff66/"
     "c5c1a0aa746241bfb5ebdb929c6f92f8.xlsx"
 )
+SJZ_SOE_SOCIAL_ANNOUNCEMENT_URL = (
+    "https://gzw.sjz.gov.cn/columns/530903f2-869c-46ff-b967-c08efc94d81f/"
+    "202605/13/13e42b46-cb7f-4011-814f-e350ca409bc5.html"
+)
+SJZ_SOE_SOCIAL_POSITIONS_URL = (
+    "https://gzw.sjz.gov.cn/attachments/1/202605/13/"
+    "%E9%99%84%E4%BB%B61%EF%BC%9A%E7%9F%B3%E5%AE%B6%E5%BA%84%E5%B8%82"
+    "%E5%B8%82%E5%B1%9E%E5%9B%BD%E6%9C%89%E4%BC%81%E4%B8%9A%E5%85%AC"
+    "%E5%BC%80%E6%8B%9B%E8%81%98%E7%AE%A1%E7%90%86%E5%8F%8A%E4%B8%93"
+    "%E4%B8%9A%E6%8A%80%E6%9C%AF%E4%BA%BA%E5%91%98%E5%B2%97%E4%BD%8D"
+    "%E4%BF%A1%E6%81%AF%E8%A1%A820260513171149790.xlsx"
+    "?sid=ca41ab23-efc1-4cb0-a731-4e7d8294e83d"
+)
 BEIJING_PLANNING_ANNOUNCEMENT_URL = (
     "https://www.beijing.gov.cn/gongkai/rsxx/sydwzp/202605/t20260526_4666099.html"
 )
@@ -84,8 +97,10 @@ def fetch(url: str) -> bytes:
         return response.read()
 
 
-def fetch_with_official_snapshot(url: str, snapshot_name: str) -> bytes:
+def fetch_with_official_snapshot(url: str, snapshot_name: str, reuse_existing: bool = False) -> bytes:
     snapshot_path = OFFICIAL_SNAPSHOT_DIR / snapshot_name
+    if reuse_existing and snapshot_path.exists():
+        return snapshot_path.read_bytes()
     try:
         data = fetch(url)
         snapshot_path.parent.mkdir(parents=True, exist_ok=True)
@@ -424,6 +439,102 @@ def parse_xiongan_positions(data: bytes, profile: dict, captured_at: str) -> lis
     return positions
 
 
+def current_recruitment_status(registration_end_at: datetime, exam_date: datetime) -> str | None:
+    now = datetime.now().astimezone()
+    if now <= registration_end_at:
+        return "报名中"
+    if now.date() < exam_date.date():
+        return "待考试"
+    return None
+
+
+def parse_sjz_soe_social_positions(data: bytes, captured_at: str) -> list[dict]:
+    rows = xlsx_rows(data)
+    registration_end_at = datetime.fromisoformat("2026-05-27T17:00:00+08:00")
+    payment_end_at = "2026-05-29T12:00:00+08:00"
+    exam_date = datetime.fromisoformat("2026-06-06T00:00:00+08:00")
+    status = current_recruitment_status(registration_end_at, exam_date)
+    if not status:
+        return []
+
+    confirmed_codes = {"CSCC05", "CSCC06"}
+    positions: list[dict] = []
+    for row in rows:
+        if len(row) < 11 or row[3] not in confirmed_codes:
+            continue
+        organization, department, title, code, _, count, major, education, age, conditions, compensation = row[:11]
+        responsibilities = (
+            f"岗位表要求：{conditions.replace(chr(10), ' ')}"
+        )
+        positions.append(
+            {
+                "id": f"sjz-soe-social-2026-{code.lower()}",
+                "title": title,
+                "organization": department or organization,
+                "department": organization,
+                "positionCode": code,
+                "category": "国企",
+                "recruitmentType": "石家庄市属国企面向社会公开招聘管理及专业技术岗位",
+                "region": "石家庄市（具体工作地点以用人单位确认为准）",
+                "recruitCount": int(float(count)),
+                "responsibilities": responsibilities,
+                "educationRequirement": education,
+                "majorRequirement": major,
+                "matchScore": 88,
+                "matchLevel": "较为适配",
+                "riskLevel": "中",
+                "recommendation": (
+                    "官方岗位表的专业和学历方向与当前画像匹配，且未列明必须工作年限或资格证书。"
+                    "报名窗口临近截止，建议优先完成官方报名，并立即向组织方核实具体工作驻地。"
+                ),
+                "matchReasons": [
+                    "官方岗位表专业范围直接包含计算机科学与技术",
+                    "学历要求为本科及以上",
+                    "属于市属国有企业面向社会的正式招聘岗位",
+                ],
+                "riskReminders": [
+                    "岗位表未细化具体驻地到所关注区县，工作地点需向用人单位确认",
+                    "报名截至2026年5月27日17:00，逾期无法新报名",
+                    "薪酬仅载明执行公司制度，未公开具体金额、住房或落户政策",
+                ],
+                "studyAdvice": [
+                    "笔试含综合能力测试与专业知识测试，管理类（非财）岗位应同步准备逻辑分析、综合知识与信息技术基础",
+                    "围绕大数据平台、网络安全、系统集成与数字化运营准备结构化面试案例",
+                ],
+                "benefits": [
+                    f"官方岗位表薪酬范围列为“{compensation}”",
+                    "公告明确为市属国有企业正式市场化公开招聘",
+                ],
+                "housingReference": "官方公告及岗位表未载明住房、宿舍、人才公寓或租房补贴安排。",
+                "householdReference": "普通公开招聘岗位公告未列明户籍限制，也未承诺落户；户口事项需向用人单位核实。",
+                "compensationReference": {
+                    "text": f"官方岗位表载明：{compensation}。",
+                    "source": "石家庄市国资委官方岗位信息表",
+                    "sourceUrl": SJZ_SOE_SOCIAL_ANNOUNCEMENT_URL,
+                    "disclaimer": "官方未公布具体金额，页面不作薪资数额推算。",
+                },
+                "applicationNotes": [
+                    "公告指定报名网站为石家庄国经人才服务网。",
+                    "资格初审截止时间为2026年5月28日17:00；缴费截止时间为2026年5月29日12:00。",
+                    "岗位开考比例为3:1，未达比例的岗位可能核销或允许转报。",
+                ],
+                "announcementDate": "2026-05-13",
+                "registrationStartDate": "2026-05-13",
+                "registrationEndDate": "2026-05-27",
+                "registrationEndAt": "2026-05-27T17:00:00+08:00",
+                "qualificationReviewEndAt": "2026-05-28T17:00:00+08:00",
+                "paymentEndAt": payment_end_at,
+                "examDate": "2026-06-06",
+                "status": status,
+                "sourceName": "石家庄市国资委：市属国有企业面向社会公开招聘公告及岗位表",
+                "sourceUrl": SJZ_SOE_SOCIAL_ANNOUNCEMENT_URL,
+                "attachmentUrl": SJZ_SOE_SOCIAL_POSITIONS_URL,
+                "capturedAt": captured_at,
+            }
+        )
+    return positions
+
+
 def parse_main_positions(data: bytes, profile: dict, scores: dict[tuple[str, str, str], str]) -> list[dict]:
     positions: list[dict] = []
     with zipfile.ZipFile(io.BytesIO(data)) as archive:
@@ -493,22 +604,30 @@ def main() -> None:
     report = read_json(REPORT_PATH) if REPORT_PATH.exists() else {"positions": []}
     now = datetime.now().astimezone().isoformat(timespec="minutes")
     national_positions = parse_main_positions(
-        fetch(MAIN_URL),
+        fetch_with_official_snapshot(MAIN_URL, "national-civil-service-2026-main.zip", reuse_existing=True),
         profile,
-        interview_scores(fetch(INTERVIEW_URL)),
+        interview_scores(fetch_with_official_snapshot(INTERVIEW_URL, "national-civil-service-2026-interview.xlsx", reuse_existing=True)),
     )
     captured_at = now
     sjz_positions = parse_sjz_positions(
-        fetch_with_official_snapshot(SJZ_POSITIONS_URL, "shijiazhuang-2026-unified-positions.xlsx"),
+        fetch_with_official_snapshot(SJZ_POSITIONS_URL, "shijiazhuang-2026-unified-positions.xlsx", reuse_existing=True),
         profile,
         captured_at,
     )
     xiongan_positions = parse_xiongan_positions(
-        fetch_with_official_snapshot(XIONGAN_POSITIONS_URL, "xiongan-2026-unified-positions.xlsx"),
+        fetch_with_official_snapshot(XIONGAN_POSITIONS_URL, "xiongan-2026-unified-positions.xlsx", reuse_existing=True),
         profile,
         captured_at,
     )
     upcoming_portal_published = page_exists(UPCOMING_PORTAL_URL)
+    sjz_soe_positions = parse_sjz_soe_social_positions(
+        fetch_with_official_snapshot(
+            SJZ_SOE_SOCIAL_POSITIONS_URL,
+            "shijiazhuang-soe-2026-social-positions.xlsx",
+            reuse_existing=True,
+        ),
+        captured_at,
+    )
 
     existing_sources = [
         {
@@ -524,6 +643,7 @@ def main() -> None:
         and not source.get("name", "").startswith("\u56fd\u5bb6\u516c\u52a1\u5458\u5c40\uff1a")
         and not source.get("name", "").startswith("石家庄市人社局")
         and not source.get("name", "").startswith("石家庄市人事考试中心")
+        and not source.get("name", "").startswith("石家庄市国资委：市属国有企业面向社会")
         and not source.get("name", "").startswith("中国雄安官网")
         and not source.get("name", "").startswith("北京市规划")
         and not source.get("name", "").startswith("北京市人社局：近期定向")
@@ -573,6 +693,15 @@ def main() -> None:
             "result": f"已下载并筛选官方岗位附件；报名已于2026年2月13日结束且笔试已举行，命中的 {len(xiongan_positions)} 个历史条目不进入岗位页。",
         },
         {
+            "name": "石家庄市国资委：市属国有企业面向社会公开招聘公告及岗位表",
+            "url": SJZ_SOE_SOCIAL_ANNOUNCEMENT_URL,
+            "checkedAt": now,
+            "result": (
+                f"已下载并全量筛选管理及专业技术岗位附件；计算机方向中当前可展示岗位 {len(sjz_soe_positions)} 个。"
+                "报名截至2026年5月27日17:00，笔试为2026年6月6日；岗位表未细化具体驻地。"
+            ),
+        },
+        {
             "name": "北京市规划和自然资源委员会所属事业单位公开招聘",
             "url": BEIJING_PLANNING_ANNOUNCEMENT_URL,
             "checkedAt": now,
@@ -608,7 +737,7 @@ def main() -> None:
     for position in report.get("positions", []):
         if position.get("id", "").startswith(("scs-2026-", "sjz-sydw-2026-", "xiongan-sydw-2026-")):
             continue
-        if position.get("status") not in {"报名中", "即将报名"}:
+        if position.get("status") not in {"报名中", "即将报名", "待考试"}:
             continue
         normalized = {**position, "category": category_map.get(position.get("category"), position.get("category"))}
         if normalized.get("category") in {"公务员", "编制", "国企"}:
@@ -626,6 +755,8 @@ def main() -> None:
     regional_note = (
         f"石家庄统一招聘官方附件命中 {len(sjz_positions)} 个条目但考试已结束，5月公开选聘也已于5月22日报名截止；"
         f"雄安统一招聘官方附件命中 {len(xiongan_positions)} 个条目但报名与笔试均已结束；"
+        f"石家庄市属国企面向社会招聘已全量筛选，当前保留计算机方向岗位 {len(sjz_soe_positions)} 个，"
+        "报名截至5月27日17:00、笔试为6月6日，具体驻地需向用人单位确认；"
         "北京市近期尚在窗口内的规划自然资源委、残疾人定向、退役大学生士兵定向、首都体育学院与密云教委编制公告，"
         "分别存在北京市常住户口、定向身份或届别等硬限制，未纳入岗位列表。"
     )
@@ -640,20 +771,20 @@ def main() -> None:
                 "石家庄市人社局及井陉县、鹿泉区、井陉矿区、藁城区、栾城区、正定县政府门户",
             ],
             "referencePolicy": (
-                "岗位页仅展示仍在报名期或即将开放、且经画像硬条件筛选确认可报的公务员、编制和国企岗位；已考试或已结束批次只保留检索留痕。"
+                "岗位页展示考试尚未举行、且经画像硬条件筛选可报名或值得立即核验的公务员、编制和国企岗位；已完成考试批次只保留检索留痕。"
                 "待遇、房子与户口优先采用公告原文，未载明时明确显示官方未载明；进面分和报录比仅展示可追溯官方数据。"
             ),
             "screeningNote": national_note
             + (f"\u5730\u65b9\u4e0e\u56fd\u4f01\u626b\u63cf\uff1a{regional_note}" if regional_note else ""),
             "searchedSources": official_sources + existing_sources,
             "regionalScanNote": regional_note,
-            "positions": other_positions,
+            "positions": sjz_soe_positions + other_positions,
         }
     )
     report.pop("profileHash", None)
     write_json(REPORT_PATH, report)
     print(
-        f"[岗位同步完成] 当前可展示 {len(other_positions)} 个 | 已排除历史国考 {len(national_positions)} 个 | "
+        f"[岗位同步完成] 当前可展示 {len(sjz_soe_positions) + len(other_positions)} 个 | 已排除历史国考 {len(national_positions)} 个 | "
         f"已排除历史石家庄编制 {len(sjz_positions)} 个 | 已排除历史雄安编制 {len(xiongan_positions)} 个 | "
         f"\u6765\u6e90 {ARTICLE_URL}"
     )

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://gongkao-agent.local/schema/eligible-jobs.schema.json",
-  "title": "当前仍可报或即将开放且符合用户画像的岗位",
+  "title": "当前尚未考试且符合用户画像或需立即核验的岗位",
   "type": "object",
   "required": ["generatedAt", "positions"],
   "properties": {
@@ -134,9 +134,12 @@
         "announcementDate": { "type": "string", "format": "date" },
         "registrationStartDate": { "type": "string", "format": "date" },
         "registrationEndDate": { "type": "string", "format": "date" },
+        "registrationEndAt": { "type": "string", "format": "date-time" },
+        "qualificationReviewEndAt": { "type": "string", "format": "date-time" },
+        "paymentEndAt": { "type": "string", "format": "date-time" },
         "examDate": { "type": "string", "format": "date" },
         "status": {
-          "enum": ["即将报名", "报名中"]
+          "enum": ["即将报名", "报名中", "待考试"]
         },
         "sourceName": { "type": "string" },
         "sourceUrl": { "type": "string", "format": "uri" },

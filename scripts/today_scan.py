@@ -87,13 +87,13 @@ def render_news_markdown(report: dict) -> str:
 def render_job_markdown(report: dict) -> str:
     positions = [
         position for position in report.get("positions", [])
-        if position.get("status") in {"报名中", "即将报名"}
+        if position.get("status") in {"报名中", "即将报名", "待考试"}
     ]
     lines = [
         "# 今日岗位扫描报告",
         "",
         f"- 生成时间：{report['generatedAt']}",
-        f"- 当前可展示岗位数量：{len(positions)}",
+        f"- 当前尚未考试岗位数量：{len(positions)}",
         f"- 扫描渠道数量：{len(report.get('searchedSources', []))}",
         "",
         "## 筛选结论",
@@ -106,7 +106,7 @@ def render_job_markdown(report: dict) -> str:
         "",
     ]
     if positions:
-        lines.extend(["## 当前可报或即将开放岗位", ""])
+        lines.extend(["## 当前可报或尚待考试岗位", ""])
         for position in positions:
             lines.extend(
                 [
@@ -116,6 +116,7 @@ def render_job_markdown(report: dict) -> str:
                     f"- 状态：{position['status']}",
                     f"- 招录人数：{position.get('recruitCount', '官方未公开')}",
                     f"- 报名截止：{position.get('registrationEndDate', '以官方公告为准')}",
+                    f"- 笔试时间：{position.get('examDate', '以官方公告为准')}",
                     f"- 岗位代码：{position.get('positionCode', '官方未公开')}",
                     f"- 原文：[{position['sourceName']}]({position['sourceUrl']})",
                     "",
@@ -174,7 +175,7 @@ def main() -> None:
     jobs = read_json(jobs_path)
     jobs["positions"] = [
         position for position in jobs.get("positions", [])
-        if position.get("status") in {"报名中", "即将报名"}
+        if position.get("status") in {"报名中", "即将报名", "待考试"}
     ]
     validate(news, read_json(SCHEMA_DIR / "daily-news.schema.json"))
     validate(jobs, read_json(SCHEMA_DIR / "eligible-jobs.schema.json"))
