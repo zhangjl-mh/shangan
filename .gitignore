@@ -9,6 +9,9 @@ data/profile.local.json
 data/job-tracking.local.json
 # Archived work products may contain raw profile prompts or prior snapshots.
 deliverables/
+# Generated local skill discovery links; canonical operator skills live in ~/Skills.
+.agents/skills/
+.claude/skills/
 
 __pycache__/
 *.pyc

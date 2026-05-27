@@ -254,6 +254,20 @@ content/local/markdown/YYYY-MM-DD-job-scan.md
 content/local/scan/YYYY-MM-DD.json
 ```
 
+## 项目 Skills
+
+项目内的数据生产规则现已拆分为可单独调用的业务 Skills，并保留一键组合入口：
+
+| 请求 | Skill |
+| --- | --- |
+| 今日扫描，同时刷新时政和岗位 | `agents/skills/today-scan/SKILL.md` |
+| 每日时政、今日资讯、按日期核验新闻 | `agents/skills/daily-news/SKILL.md` |
+| 岗位检索、岗位判断、下一年度国考监测 | `agents/skills/job-scan/SKILL.md` |
+| 申论/行测内容、题型技巧与学习路线补全 | `agents/skills/study-content/SKILL.md` |
+| 本地画像创建与更新 | `agents/skills/profile-intake/SKILL.md` |
+
+本机开发环境通过 `~/Skills/shangan-workbench` 作为 Codex / Claude Code 的发现入口，并将其链接到当前项目的 `.agents/skills/` 与 `.claude/skills/`。这些链接是本机生成配置，不进入 Git；可部署的业务规则始终保存在上表所列的项目目录中。
+
 ## 部署与文件数据架构
 
 应用可以从本机运行迁移到单实例服务器运行，但继续遵守“同一应用读取 JSON 文件”的边界，不增加数据库，也不让浏览器直接访问模型或外部采集任务。
