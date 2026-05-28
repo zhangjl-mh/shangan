@@ -10,6 +10,8 @@ from __future__ import annotations
 import io
 import json
 import os
+import hashlib
+import subprocess
 import urllib.request
 import zipfile
 from datetime import datetime
@@ -24,6 +26,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(os.getenv("GONGKAO_DATA_DIR", ROOT / "data"))
 CONTENT_DIR = Path(os.getenv("GONGKAO_CONTENT_DIR", ROOT / "content" / "local"))
 REPORT_PATH = CONTENT_DIR / "job" / "eligible-jobs.json"
+CACHE_PATH = CONTENT_DIR / "job" / "source-cache.json"
 OFFICIAL_SNAPSHOT_DIR = ROOT / "content" / "official" / "job" / "source-files"
 
 MAIN_RESOURCE_ID = "8a81f6d19780e4080199e13f881f0153"
@@ -87,22 +90,112 @@ SJZ_LATEST_SELECTION_URL = (
     "https://rsj.sjz.gov.cn/columns/cb3d71c6-1f88-4881-99e5-3ca252d801b0/"
     "202605/14/f64e89fc-bf91-477d-a601-17e45727dfd6.html"
 )
+BEIJING_SYDW_INDEX_URL = "https://www.beijing.gov.cn/gongkai/rsxx/sydwzp/"
+BEIJING_CIVIL_SERVICE_SUPPLEMENT_URL = (
+    "https://www.beijing.gov.cn/gongkai/rsxx/gwyzk/202605/t20260508_4641288.html"
+)
+BEIJING_CIVIL_SERVICE_SUPPLEMENT_POSITIONS_URL = (
+    "https://www.beijing.gov.cn/gongkai/rsxx/gwyzk/202605/P020260508520371424371.xls"
+)
+BEIJING_SCIENCE_ANNOUNCEMENT_URL = (
+    "https://www.beijing.gov.cn/gongkai/rsxx/sydwzp/202605/t20260528_4669860.html"
+)
+BEIJING_SCIENCE_POSITIONS_URL = (
+    "https://www.beijing.gov.cn/gongkai/rsxx/sydwzp/202605/P020260528385393245651.xlsx"
+)
+BEIJING_TECH_UNIVERSITY_ANNOUNCEMENT_URL = (
+    "https://www.beijing.gov.cn/gongkai/rsxx/sydwzp/202605/t20260528_4669843.html"
+)
+BEIJING_TECH_UNIVERSITY_POSITIONS_URL = (
+    "https://www.beijing.gov.cn/gongkai/rsxx/sydwzp/202605/P020260528382210321176.xlsx"
+)
+BEIJING_XICHENG_PARTY_SCHOOL_URL = (
+    "https://www.beijing.gov.cn/gongkai/rsxx/sydwzp/202605/t20260528_4669811.html"
+)
+BEIJING_XICHENG_PARTY_SCHOOL_POSITIONS_URL = (
+    "https://www.beijing.gov.cn/gongkai/rsxx/sydwzp/202605/P020260528376753612974.xlsx"
+)
+BEIJING_FANGSHAN_EDUCATION_URL = (
+    "https://www.beijing.gov.cn/gongkai/rsxx/sydwzp/202605/t20260527_4667854.html"
+)
+BEIJING_FANGSHAN_EDUCATION_POSITIONS_URL = (
+    "https://www.beijing.gov.cn/gongkai/rsxx/sydwzp/202605/P020260527352052154977.xlsx"
+)
+BEIJING_SOE_RECRUITMENT_URL = "https://gzw.beijing.gov.cn/yggq/gqzp/"
+TIANJIN_SYDW_RECENT_URL = (
+    "https://hrss.tj.gov.cn/ztzl/ztzl1/sydwgkzp/202605/t20260525_7304615.html"
+)
+TIANJIN_ZHONGDE_DOCTOR_URL = "https://www.tsguas.edu.cn/info/1063/3197.htm"
+TIANJIN_ZHONGDE_DOCTOR_POSITIONS_URL = (
+    "https://www.tsguas.edu.cn/system/_content/download.jsp?urltype=news.DownloadAttachUrl&"
+    "owner=2014025217&wbfileid=3947267"
+)
+TIANJIN_ZHONGDE_STAFF_URL = "https://www.tsguas.edu.cn/info/1063/3092.htm"
+CENTRAL_SASAC_RECRUITMENT_URL = "https://wap.sasac.gov.cn/n2588035/n2588325/index.html"
+CENTRAL_SASAC_INSTITUTION_URL = (
+    "https://wap.sasac.gov.cn/n2588035/n2588325/n2588350/c35428690/content.html"
+)
+CENTRAL_SASAC_INSTITUTION_POSITIONS_URL = (
+    "https://wap.sasac.gov.cn/n2588035/n2588325/n2588350/c35428690/part/35428702.xls"
+)
+SINOMACH_SOCIAL_URL = (
+    "https://wap.sasac.gov.cn/n2588035/n2588325/n2588350/c35438350/content.html"
+)
+SINOMACH_SOCIAL_POSITIONS_URL = (
+    "https://wap.sasac.gov.cn/n2588035/n2588325/n2588350/c35438350/part/35438363.pdf"
+)
+CASIC_SUPPORT_CENTER_URL = (
+    "https://wap.sasac.gov.cn/n2588035/n2588325/n2588350/c35434499/content.html"
+)
+CASIC_DIGITAL_TECH_URL = (
+    "https://wap.sasac.gov.cn/n2588035/n2588325/c35434737/content.html"
+)
 
 NS = {"a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 
 
 def fetch(url: str) -> bytes:
     request = urllib.request.Request(url, headers={"User-Agent": "shangan/0.1"})
-    with urllib.request.urlopen(request, timeout=30) as response:
-        return response.read()
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            return response.read()
+    except Exception:
+        curl_binary = "curl.exe" if os.name == "nt" else "curl"
+        result = subprocess.run(
+            [
+                curl_binary,
+                "-sS",
+                "-Lk",
+                "--max-time",
+                "45",
+                "-A",
+                "Mozilla/5.0 shangan/0.1",
+                url,
+            ],
+            check=True,
+            capture_output=True,
+        )
+        return result.stdout
+
+
+def assert_download_payload(data: bytes, snapshot_name: str) -> None:
+    suffix = Path(snapshot_name).suffix.lower()
+    if suffix not in {".xls", ".xlsx", ".zip", ".pdf", ".doc", ".docx"}:
+        return
+    prefix = data[:512].lstrip().lower()
+    if prefix.startswith(b"<!doctype html") or prefix.startswith(b"<html"):
+        raise ValueError(f"{snapshot_name} returned an HTML page instead of the official attachment")
 
 
 def fetch_with_official_snapshot(url: str, snapshot_name: str, reuse_existing: bool = False) -> bytes:
     snapshot_path = OFFICIAL_SNAPSHOT_DIR / snapshot_name
     if reuse_existing and snapshot_path.exists():
-        return snapshot_path.read_bytes()
+        data = snapshot_path.read_bytes()
+        assert_download_payload(data, snapshot_name)
+        return data
     try:
         data = fetch(url)
+        assert_download_payload(data, snapshot_name)
         snapshot_path.parent.mkdir(parents=True, exist_ok=True)
         snapshot_path.write_bytes(data)
         return data
@@ -110,6 +203,57 @@ def fetch_with_official_snapshot(url: str, snapshot_name: str, reuse_existing: b
         if snapshot_path.exists():
             return snapshot_path.read_bytes()
         raise
+
+
+def scan_cache_entry(name: str, url: str, checked_at: str, result: str, data: bytes | None) -> dict:
+    entry = {
+        "name": name,
+        "url": url,
+        "checkedAt": checked_at,
+        "result": result,
+        "status": "verified" if data else "recorded",
+    }
+    if data:
+        entry.update(
+            {
+                "bytes": len(data),
+                "sha256": hashlib.sha256(data).hexdigest(),
+            }
+        )
+    return entry
+
+
+def verified_source(
+    name: str,
+    url: str,
+    checked_at: str,
+    result: str,
+    snapshot_name: str | None = None,
+    reuse_existing: bool = True,
+) -> tuple[dict, dict]:
+    try:
+        data = (
+            fetch_with_official_snapshot(url, snapshot_name, reuse_existing=reuse_existing)
+            if snapshot_name
+            else fetch(url)
+        )
+        source_result = result
+        cache = scan_cache_entry(name, url, checked_at, source_result, data)
+    except Exception as error:
+        source_result = f"{result}；本次访问异常：{error}"
+        cache = scan_cache_entry(name, url, checked_at, source_result, None)
+    return {"name": name, "url": url, "checkedAt": checked_at, "result": source_result}, cache
+
+
+def write_source_cache(entries: list[dict], checked_at: str) -> None:
+    write_json(
+        CACHE_PATH,
+        {
+            "updatedAt": checked_at,
+            "description": "岗位扫描的官方入口和附件访问留痕。positions 只展示硬条件确认符合且考试尚未举行的岗位。",
+            "entries": entries,
+        },
+    )
 
 
 def page_exists(url: str) -> bool:
@@ -671,58 +815,256 @@ def parse_main_positions(data: bytes, profile: dict, scores: dict[tuple[str, str
     return positions
 
 
+def scan_broader_official_sources(checked_at: str) -> tuple[list[dict], list[dict], str]:
+    source_specs = [
+        (
+            "首都之窗事业单位招聘频道",
+            BEIJING_SYDW_INDEX_URL,
+            "已读取官方频道页；2026年5月28日最新公告含市科委/中关村管委会、北京科技职业大学、西城党校等，已逐条核验重点附件。",
+            None,
+        ),
+        (
+            "北京市公务员局：2026年度补充录用公务员公告",
+            BEIJING_CIVIL_SERVICE_SUPPLEMENT_URL,
+            "补录报名为2026年5月8日至5月10日，且要求已有北京市2026年度公务员笔试成绩；不属于当前可新报岗位。",
+            None,
+        ),
+        (
+            "北京市公务员局：2026年度补充录用公务员职位表",
+            BEIJING_CIVIL_SERVICE_SUPPLEMENT_POSITIONS_URL,
+            "官方补录职位表已下载留存；因报名窗口结束且需要既有笔试成绩，本轮不写入岗位卡片。",
+            "beijing-civil-service-2026-supplement.xls",
+        ),
+        (
+            "北京市科委、中关村管委会直属事业单位2026年公开招聘",
+            BEIJING_SCIENCE_ANNOUNCEMENT_URL,
+            "公告报名窗口为2026年5月28日至6月4日，附件已核验；计算机相关或数据相关岗位存在硕士研究生及以上、应届/北京户籍等硬条件，未确认符合画像，未纳入岗位列表。",
+            None,
+        ),
+        (
+            "北京市科委、中关村管委会直属事业单位2026年岗位计划",
+            BEIJING_SCIENCE_POSITIONS_URL,
+            "官方岗位计划已下载留存；不将硕士及以上、应届或北京户籍硬限制岗位写入可展示列表。",
+            "beijing-science-zgc-2026-positions.xlsx",
+        ),
+        (
+            "北京科技职业大学2026年公开招聘公告（第二批）",
+            BEIJING_TECH_UNIVERSITY_ANNOUNCEMENT_URL,
+            "公告和岗位附件已核验；本批为博士学位或高层次专业技术岗位，不符合本科画像。",
+            None,
+        ),
+        (
+            "北京科技职业大学2026年公开招聘岗位计划表",
+            BEIJING_TECH_UNIVERSITY_POSITIONS_URL,
+            "官方岗位计划已下载留存；岗位以博士或高层次人才为主，未纳入岗位列表。",
+            "beijing-tech-vocational-2026-positions.xlsx",
+        ),
+        (
+            "中共北京市西城区委党校2026年公开招聘",
+            BEIJING_XICHENG_PARTY_SCHOOL_URL,
+            "公告限定普通高等院校北京生源应届毕业生，并要求硕士研究生及以上；不符合当前画像。",
+            None,
+        ),
+        (
+            "中共北京市西城区委党校2026年岗位需求表",
+            BEIJING_XICHENG_PARTY_SCHOOL_POSITIONS_URL,
+            "官方岗位需求表已下载留存；因北京生源应届和硕士及以上条件排除。",
+            "beijing-xicheng-party-school-2026-positions.xlsx",
+        ),
+        (
+            "北京市房山区教育委员会所属事业单位公开招聘（二）",
+            BEIJING_FANGSHAN_EDUCATION_URL,
+            "公告为教师专业技术岗位，涉及应届、北京户籍、教师资格等条件；当前画像未确认符合教师岗位硬条件。",
+            None,
+        ),
+        (
+            "北京市房山区教育委员会公开招聘岗位及条件（二）",
+            BEIJING_FANGSHAN_EDUCATION_POSITIONS_URL,
+            "官方岗位条件表已下载留存；本轮未确认符合画像的教师编制岗位。",
+            "beijing-fangshan-education-2026-positions.xlsx",
+        ),
+        (
+            "北京市国资委国企招聘频道",
+            BEIJING_SOE_RECRUITMENT_URL,
+            "已读取北京市国资委国企招聘官方频道；最新条目多为2026届校园招聘、高层管理、法律管理或微信图文详情，未发现可下载并逐行核验且确认符合画像的正式岗位表。",
+            None,
+        ),
+        (
+            "天津市人社局：2026年5月25日部分事业单位公开招聘信息",
+            TIANJIN_SYDW_RECENT_URL,
+            "官方汇总页列出天津中德应用技术大学19个岗位；已转入学校公告核验，当前计算机相关岗位属于博士/高级职称教师或已结束批次。",
+            None,
+        ),
+        (
+            "天津中德应用技术大学2026年博士学位或高级专业技术职务招聘",
+            TIANJIN_ZHONGDE_DOCTOR_URL,
+            "公告有效期至2026年12月31日，但岗位要求博士学位或高级专业技术职务；不符合本科画像。",
+            None,
+        ),
+        (
+            "天津中德应用技术大学2026年博士/高级职称岗位计划",
+            TIANJIN_ZHONGDE_DOCTOR_POSITIONS_URL,
+            "附件下载页已访问；公告正文已确认岗位要求博士学位或高级专业技术职务，公告级硬条件已足以排除。",
+            None,
+        ),
+        (
+            "天津中德应用技术大学2026年辅导员、其他专技岗招聘",
+            TIANJIN_ZHONGDE_STAFF_URL,
+            "公告报名时间为2026年3月15日至3月21日，资格复审和面试通知已发布；不属于当前可报岗位。",
+            None,
+        ),
+        (
+            "国务院国资委人事招聘频道",
+            CENTRAL_SASAC_RECRUITMENT_URL,
+            "已读取国务院国资委人事招聘频道；重点核验委属事业单位、国机集团、航天科工相关近期招聘。",
+            None,
+        ),
+        (
+            "国务院国资委委属事业单位2026年度公开招聘",
+            CENTRAL_SASAC_INSTITUTION_URL,
+            "公告面向2026届高校毕业生及择业期内未落实工作单位毕业生；画像为2023届在职人员，不符合招聘对象。",
+            None,
+        ),
+        (
+            "国务院国资委委属事业单位2026年应届岗位表",
+            CENTRAL_SASAC_INSTITUTION_POSITIONS_URL,
+            "官方岗位表已下载留存；因应届/择业期未就业硬条件排除。",
+            "central-sasac-institution-2026-graduate-positions.xls",
+        ),
+        (
+            "国机集团2026年社会招聘公告",
+            SINOMACH_SOCIAL_URL,
+            "官方社招公告和岗位说明已核验；北京、天津相关岗位主要为纪检、审计、法律管理等，需要相关工作经历或管理任职条件，未确认符合画像。",
+            None,
+        ),
+        (
+            "国机集团2026年社会招聘岗位说明",
+            SINOMACH_SOCIAL_POSITIONS_URL,
+            "官方PDF岗位说明已下载留存；北京、天津条目未确认满足相关工作经历、职级或专业背景要求。",
+            "sinomach-2026-social-positions.pdf",
+        ),
+        (
+            "航天科工集团科技保障中心有限公司2026年招聘",
+            CASIC_SUPPORT_CENTER_URL,
+            "社会招聘中信息化管理岗、安全运维岗均要求硕士及以上并有相应年限经验；本科画像不符合。",
+            None,
+        ),
+        (
+            "航天科工集团数字技术有限公司部分岗位公开招聘",
+            CASIC_DIGITAL_TECH_URL,
+            "近期岗位为财务处主管岗，专业与经历要求均不匹配当前计算机画像。",
+            None,
+        ),
+        (
+            "中国雄安官网通知公告首页",
+            "https://www.xiongan.gov.cn/tzgg.html",
+            "已读取通知公告首页；2026年5月28日附近条目为标准征集、土地供应、出租车资格考试、住房公积金政策等，未发现新的公务员、编制或国企可报岗位。",
+            None,
+        ),
+        (
+            "北京组工网",
+            "https://www.bjdj.gov.cn/index.html",
+            "公务员官方发布入口已重新核验；当前可追溯的北京补录已单独记录，需既有2026年笔试成绩。",
+            None,
+        ),
+        (
+            "天津先锋网",
+            "https://www.tjzzb.gov.cn/",
+            "公务员官方发布入口已重新核验；本轮未发现仍可新报名且符合画像的天津公务员职位表。",
+            None,
+        ),
+        (
+            "天津市国资委",
+            "https://sasac.tj.gov.cn/",
+            "天津国资监管入口已重新核验；本轮未发现官方可下载并确认符合画像的正式国企招聘岗位表。",
+            None,
+        ),
+        (
+            "井陉县人民政府",
+            "http://www.sjzjx.gov.cn",
+            "政府门户已重新核验并纳入指定区县公告扫描；本轮未发现新的未考试岗位附件。",
+            None,
+        ),
+        (
+            "鹿泉区人民政府",
+            "http://www.sjzlq.gov.cn/",
+            "政府门户已重新核验并纳入指定区县公告扫描；本轮未发现新的未考试岗位附件。",
+            None,
+        ),
+        (
+            "井陉矿区人民政府",
+            "http://www.sjzkq.gov.cn/",
+            "政府门户已重新核验并纳入指定区县公告扫描；本轮未发现新的未考试岗位附件。",
+            None,
+        ),
+        (
+            "藁城区人民政府",
+            "http://www.gc.gov.cn/",
+            "政府门户已重新核验并纳入指定区县公告扫描；本轮未发现新的未考试岗位附件。",
+            None,
+        ),
+        (
+            "栾城区人民政府",
+            "http://www.luancheng.gov.cn/",
+            "政府门户已重新核验并纳入指定区县公告扫描；本轮未发现新的未考试岗位附件。",
+            None,
+        ),
+        (
+            "正定县人民政府",
+            "http://www.zd.gov.cn/",
+            "政府门户已重新核验并纳入指定区县公告扫描；本轮未发现新的未考试岗位附件。",
+            None,
+        ),
+    ]
+    sources: list[dict] = []
+    cache_entries: list[dict] = []
+    for name, url, result, snapshot_name in source_specs:
+        source, cache = verified_source(name, url, checked_at, result, snapshot_name=snapshot_name)
+        sources.append(source)
+        cache_entries.append(cache)
+    note = (
+        "新增全源扫描已覆盖首都之窗事业单位、北京公务员补录、北京国资委国企招聘、天津人社事业单位、"
+        "天津中德应用技术大学、国务院国资委人事招聘、中央企业社招、雄安通知公告及石家庄指定区县门户。"
+        "北京、天津和中央企业近期可打开公告中，因北京户籍/应届、硕士博士、高级职称、既有笔试成绩、"
+        "教师资格或相关纪检审计管理经历等硬条件，未新增可确认符合画像且仍未考试的岗位。"
+    )
+    return sources, cache_entries, note
+
+
 def main() -> None:
     profile = read_json(DATA_DIR / "profile.local.json")
     report = read_json(REPORT_PATH) if REPORT_PATH.exists() else {"positions": []}
     now = current_time().isoformat(timespec="minutes")
+    main_attachment = fetch_with_official_snapshot(MAIN_URL, "national-civil-service-2026-main.zip", reuse_existing=True)
+    interview_attachment = fetch_with_official_snapshot(INTERVIEW_URL, "national-civil-service-2026-interview.xlsx", reuse_existing=True)
+    sjz_attachment = fetch_with_official_snapshot(SJZ_POSITIONS_URL, "shijiazhuang-2026-unified-positions.xlsx", reuse_existing=True)
+    xiongan_attachment = fetch_with_official_snapshot(XIONGAN_POSITIONS_URL, "xiongan-2026-unified-positions.xlsx", reuse_existing=True)
+    sjz_soe_attachment = fetch_with_official_snapshot(
+        SJZ_SOE_SOCIAL_POSITIONS_URL,
+        "shijiazhuang-soe-2026-social-positions.xlsx",
+        reuse_existing=True,
+    )
     national_positions = parse_main_positions(
-        fetch_with_official_snapshot(MAIN_URL, "national-civil-service-2026-main.zip", reuse_existing=True),
+        main_attachment,
         profile,
-        interview_scores(fetch_with_official_snapshot(INTERVIEW_URL, "national-civil-service-2026-interview.xlsx", reuse_existing=True)),
+        interview_scores(interview_attachment),
     )
     captured_at = now
     sjz_positions = parse_sjz_positions(
-        fetch_with_official_snapshot(SJZ_POSITIONS_URL, "shijiazhuang-2026-unified-positions.xlsx", reuse_existing=True),
+        sjz_attachment,
         profile,
         captured_at,
     )
     xiongan_positions = parse_xiongan_positions(
-        fetch_with_official_snapshot(XIONGAN_POSITIONS_URL, "xiongan-2026-unified-positions.xlsx", reuse_existing=True),
+        xiongan_attachment,
         profile,
         captured_at,
     )
     upcoming_portal_published = page_exists(UPCOMING_PORTAL_URL)
-    sjz_soe_positions = parse_sjz_soe_social_positions(
-        fetch_with_official_snapshot(
-            SJZ_SOE_SOCIAL_POSITIONS_URL,
-            "shijiazhuang-soe-2026-social-positions.xlsx",
-            reuse_existing=True,
-        ),
-        captured_at,
-    )
+    sjz_soe_positions = parse_sjz_soe_social_positions(sjz_soe_attachment, captured_at)
+    broader_sources, broader_cache_entries, broader_note = scan_broader_official_sources(now)
 
-    existing_sources = [
-        {
-            **source,
-            "result": (
-                "公告面向2026届高校毕业生，未纳入本轮可报岗位列表"
-                if "高校毕业生" in source.get("result", "") and "届别条件" in source.get("result", "")
-                else source.get("result", "")
-            ),
-        }
-        for source in report.get("searchedSources", [])
-        if source.get("name") != "\u56fd\u5bb6\u516c\u52a1\u5458\u5c40"
-        and not source.get("name", "").startswith("\u56fd\u5bb6\u516c\u52a1\u5458\u5c40\uff1a")
-        and not source.get("name", "").startswith("石家庄市人社局")
-        and not source.get("name", "").startswith("石家庄市人事考试中心")
-        and not source.get("name", "").startswith("石家庄市国资委：市属国有企业面向社会")
-        and not source.get("name", "").startswith("中国雄安官网")
-        and not source.get("name", "").startswith("北京市规划")
-        and not source.get("name", "").startswith("北京市人社局：近期定向")
-        and not source.get("name", "").startswith("首都体育学院")
-        and not source.get("name", "").startswith("北京市密云区教育委员会")
-        and not source.get("name", "").startswith("军队人才网")
-    ]
+    existing_sources: list[dict] = []
     official_sources = [
         {
             "name": "\u56fd\u5bb6\u516c\u52a1\u5458\u5c40\uff1a2026\u5e74\u5ea6\u62db\u8003\u7b80\u7ae0\u4e0e\u9762\u8bd5\u540d\u5355",
@@ -807,7 +1149,9 @@ def main() -> None:
     category_map = {"事业单位": "编制", "教师": "编制", "医疗卫生": "编制", "国有企业": "国企"}
     other_positions = []
     for position in report.get("positions", []):
-        if position.get("id", "").startswith(("scs-2026-", "sjz-sydw-2026-", "xiongan-sydw-2026-")):
+        if position.get("id", "").startswith(
+            ("scs-2026-", "sjz-sydw-2026-", "xiongan-sydw-2026-", "sjz-soe-social-2026-")
+        ):
             continue
         if position.get("status") not in {"报名中", "即将报名", "待考试"}:
             continue
@@ -831,14 +1175,25 @@ def main() -> None:
         "报名截至5月27日17:00、笔试为6月6日，具体驻地需向用人单位确认；"
         "北京市近期尚在窗口内的规划自然资源委、残疾人定向、退役大学生士兵定向、首都体育学院与密云教委编制公告，"
         "分别存在北京市常住户口、定向身份或届别等硬限制，未纳入岗位列表。"
+        f"{broader_note}"
     )
+    source_cache_entries = [
+        scan_cache_entry("国家公务员局：2026年度招考简章附件", MAIN_URL, now, "官方附件已缓存并用于全量筛选。", main_attachment),
+        scan_cache_entry("国家公务员局：2026年度进入面试人员名单", INTERVIEW_URL, now, "官方附件已缓存并用于进面分参考。", interview_attachment),
+        scan_cache_entry("石家庄市人社局：2026年事业单位岗位表", SJZ_POSITIONS_URL, now, "官方附件已缓存并用于历史批次筛选。", sjz_attachment),
+        scan_cache_entry("中国雄安官网：2026年事业单位岗位表", XIONGAN_POSITIONS_URL, now, "官方附件已缓存并用于历史批次筛选。", xiongan_attachment),
+        scan_cache_entry("石家庄市国资委：市属国企社招岗位表", SJZ_SOE_SOCIAL_POSITIONS_URL, now, "官方附件已缓存并用于当前待考试岗位筛选。", sjz_soe_attachment),
+        *broader_cache_entries,
+    ]
+    write_source_cache(source_cache_entries, now)
     report.update(
         {
             "generatedAt": now,
             "sourceScope": [
                 "国家公务员局公务员招录官方入口",
                 "北京市、天津市公务员与编制招聘官方入口",
-                "天津市国资委及石家庄市国资委国企招聘官方入口",
+                "北京市、天津市、石家庄市国资委国企招聘官方入口",
+                "国务院国资委人事招聘与中央企业招聘官方入口",
                 "中国雄安官网编制与国企通知公告",
                 "石家庄市人社局及井陉县、鹿泉区、井陉矿区、藁城区、栾城区、正定县政府门户",
             ],
@@ -848,7 +1203,7 @@ def main() -> None:
             ),
             "screeningNote": national_note
             + (f"\u5730\u65b9\u4e0e\u56fd\u4f01\u626b\u63cf\uff1a{regional_note}" if regional_note else ""),
-            "searchedSources": official_sources + existing_sources,
+            "searchedSources": official_sources + broader_sources + existing_sources,
             "regionalScanNote": regional_note,
             "positions": sjz_soe_positions + other_positions,
         }

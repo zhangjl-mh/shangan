@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-05-27T09:48:00+08:00",
+  "updatedAt": "2026-05-28T10:30:00+08:00",
   "scope": "覆盖用户指定地区内公务员、编制与官方发布国企正式招聘的权威入口；教师和医疗岗位仅在属于编制招聘且满足条件时纳入编制类别。",
   "sources": [
     {
@@ -35,6 +35,22 @@
       "authority": "中共北京市委组织部"
     },
     {
+      "id": "beijing-civil-service-capital-window",
+      "region": "北京",
+      "categories": ["公务员"],
+      "name": "首都之窗公务员招考",
+      "url": "https://www.beijing.gov.cn/gongkai/rsxx/gwyzk/",
+      "authority": "北京市人民政府"
+    },
+    {
+      "id": "beijing-soe",
+      "region": "北京",
+      "categories": ["国企"],
+      "name": "北京市国资委国企招聘",
+      "url": "https://gzw.beijing.gov.cn/yggq/gqzp/",
+      "authority": "北京市人民政府国有资产监督管理委员会"
+    },
+    {
       "id": "tianjin-government-institutions",
       "region": "天津",
       "categories": ["编制"],
@@ -57,6 +73,14 @@
       "name": "天津市国资委",
       "url": "https://sasac.tj.gov.cn/",
       "authority": "天津市人民政府国有资产监督管理委员会"
+    },
+    {
+      "id": "central-sasac-recruitment",
+      "region": "全国/目标地区",
+      "categories": ["国企", "编制"],
+      "name": "国务院国资委人事招聘",
+      "url": "https://wap.sasac.gov.cn/n2588035/n2588325/index.html",
+      "authority": "国务院国有资产监督管理委员会"
     },
     {
       "id": "xiongan-notices",

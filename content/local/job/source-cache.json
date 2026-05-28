@@ -1,0 +1,348 @@
+{
+  "updatedAt": "2026-05-28T10:30+08:00",
+  "description": "岗位扫描的官方入口和附件访问留痕。positions 只展示硬条件确认符合且考试尚未举行的岗位。",
+  "entries": [
+    {
+      "name": "国家公务员局：2026年度招考简章附件",
+      "url": "http://dl.scs.gov.cn/download/8a81f6d19780e4080199e13f881f0153",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "官方附件已缓存并用于全量筛选。",
+      "status": "verified",
+      "bytes": 1860532,
+      "sha256": "0055e7eb78906e2dcefb8e31963e2fd74baf980aa98893eebb54fd9d7f9176cb"
+    },
+    {
+      "name": "国家公务员局：2026年度进入面试人员名单",
+      "url": "http://dl.scs.gov.cn/download/8a81f6d09bb1deaf019bbfaf036b0011",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "官方附件已缓存并用于进面分参考。",
+      "status": "verified",
+      "bytes": 4825937,
+      "sha256": "6fa1684a40a97c0094b42a0ab43d53742a2e2293a9ff12f37bf3b09af194becd"
+    },
+    {
+      "name": "石家庄市人社局：2026年事业单位岗位表",
+      "url": "https://rsj.sjz.gov.cn/attachments/1/202602/05/1.%E7%9F%B3%E5%AE%B6%E5%BA%84%E5%B8%822026%E5%B9%B4%E4%BA%8B%E4%B8%9A%E5%8D%95%E4%BD%8D%E5%85%AC%E5%BC%80%E6%8B%9B%E8%81%98%EF%BC%88%E7%BB%9F%E4%B8%80%E6%8B%9B%E8%81%98%EF%BC%89%E5%B2%97%E4%BD%8D%E4%BF%A1%E6%81%AF%E8%A1%A820260205085141726.xlsx",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "官方附件已缓存并用于历史批次筛选。",
+      "status": "verified",
+      "bytes": 217503,
+      "sha256": "be26a773d3b1acc1f30534837e63c32d147dc5516a9c20931240a6daed775578"
+    },
+    {
+      "name": "中国雄安官网：2026年事业单位岗位表",
+      "url": "https://www.xiongan.gov.cn/20260205/135b7cfce4064382b7604b1e6963ff66/c5c1a0aa746241bfb5ebdb929c6f92f8.xlsx",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "官方附件已缓存并用于历史批次筛选。",
+      "status": "verified",
+      "bytes": 585482,
+      "sha256": "5051235061d1f529c68c719b918f83d6b8ce561214d422773d364fa11188be46"
+    },
+    {
+      "name": "石家庄市国资委：市属国企社招岗位表",
+      "url": "https://gzw.sjz.gov.cn/attachments/1/202605/13/%E9%99%84%E4%BB%B61%EF%BC%9A%E7%9F%B3%E5%AE%B6%E5%BA%84%E5%B8%82%E5%B8%82%E5%B1%9E%E5%9B%BD%E6%9C%89%E4%BC%81%E4%B8%9A%E5%85%AC%E5%BC%80%E6%8B%9B%E8%81%98%E7%AE%A1%E7%90%86%E5%8F%8A%E4%B8%93%E4%B8%9A%E6%8A%80%E6%9C%AF%E4%BA%BA%E5%91%98%E5%B2%97%E4%BD%8D%E4%BF%A1%E6%81%AF%E8%A1%A820260513171149790.xlsx?sid=ca41ab23-efc1-4cb0-a731-4e7d8294e83d",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "官方附件已缓存并用于当前待考试岗位筛选。",
+      "status": "verified",
+      "bytes": 69869,
+      "sha256": "bcc5f58ab75fd2b9a3d024982f412bbe5b6362b02f01c6825412377690225bb6"
+    },
+    {
+      "name": "首都之窗事业单位招聘频道",
+      "url": "https://www.beijing.gov.cn/gongkai/rsxx/sydwzp/",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "已读取官方频道页；2026年5月28日最新公告含市科委/中关村管委会、北京科技职业大学、西城党校等，已逐条核验重点附件。",
+      "status": "verified",
+      "bytes": 26084,
+      "sha256": "cc63784ec820f4f45c4082d6f6c989a5d6bd1641804a50c28fe1f934591a6167"
+    },
+    {
+      "name": "北京市公务员局：2026年度补充录用公务员公告",
+      "url": "https://www.beijing.gov.cn/gongkai/rsxx/gwyzk/202605/t20260508_4641288.html",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "补录报名为2026年5月8日至5月10日，且要求已有北京市2026年度公务员笔试成绩；不属于当前可新报岗位。",
+      "status": "verified",
+      "bytes": 33138,
+      "sha256": "42f8888c0bba2155e5c503e2c840d4c8bb5794745bc22bba5582f7aafee45086"
+    },
+    {
+      "name": "北京市公务员局：2026年度补充录用公务员职位表",
+      "url": "https://www.beijing.gov.cn/gongkai/rsxx/gwyzk/202605/P020260508520371424371.xls",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "官方补录职位表已下载留存；因报名窗口结束且需要既有笔试成绩，本轮不写入岗位卡片。",
+      "status": "verified",
+      "bytes": 386048,
+      "sha256": "78f06ed59c24701e3cf9c97bf520b4db0a54c78ce7eb69575abd3b9b3569ec2d"
+    },
+    {
+      "name": "北京市科委、中关村管委会直属事业单位2026年公开招聘",
+      "url": "https://www.beijing.gov.cn/gongkai/rsxx/sydwzp/202605/t20260528_4669860.html",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "公告报名窗口为2026年5月28日至6月4日，附件已核验；计算机相关或数据相关岗位存在硕士研究生及以上、应届/北京户籍等硬条件，未确认符合画像，未纳入岗位列表。",
+      "status": "verified",
+      "bytes": 38315,
+      "sha256": "035326f51edeea542c904d673651ebaf738c7f65265affb0a9b79843e9b90bd9"
+    },
+    {
+      "name": "北京市科委、中关村管委会直属事业单位2026年岗位计划",
+      "url": "https://www.beijing.gov.cn/gongkai/rsxx/sydwzp/202605/P020260528385393245651.xlsx",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "官方岗位计划已下载留存；不将硕士及以上、应届或北京户籍硬限制岗位写入可展示列表。",
+      "status": "verified",
+      "bytes": 6222,
+      "sha256": "9761afa17766a4fddd29ce186dc2c9a91dda84b693eae7d0cf05f1adb40412a8"
+    },
+    {
+      "name": "北京科技职业大学2026年公开招聘公告（第二批）",
+      "url": "https://www.beijing.gov.cn/gongkai/rsxx/sydwzp/202605/t20260528_4669843.html",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "公告和岗位附件已核验；本批为博士学位或高层次专业技术岗位，不符合本科画像。",
+      "status": "verified",
+      "bytes": 43014,
+      "sha256": "de7fd54f6f7da512599176226fc717cd41f4b39fe5667ea5a4d8e60834d7f9dd"
+    },
+    {
+      "name": "北京科技职业大学2026年公开招聘岗位计划表",
+      "url": "https://www.beijing.gov.cn/gongkai/rsxx/sydwzp/202605/P020260528382210321176.xlsx",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "官方岗位计划已下载留存；岗位以博士或高层次人才为主，未纳入岗位列表。",
+      "status": "verified",
+      "bytes": 16302,
+      "sha256": "e348a24397fd0edc220c656e23c089944079a12c25ac6a814a3f406a19f9fb22"
+    },
+    {
+      "name": "中共北京市西城区委党校2026年公开招聘",
+      "url": "https://www.beijing.gov.cn/gongkai/rsxx/sydwzp/202605/t20260528_4669811.html",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "公告限定普通高等院校北京生源应届毕业生，并要求硕士研究生及以上；不符合当前画像。",
+      "status": "verified",
+      "bytes": 38686,
+      "sha256": "0bbc6d696ea7578ef8a673dff2e7d1d79c4ebdc5b75acc2a2d2986cb51978fa5"
+    },
+    {
+      "name": "中共北京市西城区委党校2026年岗位需求表",
+      "url": "https://www.beijing.gov.cn/gongkai/rsxx/sydwzp/202605/P020260528376753612974.xlsx",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "官方岗位需求表已下载留存；因北京生源应届和硕士及以上条件排除。",
+      "status": "verified",
+      "bytes": 14751,
+      "sha256": "64e281d7156c970e439eb6a0f4e3c41f33584ef145e61c7631a3d86ae185bdc7"
+    },
+    {
+      "name": "北京市房山区教育委员会所属事业单位公开招聘（二）",
+      "url": "https://www.beijing.gov.cn/gongkai/rsxx/sydwzp/202605/t20260527_4667854.html",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "公告为教师专业技术岗位，涉及应届、北京户籍、教师资格等条件；当前画像未确认符合教师岗位硬条件。",
+      "status": "verified",
+      "bytes": 39876,
+      "sha256": "c5d40c5f510ed8b0b6eb04764bdc08a232a4cd410ecbfdb5b43cab2b9280784b"
+    },
+    {
+      "name": "北京市房山区教育委员会公开招聘岗位及条件（二）",
+      "url": "https://www.beijing.gov.cn/gongkai/rsxx/sydwzp/202605/P020260527352052154977.xlsx",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "官方岗位条件表已下载留存；本轮未确认符合画像的教师编制岗位。",
+      "status": "verified",
+      "bytes": 30151,
+      "sha256": "092de0affcdc8b0f6242521a5edfbdf2bfd7dc1e9399064c6729b0466e49e126"
+    },
+    {
+      "name": "北京市国资委国企招聘频道",
+      "url": "https://gzw.beijing.gov.cn/yggq/gqzp/",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "已读取北京市国资委国企招聘官方频道；最新条目多为2026届校园招聘、高层管理、法律管理或微信图文详情，未发现可下载并逐行核验且确认符合画像的正式岗位表。",
+      "status": "verified",
+      "bytes": 29425,
+      "sha256": "0d32d13c119302b66a7483c0f4c64ce57d867222ba3a155a949227a265f08e66"
+    },
+    {
+      "name": "天津市人社局：2026年5月25日部分事业单位公开招聘信息",
+      "url": "https://hrss.tj.gov.cn/ztzl/ztzl1/sydwgkzp/202605/t20260525_7304615.html",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "官方汇总页列出天津中德应用技术大学19个岗位；已转入学校公告核验，当前计算机相关岗位属于博士/高级职称教师或已结束批次。",
+      "status": "verified",
+      "bytes": 58530,
+      "sha256": "dd89c5e70082433985cc28cf941cbdca0e63d7f4210d8ab2ef11713369370ff3"
+    },
+    {
+      "name": "天津中德应用技术大学2026年博士学位或高级专业技术职务招聘",
+      "url": "https://www.tsguas.edu.cn/info/1063/3197.htm",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "公告有效期至2026年12月31日，但岗位要求博士学位或高级专业技术职务；不符合本科画像。",
+      "status": "verified",
+      "bytes": 67420,
+      "sha256": "cdf8ff088a0e9f93e5a7f86577da711de9da894c987f130d13ac9c673bfd0e9a"
+    },
+    {
+      "name": "天津中德应用技术大学2026年博士/高级职称岗位计划",
+      "url": "https://www.tsguas.edu.cn/system/_content/download.jsp?urltype=news.DownloadAttachUrl&owner=2014025217&wbfileid=3947267",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "附件下载页已访问；公告正文已确认岗位要求博士学位或高级专业技术职务，公告级硬条件已足以排除。",
+      "status": "verified",
+      "bytes": 3804,
+      "sha256": "65d50540eaa72870ed960de046f89f797496f7238a262e76f46680aa8cde5ff6"
+    },
+    {
+      "name": "天津中德应用技术大学2026年辅导员、其他专技岗招聘",
+      "url": "https://www.tsguas.edu.cn/info/1063/3092.htm",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "公告报名时间为2026年3月15日至3月21日，资格复审和面试通知已发布；不属于当前可报岗位。",
+      "status": "verified",
+      "bytes": 76341,
+      "sha256": "0e6504f612e2d65bbe75689a41085d7da537fae1580c3f7d5dc56a79145da7df"
+    },
+    {
+      "name": "国务院国资委人事招聘频道",
+      "url": "https://wap.sasac.gov.cn/n2588035/n2588325/index.html",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "已读取国务院国资委人事招聘频道；重点核验委属事业单位、国机集团、航天科工相关近期招聘。",
+      "status": "verified",
+      "bytes": 12227,
+      "sha256": "c4f83d2d6db9cc343f3a69e5fdc9e52b99395e04f5f7e2c5f4b96eabd43c0f5e"
+    },
+    {
+      "name": "国务院国资委委属事业单位2026年度公开招聘",
+      "url": "https://wap.sasac.gov.cn/n2588035/n2588325/n2588350/c35428690/content.html",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "公告面向2026届高校毕业生及择业期内未落实工作单位毕业生；画像为2023届在职人员，不符合招聘对象。",
+      "status": "verified",
+      "bytes": 29335,
+      "sha256": "be5479175bd675085c2e6e1965b58d6c983b62118a4d1b1faea2e7fda2bcf604"
+    },
+    {
+      "name": "国务院国资委委属事业单位2026年应届岗位表",
+      "url": "https://wap.sasac.gov.cn/n2588035/n2588325/n2588350/c35428690/part/35428702.xls",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "官方岗位表已下载留存；因应届/择业期未就业硬条件排除。",
+      "status": "verified",
+      "bytes": 40960,
+      "sha256": "d201ae2347c597935ecb001cdff2943b3a0fe789bcc437680b44389d4d232e54"
+    },
+    {
+      "name": "国机集团2026年社会招聘公告",
+      "url": "https://wap.sasac.gov.cn/n2588035/n2588325/n2588350/c35438350/content.html",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "官方社招公告和岗位说明已核验；北京、天津相关岗位主要为纪检、审计、法律管理等，需要相关工作经历或管理任职条件，未确认符合画像。",
+      "status": "verified",
+      "bytes": 13789,
+      "sha256": "a31ff7192e6366ad135d916727b0b0e767b6cef1c18b83096b521442e46de7cb"
+    },
+    {
+      "name": "国机集团2026年社会招聘岗位说明",
+      "url": "https://wap.sasac.gov.cn/n2588035/n2588325/n2588350/c35438350/part/35438363.pdf",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "官方PDF岗位说明已下载留存；北京、天津条目未确认满足相关工作经历、职级或专业背景要求。",
+      "status": "verified",
+      "bytes": 190284,
+      "sha256": "af58f4f58a3d8f064738167b7d06d12c566dfd7cd36de06a0c102bda087db971"
+    },
+    {
+      "name": "航天科工集团科技保障中心有限公司2026年招聘",
+      "url": "https://wap.sasac.gov.cn/n2588035/n2588325/n2588350/c35434499/content.html",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "社会招聘中信息化管理岗、安全运维岗均要求硕士及以上并有相应年限经验；本科画像不符合。",
+      "status": "verified",
+      "bytes": 29438,
+      "sha256": "c26c478aed850a7307dd2c312da87b4b8df72ec78ad8a9373097191bc6e72cf2"
+    },
+    {
+      "name": "航天科工集团数字技术有限公司部分岗位公开招聘",
+      "url": "https://wap.sasac.gov.cn/n2588035/n2588325/c35434737/content.html",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "近期岗位为财务处主管岗，专业与经历要求均不匹配当前计算机画像。",
+      "status": "verified",
+      "bytes": 21077,
+      "sha256": "728f031e0c5bcdaf8aad16b34de36618064b1f848725b6a3da8645182b953f0c"
+    },
+    {
+      "name": "中国雄安官网通知公告首页",
+      "url": "https://www.xiongan.gov.cn/tzgg.html",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "已读取通知公告首页；2026年5月28日附近条目为标准征集、土地供应、出租车资格考试、住房公积金政策等，未发现新的公务员、编制或国企可报岗位。",
+      "status": "verified",
+      "bytes": 8313,
+      "sha256": "e40f3dfd4ec4043df7b32ddcec6fcab1e69f1e832a62dd509023a3d415c801fe"
+    },
+    {
+      "name": "北京组工网",
+      "url": "https://www.bjdj.gov.cn/index.html",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "公务员官方发布入口已重新核验；当前可追溯的北京补录已单独记录，需既有2026年笔试成绩。",
+      "status": "verified",
+      "bytes": 192395,
+      "sha256": "db1f4d7f1e64be2823ff17f2a4e891133765980cb228d8e302da907f6918a901"
+    },
+    {
+      "name": "天津先锋网",
+      "url": "https://www.tjzzb.gov.cn/",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "公务员官方发布入口已重新核验；本轮未发现仍可新报名且符合画像的天津公务员职位表。",
+      "status": "verified",
+      "bytes": 4302,
+      "sha256": "4b3f28415b5e9dede87ccecd1a5ed48b335cf6fe96543278c4376436fbc08b89"
+    },
+    {
+      "name": "天津市国资委",
+      "url": "https://sasac.tj.gov.cn/",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "天津国资监管入口已重新核验；本轮未发现官方可下载并确认符合画像的正式国企招聘岗位表。",
+      "status": "verified",
+      "bytes": 318447,
+      "sha256": "c61ba7fa2b95d6b6443d3602fa1b3ead39a4c8630f50475806af9eebf3fdc82b"
+    },
+    {
+      "name": "井陉县人民政府",
+      "url": "http://www.sjzjx.gov.cn",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "政府门户已重新核验并纳入指定区县公告扫描；本轮未发现新的未考试岗位附件。",
+      "status": "verified",
+      "bytes": 93583,
+      "sha256": "87aedda20699119e9190d27080903803875333af493f8e516253d96e1a586927"
+    },
+    {
+      "name": "鹿泉区人民政府",
+      "url": "http://www.sjzlq.gov.cn/",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "政府门户已重新核验并纳入指定区县公告扫描；本轮未发现新的未考试岗位附件。",
+      "status": "verified",
+      "bytes": 104692,
+      "sha256": "8754735145d3420185d7374405e67ec5194589186d56fd5025efb2cce263380a"
+    },
+    {
+      "name": "井陉矿区人民政府",
+      "url": "http://www.sjzkq.gov.cn/",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "政府门户已重新核验并纳入指定区县公告扫描；本轮未发现新的未考试岗位附件。",
+      "status": "verified",
+      "bytes": 96033,
+      "sha256": "9e51e367aff2d9dcc04e17c5b88d15f7384f94b20241d0e9a59b832ff29a600e"
+    },
+    {
+      "name": "藁城区人民政府",
+      "url": "http://www.gc.gov.cn/",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "政府门户已重新核验并纳入指定区县公告扫描；本轮未发现新的未考试岗位附件。",
+      "status": "verified",
+      "bytes": 174697,
+      "sha256": "beeb47a334f28d5cc3a0c535a9b37e5743196cd2f6fff32dc3ded7345aa02aaa"
+    },
+    {
+      "name": "栾城区人民政府",
+      "url": "http://www.luancheng.gov.cn/",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "政府门户已重新核验并纳入指定区县公告扫描；本轮未发现新的未考试岗位附件。",
+      "status": "verified",
+      "bytes": 104252,
+      "sha256": "cecf759998b4ec3fb2cdd6c3d074401ed6b01740241b6d7d7352986853bba51e"
+    },
+    {
+      "name": "正定县人民政府",
+      "url": "http://www.zd.gov.cn/",
+      "checkedAt": "2026-05-28T10:30+08:00",
+      "result": "政府门户已重新核验并纳入指定区县公告扫描；本轮未发现新的未考试岗位附件。",
+      "status": "verified",
+      "bytes": 75578,
+      "sha256": "18af1f99310bfb95e2040510ae344af5dbcd87a69f6daf9bde79f65fbb72712a"
+    }
+  ]
+}

@@ -1,15 +1,20 @@
 {
   "scanDate": "2026-05-28",
-  "finalizedAt": "2026-05-28T09:54:49+08:00",
-  "mode": "jobs-only",
-  "news": null,
+  "finalizedAt": "2026-05-28T11:39:50+08:00",
+  "mode": "news-and-jobs",
+  "news": {
+    "file": "D:\\Code\\shangan\\content\\local\\news\\2026-05-28.json",
+    "items": 5,
+    "verifiedAt": "2026-05-28 10:30 +08:00"
+  },
   "jobs": {
     "file": "D:\\Code\\shangan\\content\\local\\job\\eligible-jobs.json",
     "positions": 4,
-    "searchedSources": 24,
-    "registeredOfficialSources": 16
+    "searchedSources": 45,
+    "registeredOfficialSources": 19
   },
   "outputs": [
+    "D:\\Code\\shangan\\content\\local\\markdown\\2026-05-28-daily-news.md",
     "D:\\Code\\shangan\\content\\local\\markdown\\2026-05-28-job-scan.md"
   ]
 }
