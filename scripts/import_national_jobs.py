@@ -14,7 +14,7 @@ import hashlib
 import subprocess
 import urllib.request
 import zipfile
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.error import HTTPError
 from xml.etree import ElementTree as ET
@@ -150,10 +150,18 @@ CASIC_SUPPORT_CENTER_URL = (
 CASIC_DIGITAL_TECH_URL = (
     "https://wap.sasac.gov.cn/n2588035/n2588325/c35434737/content.html"
 )
+COSCO_STRATEGIC_SASAC_URL = (
+    "https://wap.sasac.gov.cn/n2588035/n2588325/n2588350/c35432576/content.html"
+)
+COSCO_STRATEGIC_PROJECT_URL = "https://coscoshipping.iguopin.com/zxjob"
+COSCO_STRATEGIC_API_URL = "https://gp-api.iguopin.com/api/jobs/v1/project-job"
+COSCO_STRATEGIC_PROJECT_ID = "200363782956909052"
+COSCO_JOB_DETAIL_URL = "https://coscoshipping.iguopin.com/job/detail?id="
 
 NS = {"a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 CATEGORY_ORDER = ["国考", "省考", "编制", "国企"]
 REGION_ORDER = ["北京", "雄安", "天津", "石家庄", "其他"]
+CHINA_TZ = timezone(timedelta(hours=8))
 
 
 def fetch(url: str) -> bytes:
@@ -178,6 +186,22 @@ def fetch(url: str) -> bytes:
             capture_output=True,
         )
         return result.stdout
+
+
+def post_json(url: str, payload: dict, headers: dict[str, str] | None = None) -> dict:
+    request_headers = {
+        "User-Agent": "Mozilla/5.0 shangan/0.1",
+        "Content-Type": "application/json",
+        **(headers or {}),
+    }
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers=request_headers,
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        return json.loads(response.read().decode("utf-8"))
 
 
 def assert_download_payload(data: bytes, snapshot_name: str) -> None:
@@ -817,6 +841,183 @@ def parse_sjz_soe_social_positions(data: bytes, captured_at: str) -> list[dict]:
     return positions
 
 
+def parse_china_datetime(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace(" ", "T")).replace(tzinfo=CHINA_TZ)
+
+
+def cosco_registration_status(job: dict) -> str | None:
+    now = current_time()
+    start_time = parse_china_datetime(job["start_time"])
+    end_time = parse_china_datetime(job["end_time"])
+    if now < start_time:
+        return "即将报名"
+    if now <= end_time:
+        return "报名中"
+    return None
+
+
+def cosco_major_matches(job: dict) -> bool:
+    major_text = "、".join(job.get("major_cn") or [])
+    if any(keyword in major_text for keyword in ["计算机类", "计算机科学与技术类", "软件工程类"]):
+        return True
+    contents = job.get("contents", "")
+    return any(
+        keyword in contents
+        for keyword in [
+            "计算机科学",
+            "软件工程",
+            "网络安全",
+            "数据库",
+            "前端",
+            "大数据",
+            "人工智能",
+        ]
+    ) and not any(
+        excluded in contents
+        for excluded in ["轮机管理", "船舶及海洋工程", "汽车或电子设备或电气装备"]
+    )
+
+
+def cosco_compensation_reference() -> dict:
+    return {
+        "text": (
+            "国资委转发的中远海运专项招聘海报载明提供具有市场竞争力的薪酬福利，"
+            "包含六险二金、健康体检、带薪假期、商业保险、文体活动、人才公寓、员工餐厅、健身房、医务室等；"
+            "具体岗位薪酬、住房和属地人才支持以录用单位最终确认为准。"
+        ),
+        "source": "国务院国资委人事招聘频道：中远海运集团专项招聘海报",
+        "sourceUrl": COSCO_STRATEGIC_SASAC_URL,
+        "disclaimer": "海报为集团层面福利说明，非单个岗位的确定薪资、住房或落户承诺。",
+    }
+
+
+def cosco_match_note(job: dict) -> dict:
+    title = job.get("job_name", "")
+    experience = job.get("experience_cn", "以官方岗位为准")
+    score = 88
+    level = "较为适配"
+    risk = "中"
+    if "网络安全" in title:
+        score = 92
+        level = "高度适配"
+    elif "前端" in title or "数据库" in title:
+        score = 90
+        level = "高度适配"
+    elif "AI" in title or "大模型" in title or "算法" in title:
+        score = 87
+    elif "副总监" in title:
+        score = 80
+        risk = "高"
+    return {
+        "matchScore": score,
+        "matchLevel": level,
+        "riskLevel": risk,
+        "recommendation": (
+            f"岗位专业口径覆盖计算机方向，学历门槛为本科，当前仍在投递期；"
+            f"但工作地点在上海且经验要求为{experience}，需要用在职国企信息化、系统建设或安全运维经历支撑。"
+        ),
+        "riskReminders": [
+            "工作地点不在当前重点城市，但画像设置接受其他城市，需先确认本人是否愿意异地工作。",
+            f"官方岗位经验要求为{experience}，报名前要核对社保、劳动合同、项目材料能否支撑。",
+            "中远海运专项招聘为央企社招，岗位竞争可能更偏项目经历、技术深度和行业场景理解。",
+            "岗位详情未逐岗公开确定薪资、住房或落户承诺，相关事项以用人单位录用沟通为准。",
+        ],
+        "studyAdvice": [
+            "准备一版国企信息化项目简历，突出系统上线、故障排查、数据治理、安全合规或跨部门推进。",
+            "技术岗按岗位方向补一组可讲清楚的项目：需求背景、技术方案、上线效果、风险控制。",
+            "面试重点准备航运物流数字化、央企合规、安全生产和数据安全的结合点。",
+        ],
+    }
+
+
+def parse_cosco_strategic_positions(captured_at: str) -> tuple[list[dict], int, bytes]:
+    payload = {
+        "page": 1,
+        "page_size": 100,
+        "source": "s_job_list",
+        "project_id": [COSCO_STRATEGIC_PROJECT_ID],
+    }
+    response = post_json(
+        COSCO_STRATEGIC_API_URL,
+        payload,
+        headers={
+            "Origin": "https://coscoshipping.iguopin.com",
+            "Referer": COSCO_STRATEGIC_PROJECT_URL,
+        },
+    )
+    data = response.get("data", {})
+    jobs = data.get("list", [])
+    positions: list[dict] = []
+    for job in jobs:
+        status = cosco_registration_status(job)
+        if not status:
+            continue
+        if job.get("education_cn") != "本科":
+            continue
+        if job.get("experience_cn") not in {"经验不限", "1-3年", "3-5年"}:
+            continue
+        if not cosco_major_matches(job):
+            continue
+        job_id = str(job["job_id"])
+        area = "、".join(item.get("area_cn", "") for item in job.get("district_list", []) if item.get("area_cn"))
+        major = "、".join(job.get("major_cn") or []) or "详见职位描述"
+        start_date = parse_china_datetime(job["start_time"]).date().isoformat()
+        end_at = parse_china_datetime(job["end_time"]).isoformat(timespec="seconds")
+        note = cosco_match_note(job)
+        contents = job.get("contents", "").replace("\r", "").strip()
+        positions.append(
+            {
+                "id": f"cosco-strategic-2026-{job_id}",
+                "title": job["job_name"].replace(" （", "（").replace(" ）", "）"),
+                "organization": job.get("company_name", "中国远洋海运集团"),
+                "department": job.get("department_cn") or job.get("company_name", "中国远洋海运集团"),
+                "positionCode": job_id,
+                "category": "国企",
+                "recruitmentClass": "国企",
+                "recruitmentType": "中国远洋海运集团2026年度战略性新兴产业紧缺急需人才专项招聘",
+                "region": area or "以官方岗位页为准",
+                "regionGroup": normalize_region_group(area),
+                "recruitCount": int(job.get("amount") or 1),
+                "responsibilities": contents[:900] + ("……" if len(contents) > 900 else ""),
+                "educationRequirement": "本科及以上",
+                "majorRequirement": major,
+                "freshGraduateRequirement": "社会招聘；官方岗位未限定应届。",
+                "matchReasons": [
+                    "官方招聘平台岗位处于投递期，属于下一个可新报周期。",
+                    "学历门槛为本科，专业要求覆盖计算机类、计算机科学与技术类或岗位职责明确为计算机技术方向。",
+                    "画像为计算机相关本科且接受其他城市，因此可纳入央企社招候选池。",
+                ],
+                "riskReminders": note["riskReminders"],
+                "studyAdvice": note["studyAdvice"],
+                "benefits": [
+                    "国资委转发招聘海报列明六险二金、健康体检、带薪假期、商业保险等集团福利口径。",
+                    "海报列明人才公寓、员工餐厅、健身房、医务室等配套，但具体适用范围需以用人单位确认为准。",
+                ],
+                "housingReference": "国资委转发招聘海报提到人才公寓及属地人才住房支持，是否适用该岗位需以录用单位确认为准。",
+                "householdReference": "海报称根据当地政策和企业规定为人才落户等提供相应支持，未构成单个岗位落户承诺。",
+                "officialOnlyNotice": "岗位来自中远海运官方招聘平台，福利来自国务院国资委转发招聘海报；匹配结论为画像筛选判断。",
+                "applicationNotes": [
+                    "投递入口为中远海运官方招聘平台/国聘平台专项招聘页面。",
+                    "招聘流程以资格审查、笔试、面试、体检、背景调查和录用通知为准，具体时间以平台通知为准。",
+                ],
+                "historicalReferences": [],
+                "compensationReference": cosco_compensation_reference(),
+                "announcementDate": "2026-05-20",
+                "registrationStartDate": start_date,
+                "registrationEndDate": parse_china_datetime(job["end_time"]).date().isoformat(),
+                "registrationEndAt": end_at,
+                "status": status,
+                "sourceName": "中国远洋海运集团2026年度战略性新兴产业紧缺急需人才专项招聘",
+                "sourceUrl": COSCO_JOB_DETAIL_URL + job_id,
+                "announcementSourceUrl": COSCO_STRATEGIC_SASAC_URL,
+                "capturedAt": captured_at,
+                **{key: value for key, value in note.items() if key not in {"riskReminders", "studyAdvice"}},
+            }
+        )
+    snapshot = json.dumps(response, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    return positions, int(data.get("total") or len(jobs)), snapshot
+
+
 def parse_main_positions(data: bytes, profile: dict, scores: dict[tuple[str, str, str], str]) -> list[dict]:
     positions: list[dict] = []
     with zipfile.ZipFile(io.BytesIO(data)) as archive:
@@ -984,13 +1185,25 @@ def scan_broader_official_sources(checked_at: str) -> tuple[list[dict], list[dic
         (
             "国务院国资委人事招聘频道",
             CENTRAL_SASAC_RECRUITMENT_URL,
-            "已读取国务院国资委人事招聘频道；重点核验委属事业单位、国机集团、航天科工相关近期招聘。",
+            "已读取国务院国资委人事招聘频道；重点核验委属事业单位、国机集团、航天科工、中远海运等近期招聘。",
+            None,
+        ),
+        (
+            "国务院国资委：中国远洋海运集团2026年度战略性新兴产业紧缺急需人才专项招聘",
+            COSCO_STRATEGIC_SASAC_URL,
+            "国资委转发中远海运专项招聘公告已核验；岗位明细转入中远海运官方招聘平台接口全量筛选。",
+            None,
+        ),
+        (
+            "中国远洋海运集团官方招聘平台：2026专项招聘",
+            COSCO_STRATEGIC_PROJECT_URL,
+            "官方招聘平台专项页已核验；通过专项招聘接口读取全部岗位并按画像硬条件筛选。",
             None,
         ),
         (
             "国务院国资委委属事业单位2026年度公开招聘",
             CENTRAL_SASAC_INSTITUTION_URL,
-            "公告面向2026届高校毕业生及择业期内未落实工作单位毕业生；画像为2023届在职人员，不符合招聘对象。",
+            "公告面向2026届高校毕业生及择业期内未落实工作单位毕业生；画像为非应届在职人员，不符合招聘对象。",
             None,
         ),
         (
@@ -1092,9 +1305,9 @@ def scan_broader_official_sources(checked_at: str) -> tuple[list[dict], list[dic
         cache_entries.append(cache)
     note = (
         "新增全源扫描已覆盖首都之窗事业单位、北京公务员补录、北京国资委国企招聘、天津人社事业单位、"
-        "天津中德应用技术大学、国务院国资委人事招聘、中央企业社招、雄安通知公告及石家庄指定区县门户。"
+        "天津中德应用技术大学、国务院国资委人事招聘、中远海运专项招聘、中央企业社招、雄安通知公告及石家庄指定区县门户。"
         "北京、天津和中央企业近期可打开公告中，因北京户籍/应届、硕士博士、高级职称、既有笔试成绩、"
-        "教师资格或相关纪检审计管理经历等硬条件，未新增可确认符合画像且仍未考试的岗位。"
+        "教师资格或相关纪检审计管理经历等硬条件，未纳入岗位列表；中远海运专项招聘中满足本科、计算机方向和投递期的岗位已单独写入。"
     )
     return sources, cache_entries, note
 
@@ -1130,6 +1343,7 @@ def main() -> None:
     )
     upcoming_portal_published = page_exists(UPCOMING_PORTAL_URL)
     sjz_soe_positions = parse_sjz_soe_social_positions(sjz_soe_attachment, captured_at)
+    cosco_positions, cosco_total, cosco_snapshot = parse_cosco_strategic_positions(captured_at)
     broader_sources, broader_cache_entries, broader_note = scan_broader_official_sources(now)
 
     existing_sources: list[dict] = []
@@ -1179,9 +1393,15 @@ def main() -> None:
             "url": SJZ_SOE_SOCIAL_ANNOUNCEMENT_URL,
             "checkedAt": now,
             "result": (
-                f"已下载并全量筛选管理及专业技术岗位附件；计算机方向中当前可展示岗位 {len(sjz_soe_positions)} 个。"
-                "报名截至2026年5月27日17:00，笔试为2026年6月6日；岗位表未细化具体驻地。"
+                f"已下载并全量筛选管理及专业技术岗位附件；计算机方向匹配 {len(sjz_soe_positions)} 个。"
+                "报名截至2026年5月27日17:00，已不属于下一周期可新报名岗位；仅保留为已报名后续跟踪和同类岗位样本。"
             ),
+        },
+        {
+            "name": "中国远洋海运集团官方招聘平台：2026专项招聘岗位接口",
+            "url": COSCO_STRATEGIC_PROJECT_URL,
+            "checkedAt": now,
+            "result": f"官方专项招聘接口返回 {cosco_total} 个岗位；按本科、计算机方向、社招经验和投递期筛选，确认 {len(cosco_positions)} 个仍可新报名岗位。",
         },
         {
             "name": "北京市规划和自然资源委员会所属事业单位公开招聘",
@@ -1214,8 +1434,11 @@ def main() -> None:
             "result": "编制招聘报名截至2026年6月1日17时；公告要求社会人员具有北京市常住户口，未纳入可报岗位。",
         },
     ]
+    actionable_sjz_soe_positions = [
+        position for position in sjz_soe_positions if position.get("status") in {"报名中", "即将报名"}
+    ]
     positions = sorted(
-        [enrich_position(position) for position in sjz_soe_positions],
+        [enrich_position(position) for position in actionable_sjz_soe_positions + cosco_positions],
         key=sort_position_key,
     )
     national_note = (
@@ -1231,8 +1454,9 @@ def main() -> None:
     regional_note = (
         f"石家庄统一招聘官方附件命中 {len(sjz_positions)} 个条目但考试已结束，5月公开选聘也已于5月22日报名截止；"
         f"雄安统一招聘官方附件命中 {len(xiongan_positions)} 个条目但报名与笔试均已结束；"
-        f"石家庄市属国企面向社会招聘已全量筛选，当前保留计算机方向岗位 {len(sjz_soe_positions)} 个，"
-        "报名截至5月27日17:00、笔试为6月6日，具体驻地需向用人单位确认；"
+        f"石家庄市属国企面向社会招聘已全量筛选，计算机方向匹配 {len(sjz_soe_positions)} 个，"
+        "但报名截至5月27日17:00，未报名者已无法新报，本次不再作为下一周期岗位展示；"
+        f"中远海运2026专项招聘官方接口返回 {cosco_total} 个岗位，按画像确认 {len(cosco_positions)} 个仍在投递期的央企社招岗位；"
         "北京市近期尚在窗口内的规划自然资源委、残疾人定向、退役大学生士兵定向、首都体育学院与密云教委编制公告，"
         "分别存在北京市常住户口、定向身份或届别等硬限制，未纳入岗位列表。"
         f"{broader_note}"
@@ -1242,7 +1466,8 @@ def main() -> None:
         scan_cache_entry("国家公务员局：2026年度进入面试人员名单", INTERVIEW_URL, now, "官方附件已缓存并用于进面分参考。", interview_attachment),
         scan_cache_entry("石家庄市人社局：2026年事业单位岗位表", SJZ_POSITIONS_URL, now, "官方附件已缓存并用于历史批次筛选。", sjz_attachment),
         scan_cache_entry("中国雄安官网：2026年事业单位岗位表", XIONGAN_POSITIONS_URL, now, "官方附件已缓存并用于历史批次筛选。", xiongan_attachment),
-        scan_cache_entry("石家庄市国资委：市属国企社招岗位表", SJZ_SOE_SOCIAL_POSITIONS_URL, now, "官方附件已缓存并用于当前待考试岗位筛选。", sjz_soe_attachment),
+        scan_cache_entry("石家庄市国资委：市属国企社招岗位表", SJZ_SOE_SOCIAL_POSITIONS_URL, now, "官方附件已缓存；报名已截止，本轮仅用于已报名跟踪和同类岗位样本。", sjz_soe_attachment),
+        scan_cache_entry("中国远洋海运集团官方招聘平台：2026专项招聘接口", COSCO_STRATEGIC_API_URL, now, f"官方接口返回 {cosco_total} 个岗位；筛选后写入 {len(cosco_positions)} 个仍可投递岗位。", cosco_snapshot),
         *broader_cache_entries,
     ]
     write_source_cache(source_cache_entries, now)
@@ -1260,7 +1485,7 @@ def main() -> None:
             "categoryOrder": CATEGORY_ORDER,
             "regionOrder": REGION_ORDER,
             "referencePolicy": (
-                "岗位页展示考试尚未举行、且经画像硬条件筛选可报名或值得立即核验的国考、省考、编制和国企岗位；已完成考试批次只保留检索留痕。"
+                "岗位页优先展示仍可新报名或即将报名、且经画像硬条件筛选值得立即核验的国考、省考、编制和国企岗位；已截止但尚待考试的批次只保留检索留痕和已报名跟踪提示。"
                 "待遇、房子与户口优先采用公告原文，未载明时明确显示官方未载明；进面分和报录比仅展示可追溯官方数据。"
             ),
             "scanWorkflow": [
