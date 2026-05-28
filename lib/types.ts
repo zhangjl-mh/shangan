@@ -230,13 +230,30 @@ export interface DailyNews {
     generatedAt?: string;
     sourceCount?: number;
     itemCount?: number;
+    candidateCount?: number;
     scopeNote?: string;
+    selectionRule?: string;
     verifiedAt?: string;
   };
   date: string;
   title: string;
   summary: string;
   items: NewsItem[];
+  candidateSources?: Array<{
+    name: string;
+    url: string;
+    checkedAt: string;
+    result: string;
+  }>;
+  candidatePool?: Array<{
+    id: string;
+    title: string;
+    source: string;
+    url: string;
+    publishTime?: string;
+    reason: string;
+    selected: boolean;
+  }>;
 }
 
 export interface EligiblePosition {
@@ -244,10 +261,12 @@ export interface EligiblePosition {
   title: string;
   organization: string;
   category: string;
+  recruitmentClass?: "国考" | "省考" | "编制" | "国企" | string;
   department?: string;
   positionCode?: string;
   recruitmentType?: string;
   region: string;
+  regionGroup?: "北京" | "雄安" | "天津" | "石家庄" | string;
   district?: string;
   recruitCount?: number;
   responsibilities?: string;
@@ -300,9 +319,15 @@ export interface EligiblePosition {
 export interface EligibleJobsReport {
   generatedAt: string;
   sourceScope?: string[];
+  categoryOrder?: string[];
+  regionOrder?: string[];
   referencePolicy?: string;
   regionalScanNote?: string;
   screeningNote?: string;
+  scanWorkflow?: Array<{
+    step: string;
+    description: string;
+  }>;
   searchedSources?: Array<{
     name: string;
     url: string;

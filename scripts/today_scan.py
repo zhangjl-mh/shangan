@@ -40,14 +40,39 @@ def write_json(path: Path, contents: dict) -> None:
 
 
 def render_news_markdown(report: dict) -> str:
+    meta = report.get("meta", {})
     lines = [
         f"# {report['title']}",
         "",
-        f"> 原文链接核验时间：{report.get('meta', {}).get('verifiedAt', '未记录')}。事实来自所列信源；备考角度为整理内容。",
+        f"> 原文链接核验时间：{meta.get('verifiedAt', '未记录')}。事实来自所列信源；备考角度为整理内容。",
         "",
         report["summary"],
         "",
     ]
+    if report.get("candidateSources") or report.get("candidatePool"):
+        lines.extend(
+            [
+                "## 候选收集与选取规则",
+                "",
+                f"- 候选数量：{meta.get('candidateCount', len(report.get('candidatePool', [])))}",
+                f"- 选取规则：{meta.get('selectionRule', '优先选择当天发布、原文可核验、具备公考积累价值的政策与治理类资讯。')}",
+                "",
+            ]
+        )
+        for source in report.get("candidateSources", []):
+            lines.append(f"- [{source['name']}]({source['url']})：{source['result']}")
+        if report.get("candidateSources"):
+            lines.append("")
+        if report.get("candidatePool"):
+            lines.extend(["### 候选池", ""])
+            for candidate in report.get("candidatePool", []):
+                prefix = "已选" if candidate.get("selected") else "未选"
+                lines.append(
+                    f"- {prefix}：[{candidate['title']}]({candidate['url']})"
+                    f"（{candidate['source']}，{candidate.get('publishTime', '时间以原文为准')}）"
+                    f"：{candidate['reason']}"
+                )
+            lines.append("")
     for item in report["items"]:
         lines.extend(
             [
@@ -89,6 +114,8 @@ def render_job_markdown(report: dict) -> str:
         position for position in report.get("positions", [])
         if position.get("status") in {"报名中", "即将报名", "待考试"}
     ]
+    category_order = report.get("categoryOrder", ["国考", "省考", "编制", "国企"])
+    region_order = report.get("regionOrder", ["北京", "雄安", "天津", "石家庄", "其他"])
     lines = [
         "# 今日岗位扫描报告",
         "",
@@ -107,54 +134,64 @@ def render_job_markdown(report: dict) -> str:
     ]
     if positions:
         lines.extend(["## 当前可报或尚待考试岗位", ""])
-        for position in positions:
-            lines.extend(
-                [
-                    f"### {position['organization']} - {position['title']}",
-                    "",
-                    f"- 地区：{position['region']}{(' / ' + position['district']) if position.get('district') else ''}",
-                    f"- 状态：{position['status']}",
-                    f"- 招录人数：{position.get('recruitCount', '官方未公开')}",
-                    f"- 报名截止：{position.get('registrationEndAt') or position.get('registrationEndDate', '以官方公告为准')}",
-                    f"- 资格初审截止：{position.get('qualificationReviewEndAt', '以官方公告为准')}",
-                    f"- 缴费截止：{position.get('paymentEndAt', '以官方公告为准')}",
-                    f"- 笔试时间：{position.get('examDate', '以官方公告为准')}",
-                    f"- 岗位代码：{position.get('positionCode', '官方未公开')}",
-                    f"- 原文：[{position['sourceName']}]({position['sourceUrl']})",
-                    "",
-                ]
-            )
-            if position.get("recommendation"):
-                lines.extend(
-                    [
-                        f"- 推荐结论：{position['recommendation']}",
-                        f"- 匹配度：{position.get('matchScore', '未评估')} / 风险等级：{position.get('riskLevel', '未评估')}",
-                        "",
-                    ]
-                )
-            if position.get("responsibilities"):
-                lines.extend([f"- 工作内容：{position['responsibilities']}", ""])
-            for reason in position.get("matchReasons", []):
-                lines.append(f"- 匹配原因：{reason}")
-            for risk in position.get("riskReminders", []):
-                lines.append(f"- 风险提醒：{risk}")
-            for advice in position.get("studyAdvice", []):
-                lines.append(f"- 备考建议：{advice}")
-            for history in position.get("historicalReferences", []):
-                lines.append(
-                    f"- {history['year']}参考：进面/入围分 {history.get('finalEntryScore', '官方未公开')}；"
-                    f"报录比 {history.get('applicationRatio', '官方未公开')}；"
-                    f"来源 [{history['sourceName']}]({history['sourceUrl']})"
-                )
-            for note in position.get("applicationNotes", []):
-                lines.append(f"- 报考提示：{note}")
-            if position.get("compensationReference"):
-                pay = position["compensationReference"]
-                lines.extend(["", f"- 薪资估算：{pay['text']}（{pay['disclaimer']}）"])
-            lines.append(f"- 福利待遇：{'；'.join(position.get('benefits', [])) or '官方公告未载明。'}")
-            lines.append(f"- 房子：{position.get('housingReference', '官方公告未载明住房安排。')}")
-            lines.append(f"- 户口：{position.get('householdReference', '官方公告未载明落户安排。')}")
-            lines.append("")
+        for category in category_order:
+            category_positions = [position for position in positions if position.get("recruitmentClass") == category]
+            if not category_positions:
+                continue
+            lines.extend([f"### {category}", ""])
+            for region in region_order:
+                region_positions = [position for position in category_positions if position.get("regionGroup") == region]
+                if not region_positions:
+                    continue
+                lines.extend([f"#### {region}", ""])
+                for position in region_positions:
+                    lines.extend(
+                        [
+                            f"##### {position['organization']} - {position['title']}",
+                            "",
+                            f"- 地区：{position['region']}{(' / ' + position['district']) if position.get('district') else ''}",
+                            f"- 状态：{position['status']}",
+                            f"- 招录人数：{position.get('recruitCount', '官方未公开')}",
+                            f"- 报名截止：{position.get('registrationEndAt') or position.get('registrationEndDate', '以官方公告为准')}",
+                            f"- 资格初审截止：{position.get('qualificationReviewEndAt', '以官方公告为准')}",
+                            f"- 缴费截止：{position.get('paymentEndAt', '以官方公告为准')}",
+                            f"- 笔试时间：{position.get('examDate', '以官方公告为准')}",
+                            f"- 岗位代码：{position.get('positionCode', '官方未公开')}",
+                            f"- 原文：[{position['sourceName']}]({position['sourceUrl']})",
+                            "",
+                        ]
+                    )
+                    if position.get("recommendation"):
+                        lines.extend(
+                            [
+                                f"- 推荐结论：{position['recommendation']}",
+                                f"- 匹配度：{position.get('matchScore', '未评估')} / 风险等级：{position.get('riskLevel', '未评估')}",
+                                "",
+                            ]
+                        )
+                    if position.get("responsibilities"):
+                        lines.extend([f"- 工作内容：{position['responsibilities']}", ""])
+                    for reason in position.get("matchReasons", []):
+                        lines.append(f"- 匹配原因：{reason}")
+                    for risk in position.get("riskReminders", []):
+                        lines.append(f"- 风险提醒：{risk}")
+                    for advice in position.get("studyAdvice", []):
+                        lines.append(f"- 备考建议：{advice}")
+                    for history in position.get("historicalReferences", []):
+                        lines.append(
+                            f"- {history['year']}参考：进面/入围分 {history.get('finalEntryScore', '官方未公开')}；"
+                            f"报录比 {history.get('applicationRatio', '官方未公开')}；"
+                            f"来源 [{history['sourceName']}]({history['sourceUrl']})"
+                        )
+                    for note in position.get("applicationNotes", []):
+                        lines.append(f"- 报考提示：{note}")
+                    if position.get("compensationReference"):
+                        pay = position["compensationReference"]
+                        lines.extend(["", f"- 薪资估算：{pay['text']}（{pay['disclaimer']}）"])
+                    lines.append(f"- 福利待遇：{'；'.join(position.get('benefits', [])) or '官方公告未载明。'}")
+                    lines.append(f"- 房子：{position.get('housingReference', '官方公告未载明住房安排。')}")
+                    lines.append(f"- 户口：{position.get('householdReference', '官方公告未载明落户安排。')}")
+                    lines.append("")
     lines.extend(["## 已扫描权威渠道", ""])
     for source in report.get("searchedSources", []):
         lines.append(f"- [{source['name']}]({source['url']})：{source['result']}")

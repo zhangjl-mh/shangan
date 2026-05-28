@@ -13,6 +13,14 @@
       "type": "array",
       "items": { "type": "string" }
     },
+    "categoryOrder": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "regionOrder": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
     "referencePolicy": {
       "type": "string"
     },
@@ -21,6 +29,18 @@
     },
     "screeningNote": {
       "type": "string"
+    },
+    "scanWorkflow": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["step", "description"],
+        "properties": {
+          "step": { "type": "string" },
+          "description": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
     },
     "searchedSources": {
       "type": "array",
@@ -63,10 +83,18 @@
           "enum": ["公务员", "编制", "国企"],
           "description": "页面顶层分类只保留公务员、编制和国企"
         },
+        "recruitmentClass": {
+          "enum": ["国考", "省考", "编制", "国企"],
+          "description": "岗位页第一层展示分组。公务员需细分为国考和省考。"
+        },
         "department": { "type": "string" },
         "positionCode": { "type": "string" },
         "recruitmentType": { "type": "string" },
         "region": { "type": "string" },
+        "regionGroup": {
+          "enum": ["北京", "雄安", "天津", "石家庄", "其他"],
+          "description": "岗位页第二层展示分组。"
+        },
         "district": { "type": "string" },
         "recruitCount": { "type": "integer", "minimum": 1 },
         "responsibilities": { "type": "string" },

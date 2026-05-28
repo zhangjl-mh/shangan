@@ -8,6 +8,37 @@
     "date": { "type": "string", "format": "date" },
     "title": { "type": "string" },
     "summary": { "type": "string" },
+    "candidateSources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "url", "checkedAt", "result"],
+        "properties": {
+          "name": { "type": "string" },
+          "url": { "type": "string", "format": "uri" },
+          "checkedAt": { "type": "string" },
+          "result": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "candidatePool": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "source", "url", "reason", "selected"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "source": { "type": "string" },
+          "url": { "type": "string", "format": "uri" },
+          "publishTime": { "type": "string" },
+          "reason": { "type": "string" },
+          "selected": { "type": "boolean" }
+        },
+        "additionalProperties": true
+      }
+    },
     "items": {
       "type": "array",
       "items": {

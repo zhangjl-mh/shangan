@@ -152,6 +152,8 @@ CASIC_DIGITAL_TECH_URL = (
 )
 
 NS = {"a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+CATEGORY_ORDER = ["国考", "省考", "编制", "国企"]
+REGION_ORDER = ["北京", "雄安", "天津", "石家庄", "其他"]
 
 
 def fetch(url: str) -> bytes:
@@ -253,6 +255,64 @@ def write_source_cache(entries: list[dict], checked_at: str) -> None:
             "description": "岗位扫描的官方入口和附件访问留痕。positions 只展示硬条件确认符合且考试尚未举行的岗位。",
             "entries": entries,
         },
+    )
+
+
+def normalize_region_group(region: str) -> str:
+    text = region or ""
+    if "北京" in text:
+        return "北京"
+    if any(name in text for name in ["雄安", "雄县", "容城", "安新"]):
+        return "雄安"
+    if "天津" in text:
+        return "天津"
+    if any(name in text for name in ["石家庄", "井陉", "鹿泉", "矿区", "藁城", "栾城", "正定"]):
+        return "石家庄"
+    return "其他"
+
+
+def normalize_recruitment_class(position: dict) -> str:
+    existing = position.get("recruitmentClass")
+    if existing in CATEGORY_ORDER:
+        return existing
+    text = " ".join(
+        str(position.get(key, ""))
+        for key in ["sourceName", "recruitmentType", "category", "organization", "region"]
+    )
+    if "国家公务员局" in text or "国考" in text:
+        return "国考"
+    if "公务员" in text:
+        return "省考"
+    if any(keyword in text for keyword in ["国企", "国有企业", "央企"]):
+        return "国企"
+    return "编制"
+
+
+def normalize_display_category(recruitment_class: str) -> str:
+    return "公务员" if recruitment_class in {"国考", "省考"} else recruitment_class
+
+
+def enrich_position(position: dict) -> dict:
+    recruitment_class = normalize_recruitment_class(position)
+    region_group = position.get("regionGroup") or normalize_region_group(position.get("region", ""))
+    return {
+        **position,
+        "category": normalize_display_category(recruitment_class),
+        "recruitmentClass": recruitment_class,
+        "regionGroup": region_group if region_group in REGION_ORDER else "其他",
+    }
+
+
+def sort_position_key(position: dict) -> tuple[int, int, int, str, str]:
+    normalized = enrich_position(position)
+    recruitment_class = normalized["recruitmentClass"]
+    region_group = normalized["regionGroup"]
+    return (
+        CATEGORY_ORDER.index(recruitment_class) if recruitment_class in CATEGORY_ORDER else len(CATEGORY_ORDER),
+        REGION_ORDER.index(region_group) if region_group in REGION_ORDER else len(REGION_ORDER),
+        -(normalized.get("matchScore") or 0),
+        normalized.get("organization", ""),
+        normalized.get("title", ""),
     )
 
 
@@ -526,9 +586,11 @@ def parse_sjz_positions(data: bytes, profile: dict, captured_at: str) -> list[di
                 "title": title,
                 "organization": unit,
                 "department": supervisor,
-                "category": "事业单位",
+                "category": "编制",
+                "recruitmentClass": "编制",
                 "recruitmentType": "石家庄市2026年事业单位统一招聘（历史参考）",
                 "region": f"河北省石家庄市{district}",
+                "regionGroup": "石家庄",
                 "recruitCount": int(float(count)),
                 "responsibilities": describe_institution_work(unit, title),
                 "educationRequirement": education_requirement(education, degree),
@@ -566,9 +628,11 @@ def parse_xiongan_positions(data: bytes, profile: dict, captured_at: str) -> lis
                 "organization": unit,
                 "department": supervisor,
                 "positionCode": code,
-                "category": "事业单位",
+                "category": "编制",
+                "recruitmentClass": "编制",
                 "recruitmentType": "雄安新区2026年事业单位统一招聘（历史参考）",
                 "region": f"河北雄安新区 / {location}",
+                "regionGroup": "雄安",
                 "recruitCount": int(float(count)),
                 "responsibilities": describe_institution_work(unit, title.replace("\n", "")),
                 "educationRequirement": education_requirement(education, degree),
@@ -695,8 +759,10 @@ def parse_sjz_soe_social_positions(data: bytes, captured_at: str) -> list[dict]:
                 "department": organization,
                 "positionCode": code,
                 "category": "国企",
+                "recruitmentClass": "国企",
                 "recruitmentType": "石家庄市属国企面向社会公开招聘管理及专业技术岗位",
                 "region": "石家庄市（具体工作地点以用人单位确认为准）",
+                "regionGroup": "石家庄",
                 "recruitCount": int(float(count)),
                 "responsibilities": responsibilities,
                 "educationRequirement": education,
@@ -783,8 +849,10 @@ def parse_main_positions(data: bytes, profile: dict, scores: dict[tuple[str, str
                     "department": row["\u7528\u4eba\u53f8\u5c40"],
                     "positionCode": row["\u804c\u4f4d\u4ee3\u7801"],
                     "category": "\u516c\u52a1\u5458",
+                    "recruitmentClass": "国考",
                     "recruitmentType": "2026\u5e74\u5ea6\u56fd\u8003\u4e3b\u62db\uff08\u5386\u53f2\u53c2\u8003\uff09",
                     "region": location,
+                    "regionGroup": normalize_region_group(location),
                     "recruitCount": int(float(row["\u62db\u8003\u4eba\u6570"])),
                     "responsibilities": describe_work(row),
                     "educationRequirement": education_requirement(row["\u5b66\u5386"], row["\u5b66\u4f4d"]),
@@ -1146,18 +1214,10 @@ def main() -> None:
             "result": "编制招聘报名截至2026年6月1日17时；公告要求社会人员具有北京市常住户口，未纳入可报岗位。",
         },
     ]
-    category_map = {"事业单位": "编制", "教师": "编制", "医疗卫生": "编制", "国有企业": "国企"}
-    other_positions = []
-    for position in report.get("positions", []):
-        if position.get("id", "").startswith(
-            ("scs-2026-", "sjz-sydw-2026-", "xiongan-sydw-2026-", "sjz-soe-social-2026-")
-        ):
-            continue
-        if position.get("status") not in {"报名中", "即将报名", "待考试"}:
-            continue
-        normalized = {**position, "category": category_map.get(position.get("category"), position.get("category"))}
-        if normalized.get("category") in {"公务员", "编制", "国企"}:
-            other_positions.append(normalized)
+    positions = sorted(
+        [enrich_position(position) for position in sjz_soe_positions],
+        key=sort_position_key,
+    )
     national_note = (
         "\u672c\u8f6e\u5df2\u4e0b\u8f7d\u5e76\u7b5b\u9009\u56fd\u5bb6\u516c\u52a1\u5458\u5c40\u5b98\u65b9\u62db\u8003\u7b80\u7ae0\u548c\u8fdb\u5165\u9762\u8bd5\u4eba\u5458\u540d\u5355\uff1b"
         f"\u5176\u4e2d\u547d\u4e2d\u753b\u50cf\u4e0e\u5730\u533a\u7684 {len(national_positions)} \u4e2a\u6761\u76ee\u5747\u5df2\u5b8c\u6210\u8003\u8bd5\uff0c\u5df2\u4ece\u5c97\u4f4d\u5c55\u793a\u4e2d\u79fb\u9664\u3002"
@@ -1197,21 +1257,45 @@ def main() -> None:
                 "中国雄安官网编制与国企通知公告",
                 "石家庄市人社局及井陉县、鹿泉区、井陉矿区、藁城区、栾城区、正定县政府门户",
             ],
+            "categoryOrder": CATEGORY_ORDER,
+            "regionOrder": REGION_ORDER,
             "referencePolicy": (
-                "岗位页展示考试尚未举行、且经画像硬条件筛选可报名或值得立即核验的公务员、编制和国企岗位；已完成考试批次只保留检索留痕。"
+                "岗位页展示考试尚未举行、且经画像硬条件筛选可报名或值得立即核验的国考、省考、编制和国企岗位；已完成考试批次只保留检索留痕。"
                 "待遇、房子与户口优先采用公告原文，未载明时明确显示官方未载明；进面分和报录比仅展示可追溯官方数据。"
             ),
+            "scanWorkflow": [
+                {
+                    "step": "1. 权威入口登记",
+                    "description": "读取 data/job-sources.json 与脚本内已接入入口，覆盖国家公务员局、北京、天津、雄安、石家庄及国资系统官方渠道。",
+                },
+                {
+                    "step": "2. 公告与附件下载",
+                    "description": "逐个打开官方公告，记录报名、考试时间和岗位附件；能下载的岗位表保存快照并写入 source-cache。",
+                },
+                {
+                    "step": "3. 全量硬条件筛选",
+                    "description": "对岗位表全部行按画像地区、学历、学位、专业、户籍、届别、身份和经历要求筛选；不抽样、不只返回推荐项。",
+                },
+                {
+                    "step": "4. 四类四区排序",
+                    "description": "所有符合岗位写入 positions，并按国考、省考、编制、国企；北京、雄安、天津、石家庄、其他排序。",
+                },
+                {
+                    "step": "5. 逐岗判断整理",
+                    "description": "对每个展示岗位补充匹配判断、风险、备考建议、福利待遇、住房、户口和可追溯来源。",
+                },
+            ],
             "screeningNote": national_note
             + (f"\u5730\u65b9\u4e0e\u56fd\u4f01\u626b\u63cf\uff1a{regional_note}" if regional_note else ""),
             "searchedSources": official_sources + broader_sources + existing_sources,
             "regionalScanNote": regional_note,
-            "positions": sjz_soe_positions + other_positions,
+            "positions": positions,
         }
     )
     report.pop("profileHash", None)
     write_json(REPORT_PATH, report)
     print(
-        f"[岗位同步完成] 当前可展示 {len(sjz_soe_positions) + len(other_positions)} 个 | 已排除历史国考 {len(national_positions)} 个 | "
+        f"[岗位同步完成] 当前可展示 {len(positions)} 个 | 已排除历史国考 {len(national_positions)} 个 | "
         f"已排除历史石家庄编制 {len(sjz_positions)} 个 | 已排除历史雄安编制 {len(xiongan_positions)} 个 | "
         f"\u6765\u6e90 {ARTICLE_URL}"
     )

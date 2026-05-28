@@ -31,13 +31,43 @@ const trackingStatuses: JobTrackingStatus[] = [
   "已结束",
   "放弃",
 ];
-const publicCategories = ["全部类型", "公务员", "编制", "国企"];
+const categoryOrder = ["国考", "省考", "编制", "国企"];
+const regionOrder = ["北京", "雄安", "天津", "石家庄", "其他"];
+const publicCategories = ["全部类型", ...categoryOrder];
 const displayStatuses = new Set(["报名中", "即将报名", "待考试"]);
+type DisplayPosition = EligiblePosition & {
+  category: string;
+  recruitmentClass: string;
+  regionGroup: string;
+};
 
 function displayCategory(category: string) {
   if (["事业单位", "教师", "医疗卫生"].includes(category)) return "编制";
   if (category === "国有企业") return "国企";
   return category;
+}
+
+function getRecruitmentClass(position: EligiblePosition) {
+  if (position.recruitmentClass) return position.recruitmentClass;
+  const category = displayCategory(position.category);
+  if (position.sourceName.includes("国家公务员局") || position.recruitmentType?.includes("国考")) return "国考";
+  if (category === "公务员") return "省考";
+  return category;
+}
+
+function getRegionGroup(position: EligiblePosition) {
+  if (position.regionGroup) return position.regionGroup;
+  const text = position.region;
+  if (text.includes("北京")) return "北京";
+  if (["雄安", "雄县", "容城", "安新"].some((keyword) => text.includes(keyword))) return "雄安";
+  if (text.includes("天津")) return "天津";
+  if (["石家庄", "井陉", "鹿泉", "矿区", "藁城", "栾城", "正定"].some((keyword) => text.includes(keyword))) return "石家庄";
+  return "其他";
+}
+
+function orderIndex(order: string[], value?: string) {
+  const index = order.indexOf(value ?? "");
+  return index === -1 ? order.length : index;
 }
 
 function formatTimePoint(value?: string) {
@@ -64,11 +94,26 @@ function formatTimePoint(value?: string) {
 }
 
 export function JobDirectory({ positions }: { positions: EligiblePosition[] }) {
-  const activePositions = useMemo(
+  const activePositions = useMemo<DisplayPosition[]>(
     () =>
       positions
         .filter((position) => displayStatuses.has(position.status))
-        .map((position) => ({ ...position, category: displayCategory(position.category) })),
+        .map((position) => {
+          const recruitmentClass = getRecruitmentClass(position);
+          return {
+            ...position,
+            category: displayCategory(position.category),
+            recruitmentClass,
+            regionGroup: getRegionGroup(position),
+          };
+        })
+        .sort(
+          (a, b) =>
+            orderIndex(categoryOrder, a.recruitmentClass) - orderIndex(categoryOrder, b.recruitmentClass) ||
+            orderIndex(regionOrder, a.regionGroup) - orderIndex(regionOrder, b.regionGroup) ||
+            (b.matchScore ?? 0) - (a.matchScore ?? 0) ||
+            a.organization.localeCompare(b.organization, "zh-CN"),
+        ),
     [positions],
   );
   const [query, setQuery] = useState("");
@@ -87,13 +132,13 @@ export function JobDirectory({ positions }: { positions: EligiblePosition[] }) {
       .catch(() => setTracking({ updatedAt: "", items: [] }));
   }, []);
 
-  const regions = ["全部地区", ...new Set(activePositions.map((position) => position.region))];
+  const regions = ["全部地区", ...regionOrder.filter((name) => activePositions.some((position) => position.regionGroup === name))];
   const sourcePositions = useMemo(() => {
     if (!showTrackedOnly) return activePositions;
     return tracking.items
       .filter((item) => item.status !== "未处理")
       .map((item) => activePositions.find((position) => position.id === item.positionId))
-      .filter((position): position is EligiblePosition => Boolean(position));
+      .filter((position): position is DisplayPosition => Boolean(position));
   }, [activePositions, showTrackedOnly, tracking.items]);
   const filtered = useMemo(
     () =>
@@ -111,12 +156,29 @@ export function JobDirectory({ positions }: { positions: EligiblePosition[] }) {
           .toLowerCase();
         return (
           (!keyword || text.includes(keyword)) &&
-          (region === "全部地区" || position.region === region) &&
-          (category === "全部类型" || position.category === category) &&
+          (region === "全部地区" || position.regionGroup === region) &&
+          (category === "全部类型" || position.recruitmentClass === category) &&
           (status === "全部状态" || position.status === status)
         );
       }),
     [category, query, region, sourcePositions, status],
+  );
+  const groupedPositions = useMemo(
+    () =>
+      categoryOrder
+        .map((groupCategory) => ({
+          category: groupCategory,
+          regions: regionOrder
+            .map((groupRegion) => ({
+              region: groupRegion,
+              positions: filtered.filter(
+                (position) => position.recruitmentClass === groupCategory && position.regionGroup === groupRegion,
+              ),
+            }))
+            .filter((group) => group.positions.length > 0),
+        }))
+        .filter((group) => group.regions.length > 0),
+    [filtered],
   );
   const selected = filtered.find((position) => position.id === selectedId) ?? filtered[0];
   const registeringCount = activePositions.filter((position) => position.status === "报名中").length;
@@ -195,16 +257,50 @@ export function JobDirectory({ positions }: { positions: EligiblePosition[] }) {
         <section>
           <div className="mb-4">
             <h2 className="ink-title text-[27px]">全部可报岗位</h2>
-            <p className="label-sans mt-1 text-sm text-[#66756d]">当前筛选显示 {filtered.length} 个，点击任一岗位查看待遇、住房与户口判断。</p>
+            <p className="label-sans mt-1 text-sm text-[#66756d]">
+              当前筛选显示 {filtered.length} 个，按国考、省考、编制、国企，以及北京、雄安、天津、石家庄顺序展开。
+            </p>
           </div>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {filtered.map((position) => (
-              <PositionCard
-                key={position.id}
-                position={position}
-                active={selected?.id === position.id}
-                onSelect={() => setSelectedId(position.id)}
-              />
+          <div className="space-y-6">
+            {groupedPositions.map((categoryGroup) => (
+              <motion.div
+                key={categoryGroup.category}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="rounded-[28px] border border-[#e4ddcf] bg-[#fffdf8]/75 p-4"
+              >
+                <div className="mb-4 flex items-end justify-between gap-3">
+                  <div>
+                    <p className="label-sans text-xs tracking-[.18em] text-[#7c8b82]">岗位类型</p>
+                    <h3 className="ink-title mt-1 text-[24px] text-[#294a3b]">{categoryGroup.category}</h3>
+                  </div>
+                  <span className="label-sans rounded-full bg-[#edf4eb] px-3 py-1 text-xs text-[#4b6b5b]">
+                    {categoryGroup.regions.reduce((sum, group) => sum + group.positions.length, 0)} 个
+                  </span>
+                </div>
+                <div className="space-y-5">
+                  {categoryGroup.regions.map((regionGroup) => (
+                    <div key={`${categoryGroup.category}-${regionGroup.region}`}>
+                      <div className="mb-3 flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-[#54715f]" />
+                        <h4 className="text-base font-semibold text-[#304d40]">{regionGroup.region}</h4>
+                        <span className="label-sans text-xs text-[#76877d]">{regionGroup.positions.length} 个符合岗位</span>
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        {regionGroup.positions.map((position) => (
+                          <PositionCard
+                            key={position.id}
+                            position={position}
+                            active={selected?.id === position.id}
+                            onSelect={() => setSelectedId(position.id)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
             ))}
           </div>
         </section>
@@ -236,7 +332,8 @@ function DecisionPanel({
         <header className="flex flex-wrap items-start justify-between gap-5 border-b border-[#e8e1d5] pb-6">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge>{displayCategory(position.category)}</Badge>
+              <Badge>{getRecruitmentClass(position)}</Badge>
+              <Badge className="border-[#d8c69f] bg-[#faf4e6] text-[#80663b]">{getRegionGroup(position)}</Badge>
               <StatusBadge status={position.status} />
               <RiskBadge risk={risk} />
             </div>
@@ -337,7 +434,10 @@ function PositionCard({ position, active, onSelect }: { position: EligiblePositi
       }`}
     >
       <div className="flex items-start justify-between gap-3">
-        <Badge>{displayCategory(position.category)}</Badge>
+        <div className="flex flex-wrap gap-2">
+          <Badge>{getRecruitmentClass(position)}</Badge>
+          <Badge className="border-[#d8c69f] bg-[#faf4e6] text-[#80663b]">{getRegionGroup(position)}</Badge>
+        </div>
         <RiskBadge risk={risk} />
       </div>
       <h3 className="mt-4 text-base font-semibold leading-7 text-[#293d34]">{position.organization}</h3>
