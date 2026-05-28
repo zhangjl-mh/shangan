@@ -20,9 +20,9 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-20 border-b border-[#e5ded2]/85 bg-[#faf8f3]/92 backdrop-blur-md">
       <div className="mx-auto flex h-[74px] max-w-[1480px] items-center px-5 lg:px-10">
-        <Link href="/" className="flex shrink-0 items-center gap-3.5" aria-label="我要上岸 首页">
-          <Image src="/assets/brand-mark.svg" alt="我要上岸 Logo" width={42} height={42} priority />
-          <span className="ink-title text-xl lg:text-[25px]">我要上岸</span>
+        <Link href="/" className="flex shrink-0 items-center gap-3.5" aria-label="上岸 首页">
+          <Image src="/assets/brand-mark.svg" alt="上岸 Logo" width={42} height={42} priority />
+          <span className="ink-title text-xl lg:text-[25px]">上岸</span>
         </Link>
         <nav className="mx-auto hidden h-full items-center gap-8 md:flex lg:gap-12">
           {navigation.map((item) => {

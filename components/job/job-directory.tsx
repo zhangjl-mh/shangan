@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import {
   AlertTriangle,
   Bookmark,
@@ -31,6 +32,7 @@ const trackingStatuses: JobTrackingStatus[] = [
   "放弃",
 ];
 const publicCategories = ["全部类型", "公务员", "编制", "国企"];
+const displayStatuses = new Set(["报名中", "即将报名", "待考试"]);
 
 function displayCategory(category: string) {
   if (["事业单位", "教师", "医疗卫生"].includes(category)) return "编制";
@@ -38,11 +40,34 @@ function displayCategory(category: string) {
   return category;
 }
 
+function formatTimePoint(value?: string) {
+  if (!value) return "以公告为准";
+  const date = new Date(value.includes("T") ? value : `${value}T00:00:00+08:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("zh-CN", {
+      timeZone: "Asia/Shanghai",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: value.includes("T") ? "2-digit" : undefined,
+      minute: value.includes("T") ? "2-digit" : undefined,
+      hourCycle: "h23",
+    })
+      .formatToParts(date)
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value]),
+  );
+
+  if (value.includes("T")) return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
 export function JobDirectory({ positions }: { positions: EligiblePosition[] }) {
   const activePositions = useMemo(
     () =>
       positions
-        .filter((position) => position.status === "报名中" || position.status === "即将报名")
+        .filter((position) => displayStatuses.has(position.status))
         .map((position) => ({ ...position, category: displayCategory(position.category) })),
     [positions],
   );
@@ -96,6 +121,7 @@ export function JobDirectory({ positions }: { positions: EligiblePosition[] }) {
   const selected = filtered.find((position) => position.id === selectedId) ?? filtered[0];
   const registeringCount = activePositions.filter((position) => position.status === "报名中").length;
   const upcomingCount = activePositions.filter((position) => position.status === "即将报名").length;
+  const pendingExamCount = activePositions.filter((position) => position.status === "待考试").length;
 
   async function saveTracking(position: EligiblePosition, nextStatus: JobTrackingStatus) {
     setSaving(true);
@@ -121,9 +147,9 @@ export function JobDirectory({ positions }: { positions: EligiblePosition[] }) {
   return (
     <div className="space-y-6">
       <section id="coverage" className="grid scroll-mt-24 gap-4 sm:grid-cols-3">
-        <SummaryLink label="当前符合且可展示" value={`${activePositions.length} 个`} detail="仅含未考试岗位" href="#positions" />
-        <SummaryLink label="正在报名" value={`${registeringCount} 个`} detail="点击查看岗位卡片" href="#positions" />
-        <SummaryLink label="即将报名" value={`${upcomingCount} 个`} detail="提前核对公告材料" href="#positions" />
+        <SummaryLink label="尚未考试岗位" value={`${activePositions.length} 个`} detail="全部来自官方附件筛选" href="#positions" />
+        <SummaryLink label="仍可报名" value={`${registeringCount + upcomingCount} 个`} detail="当前或即将打开报名窗口" href="#positions" />
+        <SummaryLink label="待考试" value={`${pendingExamCount} 个`} detail="已截止但考试尚未举行" href="#positions" />
       </section>
 
       <Card id="positions" className="label-sans scroll-mt-24 rounded-[24px] border-[#e3ddcf] bg-[#fcfbf7]/95 p-4">
@@ -139,7 +165,7 @@ export function JobDirectory({ positions }: { positions: EligiblePosition[] }) {
           </label>
           <FilterSelect value={region} options={regions} onChange={setRegion} />
           <FilterSelect value={category} options={publicCategories} onChange={setCategory} />
-          <FilterSelect value={status} options={["全部状态", "报名中", "即将报名"]} onChange={setStatus} />
+          <FilterSelect value={status} options={["全部状态", "报名中", "即将报名", "待考试"]} onChange={setStatus} />
           <Button size="sm" variant={showTrackedOnly ? "default" : "outline"} onClick={() => setShowTrackedOnly((current) => !current)}>
             <Bookmark size={15} /> 我已关注
           </Button>
@@ -155,9 +181,9 @@ export function JobDirectory({ positions }: { positions: EligiblePosition[] }) {
         />
       ) : (
         <Card className="rounded-[28px] border-[#e3ddcf] bg-[#fffdf9] px-7 py-14 text-center">
-          <h2 className="ink-title text-[28px] text-[#294a3b]">本轮没有仍可报且符合条件的岗位</h2>
+          <h2 className="ink-title text-[28px] text-[#294a3b]">本轮没有尚未考试且符合条件的岗位</h2>
           <p className="label-sans mx-auto mt-4 max-w-[610px] text-sm leading-7 text-[#67766e]">
-            已结束或已经考试的批次不再展示为岗位卡片。请在下方打开官方检索记录，查看已经核验的公告、附件与排除原因。
+            已经考试或已完成录用流程的批次不再展示为岗位卡片。请在下方打开官方检索记录，查看已经核验的公告、附件与排除原因。
           </p>
           <a href="#sources" className="label-sans mt-7 inline-flex rounded-xl border border-[#ccd9ce] bg-[#f1f5ee] px-5 py-3 text-sm font-medium text-[#345546]">
             查看本次官方检索记录
@@ -201,7 +227,8 @@ function DecisionPanel({
   const score = position.matchScore ?? 80;
   const risk = position.riskLevel ?? "中";
   const entryScore = position.historicalReferences?.[0]?.finalEntryScore ?? "官方未公开";
-  const deadline = position.registrationEndDate ?? "以公告为准";
+  const deadline = formatTimePoint(position.registrationEndAt ?? position.registrationEndDate);
+  const examTime = formatTimePoint(position.examDate);
 
   return (
     <Card className="ornament-pavilion overflow-hidden rounded-[30px] border-[#dfd7c8] bg-[#fffdf8]/95 p-6 lg:p-8">
@@ -226,12 +253,15 @@ function DecisionPanel({
           </div>
         </header>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <PanelMetric icon={Users} label="招录人数" value={`${position.recruitCount ?? "-"} 人`} />
           <PanelMetric icon={Target} label="最低进面分" value={entryScore} />
           <PanelMetric icon={CalendarClock} label="报名截止" value={deadline} />
+          <PanelMetric icon={CalendarClock} label="考试时间" value={examTime} />
           <PanelMetric icon={AlertTriangle} label="风险等级" value={`${risk}风险`} />
         </div>
+
+        <TimelinePanel position={position} />
 
         <section className="mt-6 rounded-[20px] bg-[#edf3ec] p-5">
           <h3 className="flex items-center gap-2 font-semibold text-[#2f5141]"><ShieldCheck size={18} />推荐结论</h3>
@@ -296,7 +326,10 @@ function DecisionPanel({
 function PositionCard({ position, active, onSelect }: { position: EligiblePosition; active: boolean; onSelect: () => void }) {
   const risk = position.riskLevel ?? "中";
   return (
-    <button
+    <motion.button
+      layout
+      whileHover={{ y: -4 }}
+      whileTap={{ scale: 0.99 }}
       type="button"
       onClick={onSelect}
       className={`label-sans flex h-full flex-col rounded-[25px] border p-5 text-left transition-all ${
@@ -313,7 +346,11 @@ function PositionCard({ position, active, onSelect }: { position: EligiblePositi
       <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-[#f5f4ee] p-3 text-center">
         <CardMetric label="匹配度" value={`${position.matchScore ?? 80}`} />
         <CardMetric label="招录" value={`${position.recruitCount ?? "-"}人`} />
-        <CardMetric label="进面分" value={position.historicalReferences?.[0]?.finalEntryScore ?? "-"} />
+        <CardMetric label="风险" value={`${risk}风险`} />
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-[#ebe5d9] bg-white/55 p-3 text-center">
+        <CardMetric label="报名截止" value={formatTimePoint(position.registrationEndAt ?? position.registrationEndDate)} />
+        <CardMetric label="笔试时间" value={formatTimePoint(position.examDate)} />
       </div>
       <p className="mt-4 line-clamp-2 text-xs leading-6 text-[#65746d]">
         <span className="font-medium text-[#3e5a4c]">福利：</span>
@@ -327,7 +364,83 @@ function PositionCard({ position, active, onSelect }: { position: EligiblePositi
         <StatusBadge status={position.status} />
         <span className="font-medium text-[#496b5b]">点击查看判断</span>
       </div>
-    </button>
+    </motion.button>
+  );
+}
+
+function TimelinePanel({ position }: { position: EligiblePosition }) {
+  const items = [
+    {
+      label: "公告发布",
+      value: position.announcementDate,
+      hint: "官方原文",
+      state: "done",
+    },
+    {
+      label: "报名截止",
+      value: position.registrationEndAt ?? position.registrationEndDate,
+      hint: position.status === "报名中" ? "窗口开放中" : "已截止",
+      state: position.status === "报名中" ? "active" : "done",
+    },
+    {
+      label: "资格初审",
+      value: position.qualificationReviewEndAt,
+      hint: "审核截止",
+      state: position.status === "待考试" ? "active" : "upcoming",
+    },
+    {
+      label: "缴费截止",
+      value: position.paymentEndAt,
+      hint: "缴费确认",
+      state: position.status === "待考试" ? "active" : "upcoming",
+    },
+    {
+      label: "笔试时间",
+      value: position.examDate,
+      hint: position.status === "待考试" ? "待进行" : "考试安排",
+      state: "upcoming",
+    },
+  ].filter((item) => item.value);
+
+  if (!items.length) return null;
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+      className="mt-6 rounded-[22px] border border-[#e6dfd2] bg-[#fbfaf5]/85 p-5"
+    >
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h3 className="flex items-center gap-2 font-semibold text-[#2f5141]">
+          <CalendarClock size={18} />考试时间轴
+        </h3>
+        <span className="label-sans text-xs text-[#7a887f]">报名、审核、缴费、笔试一眼看清</span>
+      </div>
+      <div className="grid gap-3 md:grid-cols-5">
+        {items.map((item, index) => (
+          <motion.div
+            key={`${item.label}-${item.value}`}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: index * 0.04 }}
+            whileHover={{ y: -3 }}
+            className={`relative overflow-hidden rounded-2xl border px-4 py-3 ${
+              item.state === "done"
+                ? "border-[#dae3d8] bg-[#eef4ed]"
+                : item.state === "active"
+                  ? "border-[#d9bc80] bg-[#fbf4e4]"
+                  : "border-[#dde4ea] bg-[#f3f7f8]"
+            }`}
+          >
+            <span className="label-sans text-[11px] text-[#728078]">0{index + 1}</span>
+            <p className="mt-1 text-sm font-semibold text-[#304d40]">{item.label}</p>
+            <p className="label-sans mt-2 text-sm text-[#52675d]">{formatTimePoint(item.value)}</p>
+            <p className="label-sans mt-1 text-[11px] text-[#809087]">{item.hint}</p>
+          </motion.div>
+        ))}
+      </div>
+    </motion.section>
   );
 }
 

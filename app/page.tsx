@@ -76,7 +76,7 @@ export default async function DashboardPage() {
               也更稳下来
             </h1>
             <p className="mt-4 max-w-lg text-lg leading-8 text-[#606d66]">
-              前端仅展示 Agent / Skills 写入的本地数据，
+              把时政、岗位、申论和行测收在一处，
               <br className="hidden sm:block" />
               专注当下，积累每一次进步。
             </p>

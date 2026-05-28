@@ -92,7 +92,7 @@ NS = {"a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 
 
 def fetch(url: str) -> bytes:
-    request = urllib.request.Request(url, headers={"User-Agent": "wo-yao-shang-an/0.1"})
+    request = urllib.request.Request(url, headers={"User-Agent": "shangan/0.1"})
     with urllib.request.urlopen(request, timeout=30) as response:
         return response.read()
 
@@ -113,7 +113,7 @@ def fetch_with_official_snapshot(url: str, snapshot_name: str, reuse_existing: b
 
 
 def page_exists(url: str) -> bool:
-    request = urllib.request.Request(url, headers={"User-Agent": "wo-yao-shang-an/0.1"})
+    request = urllib.request.Request(url, headers={"User-Agent": "shangan/0.1"})
     try:
         with urllib.request.urlopen(request, timeout=20) as response:
             return response.status == 200
@@ -134,6 +134,13 @@ def write_json(path: Path, contents: dict) -> None:
         json.dumps(contents, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
+
+
+def current_time() -> datetime:
+    override = os.getenv("GONGKAO_SCAN_NOW")
+    if override:
+        return datetime.fromisoformat(override.replace("Z", "+00:00")).astimezone()
+    return datetime.now().astimezone()
 
 
 def xlsx_rows(data: bytes) -> list[list[str]]:
@@ -440,7 +447,7 @@ def parse_xiongan_positions(data: bytes, profile: dict, captured_at: str) -> lis
 
 
 def current_recruitment_status(registration_end_at: datetime, exam_date: datetime) -> str | None:
-    now = datetime.now().astimezone()
+    now = current_time()
     if now <= registration_end_at:
         return "报名中"
     if now.date() < exam_date.date():
@@ -457,12 +464,82 @@ def parse_sjz_soe_social_positions(data: bytes, captured_at: str) -> list[dict]:
     if not status:
         return []
 
-    confirmed_codes = {"CSCC05", "CSCC06"}
+    candidate_notes = {
+        "STCC05": {
+            "matchScore": 82,
+            "matchLevel": "可考虑",
+            "riskLevel": "高",
+            "recommendation": (
+                "岗位专业包含计算机科学与技术且招录人数较多，但岗位表更偏工程、电气与PLC协作。"
+                "若已经报名，可作为稳妥跟踪对象；若未报名，本轮窗口已关闭，建议作为水务集团同类岗位样本。"
+            ),
+            "extraRisks": [
+                "岗位要求熟悉工程管理、电气安全和PLC基础，纯软件背景需要补齐工程现场知识",
+                "本科阶段要求全国普通高校国家计划内统招学历，需以个人毕业材料核实",
+            ],
+            "studyAdvice": [
+                "围绕公共基础、综合能力、国企经营管理和安全生产基础准备笔试",
+                "面试准备水务保障、城市基础设施运维、数字化巡检和工程协同案例",
+            ],
+        },
+        "LTCC04": {
+            "matchScore": 84,
+            "matchLevel": "可考虑",
+            "riskLevel": "高",
+            "recommendation": (
+                "岗位方向是商业数字化运营，专业覆盖计算机类，和国企信息化经历有连接点。"
+                "硬风险在于岗位表写明需要相关工作经验，是否满足要以本人经历和用人单位审核为准。"
+            ),
+            "extraRisks": [
+                "岗位明确要求相关工作经验，需准备国企信息化、系统运营或数据管理经历证明",
+                "职责偏ERP和全业务流程，面试会更看重业务理解而不只是编程能力",
+            ],
+            "studyAdvice": [
+                "补 ERP、数据库、业务流程数字化、采购销售财务协同等案例",
+                "准备一个能讲清楚的系统运营或数据治理项目经历，突出问题定位和沟通推进",
+            ],
+        },
+        "CSCC05": {
+            "matchScore": 91,
+            "matchLevel": "高度适配",
+            "riskLevel": "中",
+            "recommendation": (
+                "大数据平台运维、网络与Linux基础和计算机科学与技术背景高度贴合。"
+                "如果已经报名，应把它作为本轮重点备考岗位；如果未报名，可作为后续市属数字科技岗位优先样本。"
+            ),
+            "extraRisks": [
+                "网络工程、数据库工程师等证书为优先项，没有证书时需要用项目经历补强",
+                "岗位表未细化具体驻地，需向用人单位确认通勤与工作地点",
+            ],
+            "studyAdvice": [
+                "重点复习Linux、计算机网络、数据库、网络安全基础和大数据平台运维概念",
+                "准备信息化项目支持、故障排查、数据平台稳定性保障等面试故事",
+            ],
+        },
+        "CSCC06": {
+            "matchScore": 90,
+            "matchLevel": "高度适配",
+            "riskLevel": "中",
+            "recommendation": (
+                "岗位覆盖前端、Java、Spring体系和系统集成，技术画像与计算机本科较贴近。"
+                "如果已经报名，可作为技术面准备优先级很高的岗位；未报名则作为数字科技公司同类岗位样本。"
+            ),
+            "extraRisks": [
+                "技术栈覆盖面较宽，笔面试可能同时考察前端、Java后端、框架和系统集成",
+                "项目经验为优先项，需要把已有国企信息化经历整理成可陈述案例",
+            ],
+            "studyAdvice": [
+                "用一周压缩复习HTML/CSS/JavaScript、React/Vue基础、Java集合和Spring Boot常见问答",
+                "准备兼容性、性能优化、接口联调、需求沟通和系统上线保障案例",
+            ],
+        },
+    }
     positions: list[dict] = []
     for row in rows:
-        if len(row) < 11 or row[3] not in confirmed_codes:
+        if len(row) < 11 or row[3] not in candidate_notes:
             continue
         organization, department, title, code, _, count, major, education, age, conditions, compensation = row[:11]
+        note = candidate_notes[code]
         responsibilities = (
             f"岗位表要求：{conditions.replace(chr(10), ' ')}"
         )
@@ -480,27 +557,22 @@ def parse_sjz_soe_social_positions(data: bytes, captured_at: str) -> list[dict]:
                 "responsibilities": responsibilities,
                 "educationRequirement": education,
                 "majorRequirement": major,
-                "matchScore": 88,
-                "matchLevel": "较为适配",
-                "riskLevel": "中",
-                "recommendation": (
-                    "官方岗位表的专业和学历方向与当前画像匹配，且未列明必须工作年限或资格证书。"
-                    "报名窗口临近截止，建议优先完成官方报名，并立即向组织方核实具体工作驻地。"
-                ),
+                "matchScore": note["matchScore"],
+                "matchLevel": note["matchLevel"],
+                "riskLevel": note["riskLevel"],
+                "recommendation": note["recommendation"],
                 "matchReasons": [
-                    "官方岗位表专业范围直接包含计算机科学与技术",
+                    "官方岗位表专业范围包含计算机科学与技术或计算机类",
                     "学历要求为本科及以上",
                     "属于市属国有企业面向社会的正式招聘岗位",
                 ],
                 "riskReminders": [
                     "岗位表未细化具体驻地到所关注区县，工作地点需向用人单位确认",
-                    "报名截至2026年5月27日17:00，逾期无法新报名",
+                    "报名已于2026年5月27日17:00截止，未报名则不能再新报名",
                     "薪酬仅载明执行公司制度，未公开具体金额、住房或落户政策",
+                    *note["extraRisks"],
                 ],
-                "studyAdvice": [
-                    "笔试含综合能力测试与专业知识测试，管理类（非财）岗位应同步准备逻辑分析、综合知识与信息技术基础",
-                    "围绕大数据平台、网络安全、系统集成与数字化运营准备结构化面试案例",
-                ],
+                "studyAdvice": note["studyAdvice"],
                 "benefits": [
                     f"官方岗位表薪酬范围列为“{compensation}”",
                     "公告明确为市属国有企业正式市场化公开招聘",
@@ -540,7 +612,7 @@ def parse_main_positions(data: bytes, profile: dict, scores: dict[tuple[str, str
     with zipfile.ZipFile(io.BytesIO(data)) as archive:
         filename = next(name for name in archive.namelist() if name.lower().endswith(".xls"))
         workbook = xlrd.open_workbook(file_contents=archive.read(filename))
-    captured_at = datetime.now().astimezone().isoformat(timespec="seconds")
+    captured_at = current_time().isoformat(timespec="seconds")
 
     for sheet in workbook.sheets():
         headers = [str(sheet.cell_value(1, index)).strip() for index in range(sheet.ncols)]
@@ -602,7 +674,7 @@ def parse_main_positions(data: bytes, profile: dict, scores: dict[tuple[str, str
 def main() -> None:
     profile = read_json(DATA_DIR / "profile.local.json")
     report = read_json(REPORT_PATH) if REPORT_PATH.exists() else {"positions": []}
-    now = datetime.now().astimezone().isoformat(timespec="minutes")
+    now = current_time().isoformat(timespec="minutes")
     national_positions = parse_main_positions(
         fetch_with_official_snapshot(MAIN_URL, "national-civil-service-2026-main.zip", reuse_existing=True),
         profile,

@@ -291,7 +291,7 @@ export interface EligiblePosition {
   qualificationReviewEndAt?: string;
   paymentEndAt?: string;
   examDate?: string;
-  status: "即将报名" | "报名中" | "已截止" | "已结束" | string;
+  status: "即将报名" | "报名中" | "待考试" | "已截止" | "已结束" | string;
   sourceName: string;
   sourceUrl: string;
   capturedAt: string;

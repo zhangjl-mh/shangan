@@ -3,11 +3,13 @@ import "@/app/globals.css";
 import { SiteHeader } from "@/components/layout/site-header";
 
 export const metadata: Metadata = {
-  title: "我要上岸 | 公考备考驾驶舱",
-  description: "由本地 Agent 数据驱动的公考备考展示系统",
-  applicationName: "我要上岸",
+  title: "上岸 | 公考备考驾驶舱",
+  description: "本地数据驱动的公考备考展示系统",
+  applicationName: "上岸",
   icons: {
     icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
   },
 };
 

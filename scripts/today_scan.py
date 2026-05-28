@@ -115,7 +115,9 @@ def render_job_markdown(report: dict) -> str:
                     f"- 地区：{position['region']}{(' / ' + position['district']) if position.get('district') else ''}",
                     f"- 状态：{position['status']}",
                     f"- 招录人数：{position.get('recruitCount', '官方未公开')}",
-                    f"- 报名截止：{position.get('registrationEndDate', '以官方公告为准')}",
+                    f"- 报名截止：{position.get('registrationEndAt') or position.get('registrationEndDate', '以官方公告为准')}",
+                    f"- 资格初审截止：{position.get('qualificationReviewEndAt', '以官方公告为准')}",
+                    f"- 缴费截止：{position.get('paymentEndAt', '以官方公告为准')}",
                     f"- 笔试时间：{position.get('examDate', '以官方公告为准')}",
                     f"- 岗位代码：{position.get('positionCode', '官方未公开')}",
                     f"- 原文：[{position['sourceName']}]({position['sourceUrl']})",
@@ -162,58 +164,74 @@ def render_job_markdown(report: dict) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Finalize today's news and job scan data.")
     parser.add_argument("--date", default=date.today().isoformat(), dest="scan_date")
+    parser.add_argument(
+        "--jobs-only",
+        action="store_true",
+        help="Only validate and render the job scan report for this date.",
+    )
     args = parser.parse_args()
 
     news_path = CONTENT_DIR / "news" / f"{args.scan_date}.json"
     jobs_path = CONTENT_DIR / "job" / "eligible-jobs.json"
-    if not news_path.exists():
+    if not news_path.exists() and not args.jobs_only:
         raise SystemExit(f"缺少当日时政文件：{news_path}")
     if not jobs_path.exists():
         raise SystemExit(f"缺少岗位扫描文件：{jobs_path}")
 
-    news = read_json(news_path)
+    news = read_json(news_path) if news_path.exists() and not args.jobs_only else None
     jobs = read_json(jobs_path)
     jobs["positions"] = [
         position for position in jobs.get("positions", [])
         if position.get("status") in {"报名中", "即将报名", "待考试"}
     ]
-    validate(news, read_json(SCHEMA_DIR / "daily-news.schema.json"))
+    if news is not None:
+        validate(news, read_json(SCHEMA_DIR / "daily-news.schema.json"))
     validate(jobs, read_json(SCHEMA_DIR / "eligible-jobs.schema.json"))
     write_json(jobs_path, jobs)
 
     markdown_dir = CONTENT_DIR / "markdown"
     news_markdown = markdown_dir / f"{args.scan_date}-daily-news.md"
     jobs_markdown = markdown_dir / f"{args.scan_date}-job-scan.md"
-    write_text(news_markdown, render_news_markdown(news))
+    outputs = []
+    if news is not None:
+        write_text(news_markdown, render_news_markdown(news))
+        outputs.append(str(news_markdown))
     write_text(jobs_markdown, render_job_markdown(jobs))
+    outputs.append(str(jobs_markdown))
 
     source_registry = read_json(DATA_DIR / "job-sources.json")
     manifest = {
         "scanDate": args.scan_date,
         "finalizedAt": datetime.now().astimezone().isoformat(timespec="seconds"),
-        "news": {
-            "file": str(news_path),
-            "items": len(news["items"]),
-            "verifiedAt": news.get("meta", {}).get("verifiedAt"),
-        },
+        "mode": "jobs-only" if args.jobs_only else "news-and-jobs",
+        "news": (
+            {
+                "file": str(news_path),
+                "items": len(news["items"]),
+                "verifiedAt": news.get("meta", {}).get("verifiedAt"),
+            }
+            if news is not None
+            else None
+        ),
         "jobs": {
             "file": str(jobs_path),
             "positions": len(jobs.get("positions", [])),
             "searchedSources": len(jobs.get("searchedSources", [])),
             "registeredOfficialSources": len(source_registry.get("sources", [])),
         },
-        "outputs": [str(news_markdown), str(jobs_markdown)],
+        "outputs": outputs,
     }
     manifest_path = CONTENT_DIR / "scan" / f"{args.scan_date}.json"
     write_json(manifest_path, manifest)
 
     print(
         f"[今日扫描完成] {args.scan_date} | "
-        f"时政 {manifest['news']['items']} 条 | "
+        f"时政 {manifest['news']['items'] if manifest['news'] else 0} 条 | "
         f"当前可展示岗位 {manifest['jobs']['positions']} 个 | "
         f"权威入口 {manifest['jobs']['searchedSources']} 个"
     )
-    print(f"[输出] {news_markdown}")
+    if news is not None:
+        print(f"[输出] {news_markdown}")
     print(f"[输出] {jobs_markdown}")
     print(f"[清单] {manifest_path}")
 

@@ -1,0 +1,15 @@
+{
+  "scanDate": "2026-05-28",
+  "finalizedAt": "2026-05-28T09:54:49+08:00",
+  "mode": "jobs-only",
+  "news": null,
+  "jobs": {
+    "file": "D:\\Code\\shangan\\content\\local\\job\\eligible-jobs.json",
+    "positions": 4,
+    "searchedSources": 24,
+    "registeredOfficialSources": 16
+  },
+  "outputs": [
+    "D:\\Code\\shangan\\content\\local\\markdown\\2026-05-28-job-scan.md"
+  ]
+}

@@ -29,7 +29,7 @@ function formatScanMinute(value?: string) {
 export default async function JobPage() {
   const report = await readEligibleJobs();
   const activePositions = report?.positions.filter(
-    (position) => position.status === "报名中" || position.status === "即将报名",
+    (position) => ["报名中", "即将报名", "待考试"].includes(position.status),
   ) ?? [];
 
   return (
