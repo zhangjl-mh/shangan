@@ -1,0 +1,20 @@
+{
+  "scanDate": "2026-06-02",
+  "finalizedAt": "2026-06-02T08:33:23+08:00",
+  "mode": "news-and-jobs",
+  "news": {
+    "file": "D:\\Code\\shangan\\content\\local\\news\\2026-06-02.json",
+    "items": 0,
+    "verifiedAt": "2026-06-02 09:15 +08:00"
+  },
+  "jobs": {
+    "file": "D:\\Code\\shangan\\content\\local\\job\\eligible-jobs.json",
+    "positions": 7,
+    "searchedSources": 48,
+    "registeredOfficialSources": 19
+  },
+  "outputs": [
+    "D:\\Code\\shangan\\content\\local\\markdown\\2026-06-02-daily-news.md",
+    "D:\\Code\\shangan\\content\\local\\markdown\\2026-06-02-job-scan.md"
+  ]
+}

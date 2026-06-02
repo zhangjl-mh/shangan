@@ -45,7 +45,7 @@ export default async function NewsPage({
               <Link
                 key={item}
                 href={`/news?date=${item}`}
-                className={`rounded-lg border px-4 py-2 transition-colors ${
+                className={`rounded-lg border px-5 py-2 transition-colors sm:px-6 ${
                   item === selectedDate
                     ? "border-[#98ac9d] bg-[#eaf0e8] text-[#335646]"
                     : "bg-white/60 text-[#68746e] hover:bg-white"

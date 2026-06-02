@@ -132,7 +132,15 @@ export function renderXingceMarkdown(roadmap: XingceRoadmap) {
     );
   }
 
-  lines.push("## 六阶段训练路线", "");
+  if (roadmap.studyPrinciples) {
+    lines.push("## 学习总原则", "");
+    roadmap.studyPrinciples.forEach((principle) => {
+      lines.push(`- ${principle.title}：${principle.detail}`);
+    });
+    lines.push("");
+  }
+
+  lines.push(`## ${formatStageHeading(roadmap.stages.length)}`, "");
   roadmap.stages.forEach((stage) => {
     lines.push(`### ${stage.title}`, "", `- 目标：${stage.goal}`, `- 周期：${stage.duration ?? "按需安排"}`, "");
     stage.tasks.forEach((task) => lines.push(`- ${task}`));
@@ -143,13 +151,50 @@ export function renderXingceMarkdown(roadmap: XingceRoadmap) {
   });
 
   if (roadmap.moduleGuides) {
-    lines.push("## 专项模块方法", "");
+    lines.push("## 模块训练工作台", "");
     roadmap.moduleGuides.forEach((module) => {
       lines.push(`### ${module.title}`, "", module.ability, "", `主题：${module.topics.join("、")}`, "", "方法：");
       module.methods.forEach((method) => lines.push(`- ${method}`));
       lines.push("", "易错点：");
       module.pitfalls.forEach((pitfall) => lines.push(`- ${pitfall}`));
+      const teacherGroup = roadmap.teacherGroups?.find((group) => group.moduleId === module.id);
+      if (teacherGroup) {
+        lines.push("", "跟课老师：", "", teacherGroup.selectionNote, "");
+        teacherGroup.teachers.forEach((teacher) => {
+          lines.push(
+            `#### ${teacher.name}`,
+            "",
+            `- 机构/来源：${teacher.institution ?? "按可获得课程资源选择"}`,
+            `- 角色：${teacher.role}`,
+            `- 阶段：${teacher.stage}`,
+            `- 适合：${teacher.suitedFor}`,
+            "",
+            "怎么跟：",
+          );
+          teacher.howToUse.forEach((item) => lines.push(`- ${item}`));
+          lines.push("", `注意：${teacher.caution}`);
+          if (teacher.sourceUrl) {
+            lines.push(`来源：[${teacher.sourceTitle ?? teacher.name}](${teacher.sourceUrl})`);
+          }
+          lines.push("");
+        });
+      }
       lines.push("");
+    });
+  }
+
+  if (roadmap.teacherSelectionRules) {
+    lines.push("## 选老师原则", "");
+    roadmap.teacherSelectionRules.forEach((rule) => lines.push(`- [ ] ${rule}`));
+    lines.push("");
+  }
+
+  if (roadmap.dailyExecution) {
+    lines.push("## 每日执行模板", "");
+    roadmap.dailyExecution.forEach((item) => {
+      lines.push(`### ${item.period}：${item.focus}`, "");
+      item.actions.forEach((action) => lines.push(`- [ ] ${action}`));
+      lines.push("", `当日验收：${item.standard}`, "");
     });
   }
 
@@ -177,4 +222,21 @@ export function renderXingceMarkdown(roadmap: XingceRoadmap) {
   }
 
   return lines.join("\n");
+}
+
+function formatStageHeading(count: number) {
+  const labels: Record<number, string> = {
+    1: "一",
+    2: "二",
+    3: "三",
+    4: "四",
+    5: "五",
+    6: "六",
+    7: "七",
+    8: "八",
+    9: "九",
+    10: "十",
+  };
+
+  return `${labels[count] ?? count}阶段训练路线`;
 }

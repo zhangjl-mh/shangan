@@ -183,6 +183,33 @@ export interface XingceRoadmap extends StudyRoadmap {
     pitfalls: string[];
     drills: string[];
   }>;
+  studyPrinciples?: Array<{
+    title: string;
+    detail: string;
+  }>;
+  teacherGroups?: Array<{
+    moduleId: string;
+    module: string;
+    selectionNote: string;
+    teachers: Array<{
+      name: string;
+      institution?: string;
+      role: string;
+      stage: string;
+      suitedFor: string;
+      howToUse: string[];
+      caution: string;
+      sourceTitle?: string;
+      sourceUrl?: string;
+    }>;
+  }>;
+  teacherSelectionRules?: string[];
+  dailyExecution?: Array<{
+    period: string;
+    focus: string;
+    actions: string[];
+    standard: string;
+  }>;
   formulaCards?: Array<{
     title: string;
     rules: string[];

@@ -2,13 +2,8 @@ import Link from "next/link";
 import {
   ArrowUpRight,
   BookOpenCheck,
-  BrainCircuit,
   CalendarRange,
-  ChartNoAxesColumn,
   Clock3,
-  Languages,
-  Scale,
-  Shapes,
   Sigma,
   Target,
 } from "lucide-react";
@@ -24,23 +19,24 @@ import type { XingceRoadmap } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-const moduleIcons = [Scale, BrainCircuit, Languages, Sigma, Shapes, ChartNoAxesColumn];
-const moduleTones = [
-  "bg-[#789485]",
-  "bg-[#839f89]",
-  "bg-[#5785bd]",
-  "bg-[#cda362]",
-  "bg-[#698571]",
-  "bg-[#718bb5]",
-];
+type XingcePageProps = {
+  searchParams?: Promise<{
+    module?: string | string[];
+  }>;
+};
 
-export default async function XingcePage() {
+export default async function XingcePage({ searchParams }: XingcePageProps) {
   const roadmap = await readRoadmap<XingceRoadmap>("xingce");
 
   if (!roadmap) {
     return null;
   }
 
+  const params = await searchParams;
+  const requestedModule = Array.isArray(params?.module) ? params?.module[0] : params?.module;
+  const activeModuleId = roadmap.moduleGuides?.some((module) => module.id === requestedModule)
+    ? requestedModule
+    : roadmap.moduleGuides?.[0]?.id;
   const profile = roadmap.examProfile;
 
   return (
@@ -84,45 +80,42 @@ export default async function XingcePage() {
         </Reveal>
       ) : null}
 
-      {roadmap.moduleGuides?.length ? (
+      {roadmap.studyPrinciples?.length ? (
         <Reveal delay={0.05}>
           <section>
-            <Heading icon={BookOpenCheck} title="官方板块与专项方法" description="六大模块均提供能力目标、题型主题、方法、避坑和训练动作。" />
-            <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-              {roadmap.moduleGuides.map((module, index) => {
-                const Icon = moduleIcons[index] ?? Target;
-                return (
-                  <Card className="flex flex-col items-center gap-3 p-4 text-center" key={module.id}>
-                    <span className={`flex size-11 items-center justify-center rounded-xl text-white ${moduleTones[index]}`}>
-                      <Icon size={22} />
-                    </span>
-                    <p className="font-semibold tracking-[.06em]">{module.title}</p>
-                  </Card>
-                );
-              })}
+            <Heading icon={Target} title="学习总原则" description="先稳住高性价比模块，再用常识和数量做边际提分。" />
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {roadmap.studyPrinciples.map((principle) => (
+                <Card className="p-5" key={principle.title}>
+                  <p className="text-lg font-semibold text-deep-green">{principle.title}</p>
+                  <p className="muted-copy mt-3 text-sm leading-6">{principle.detail}</p>
+                </Card>
+              ))}
             </div>
-            <XingceModuleExplorer modules={roadmap.moduleGuides} />
           </section>
         </Reveal>
       ) : null}
 
       <Reveal delay={0.05}>
         <section>
-          <Heading icon={CalendarRange} title="六阶段训练路线" description="从摸底识别短板，到专项强化与整卷稳定输出。" />
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {roadmap.stages.map((stage) => (
-              <Card className="hover-lift p-5" key={stage.id}>
-                <div className="mb-3 flex items-center justify-between gap-2">
-                  <p className="text-lg font-semibold">{stage.title}</p>
+          <Heading icon={CalendarRange} title={formatStageHeading(roadmap.stages.length)} description="考生先看这里，明确当前阶段、核心任务和过关标准。" />
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {roadmap.stages.map((stage, index) => (
+              <Card className="hover-lift flex flex-col p-5" key={stage.id}>
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div>
+                    <Badge className="mb-3 bg-[#eef3ee] text-[#486958]">第 {index + 1} 步</Badge>
+                    <p className="text-lg font-semibold leading-7">{stage.title}</p>
+                  </div>
                   <Badge>{stage.duration}</Badge>
                 </div>
                 <p className="muted-copy text-sm leading-6">{stage.goal}</p>
-                <ul className="label-sans mt-4 space-y-2 text-sm leading-6 text-[#62716a]">
+                <ul className="label-sans mt-4 flex-1 space-y-2 text-sm leading-6 text-[#62716a]">
                   {stage.tasks.map((task) => <li key={task}>• {task}</li>)}
                 </ul>
                 {stage.milestone ? (
                   <p className="label-sans mt-4 rounded-lg bg-[#f6f3eb] p-3 text-xs leading-6 text-[#796748]">
-                    验收标志：{stage.milestone}
+                    过关标准：{stage.milestone}
                   </p>
                 ) : null}
               </Card>
@@ -130,6 +123,44 @@ export default async function XingcePage() {
           </div>
         </section>
       </Reveal>
+
+      {roadmap.moduleGuides?.length ? (
+        <Reveal delay={0.05}>
+          <section>
+            <Heading icon={BookOpenCheck} title="模块训练工作台" description="点一个模块，就看该模块的目标、方法、训练动作、全部老师和选课注意事项。" />
+            <XingceModuleExplorer
+              modules={roadmap.moduleGuides}
+              teacherGroups={roadmap.teacherGroups}
+              selectionRules={roadmap.teacherSelectionRules}
+              activeModuleId={activeModuleId}
+            />
+          </section>
+        </Reveal>
+      ) : null}
+
+      {roadmap.dailyExecution?.length ? (
+        <Reveal delay={0.05}>
+          <section>
+            <Heading icon={Clock3} title="每日执行模板" description="把听课、刷题、复盘切成固定动作，避免只收藏计划不行动。" />
+            <div className="grid gap-4 md:grid-cols-3">
+              {roadmap.dailyExecution.map((item) => (
+                <Card className="p-5" key={item.period}>
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <p className="text-xl font-semibold text-deep-green">{item.period}</p>
+                    <Badge>{item.focus}</Badge>
+                  </div>
+                  <ul className="label-sans space-y-2 text-sm leading-6 text-[#65736c]">
+                    {item.actions.map((action) => <li key={action}>□ {action}</li>)}
+                  </ul>
+                  <p className="label-sans mt-4 rounded-lg bg-[#f6f3eb] p-3 text-xs leading-6 text-[#796748]">
+                    当日验收：{item.standard}
+                  </p>
+                </Card>
+              ))}
+            </div>
+          </section>
+        </Reveal>
+      ) : null}
 
       <Reveal delay={0.05}>
         <section className="grid gap-5 lg:grid-cols-[1.06fr_.94fr]">
@@ -147,7 +178,7 @@ export default async function XingcePage() {
             </div>
           </div>
           <div>
-            <Heading icon={Clock3} title="考场节奏" description="实际分配须通过套卷训练确定并固定。" />
+            <Heading icon={Clock3} title="考场节奏" description="套卷期开始使用，实际分配须通过真题模拟固定。" />
             <Card className="p-5">
               <div className="label-sans space-y-4">
                 {roadmap.timePlan?.map((phase) => (
@@ -215,4 +246,21 @@ function Stat({ value, label }: { value: string; label: string }) {
       <p className="mt-1 text-xs text-[#69766f]">{label}</p>
     </div>
   );
+}
+
+function formatStageHeading(count: number) {
+  const labels: Record<number, string> = {
+    1: "一",
+    2: "二",
+    3: "三",
+    4: "四",
+    5: "五",
+    6: "六",
+    7: "七",
+    8: "八",
+    9: "九",
+    10: "十",
+  };
+
+  return `${labels[count] ?? count}阶段训练路线`;
 }
