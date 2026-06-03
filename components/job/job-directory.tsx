@@ -2,44 +2,27 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
+import Link from "next/link";
 import {
-  AlertTriangle,
   Bookmark,
-  BookOpen,
-  CalendarClock,
-  ExternalLink,
-  House,
-  IdCard,
   MapPin,
   Search,
-  ShieldCheck,
-  Target,
-  Users,
-  Wallet,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import type { EligiblePosition, JobTrackingData, JobTrackingStatus } from "@/lib/types";
-
-const trackingStatuses: JobTrackingStatus[] = [
-  "未处理",
-  "已收藏",
-  "准备报名",
-  "已报名",
-  "待考试",
-  "已结束",
-  "放弃",
-];
+import type { EligiblePosition, JobTrackingData } from "@/lib/types";
 const categoryOrder = ["国考", "省考", "编制", "国企"];
 const regionOrder = ["北京", "雄安", "天津", "石家庄", "其他"];
 const publicCategories = ["全部类型", ...categoryOrder];
-const displayStatuses = new Set(["报名中", "即将报名", "待考试"]);
 type DisplayPosition = EligiblePosition & {
   category: string;
   recruitmentClass: string;
   regionGroup: string;
+  district: string;
 };
+type CountItem = { name: string; count: number };
+type CategoryRegionGroup = CountItem & { regions: CountItem[] };
 
 function displayCategory(category: string) {
   if (["事业单位", "教师", "医疗卫生"].includes(category)) return "编制";
@@ -63,6 +46,25 @@ function getRegionGroup(position: EligiblePosition) {
   if (text.includes("天津")) return "天津";
   if (["石家庄", "井陉", "鹿泉", "矿区", "藁城", "栾城", "正定"].some((keyword) => text.includes(keyword))) return "石家庄";
   return "其他";
+}
+
+function getDistrict(position: EligiblePosition) {
+  if (position.district) return position.district;
+  const text = `${position.region} ${position.department ?? ""} ${position.organization}`;
+  const directMatch = text.match(/(?:北京市|天津市|石家庄市)([^省市县区（）()，,、\s]+[区县])/);
+  if (directMatch?.[1]) return directMatch[1];
+  if (text.includes("井陉矿区")) return "井陉矿区";
+  if (text.includes("井陉县")) return "井陉县";
+  if (text.includes("鹿泉")) return "鹿泉区";
+  if (text.includes("藁城")) return "藁城区";
+  if (text.includes("栾城")) return "栾城区";
+  if (text.includes("正定")) return "正定县";
+  if (text.includes("雄县")) return "雄县";
+  if (text.includes("容城")) return "容城县";
+  if (text.includes("安新")) return "安新县";
+  if (position.regionGroup === "石家庄") return "市级待确认";
+  if (position.regionGroup === "其他") return position.region.split(/[、/\s-]/).filter(Boolean).at(-1) ?? "其他地区";
+  return "未细分";
 }
 
 function orderIndex(order: string[], value?: string) {
@@ -93,11 +95,18 @@ function formatTimePoint(value?: string) {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
+function anchorId(...parts: string[]) {
+  return parts
+    .join("-")
+    .toLowerCase()
+    .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 export function JobDirectory({ positions }: { positions: EligiblePosition[] }) {
   const activePositions = useMemo<DisplayPosition[]>(
     () =>
       positions
-        .filter((position) => displayStatuses.has(position.status))
         .map((position) => {
           const recruitmentClass = getRecruitmentClass(position);
           return {
@@ -105,12 +114,14 @@ export function JobDirectory({ positions }: { positions: EligiblePosition[] }) {
             category: displayCategory(position.category),
             recruitmentClass,
             regionGroup: getRegionGroup(position),
+            district: getDistrict(position),
           };
         })
         .sort(
           (a, b) =>
             orderIndex(categoryOrder, a.recruitmentClass) - orderIndex(categoryOrder, b.recruitmentClass) ||
             orderIndex(regionOrder, a.regionGroup) - orderIndex(regionOrder, b.regionGroup) ||
+            a.district.localeCompare(b.district, "zh-CN") ||
             (b.matchScore ?? 0) - (a.matchScore ?? 0) ||
             a.organization.localeCompare(b.organization, "zh-CN"),
         ),
@@ -118,12 +129,11 @@ export function JobDirectory({ positions }: { positions: EligiblePosition[] }) {
   );
   const [query, setQuery] = useState("");
   const [region, setRegion] = useState("全部地区");
+  const [district, setDistrict] = useState("全部县区");
   const [category, setCategory] = useState("全部类型");
   const [status, setStatus] = useState("全部状态");
-  const [selectedId, setSelectedId] = useState(activePositions[0]?.id ?? "");
   const [showTrackedOnly, setShowTrackedOnly] = useState(false);
   const [tracking, setTracking] = useState<JobTrackingData>({ updatedAt: "", items: [] });
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetch("/api/job-tracking")
@@ -133,6 +143,26 @@ export function JobDirectory({ positions }: { positions: EligiblePosition[] }) {
   }, []);
 
   const regions = ["全部地区", ...regionOrder.filter((name) => activePositions.some((position) => position.regionGroup === name))];
+  const districts = useMemo(
+    () => [
+      "全部县区",
+      ...Array.from(
+        new Set(
+          activePositions
+            .filter((position) => region === "全部地区" || position.regionGroup === region)
+            .map((position) => position.district),
+        ),
+      ).sort((a, b) => a.localeCompare(b, "zh-CN")),
+    ],
+    [activePositions, region],
+  );
+  useEffect(() => {
+    if (!districts.includes(district)) setDistrict("全部县区");
+  }, [district, districts]);
+  const statusOptions = useMemo(
+    () => ["全部状态", ...Array.from(new Set(activePositions.map((position) => position.status)))],
+    [activePositions],
+  );
   const sourcePositions = useMemo(() => {
     if (!showTrackedOnly) return activePositions;
     return tracking.items
@@ -157,455 +187,497 @@ export function JobDirectory({ positions }: { positions: EligiblePosition[] }) {
         return (
           (!keyword || text.includes(keyword)) &&
           (region === "全部地区" || position.regionGroup === region) &&
+          (district === "全部县区" || position.district === district) &&
           (category === "全部类型" || position.recruitmentClass === category) &&
           (status === "全部状态" || position.status === status)
         );
       }),
-    [category, query, region, sourcePositions, status],
+    [category, district, query, region, sourcePositions, status],
   );
-  const groupedPositions = useMemo(
+  const previewGroups = useMemo(
     () =>
       categoryOrder
-        .map((groupCategory) => ({
-          category: groupCategory,
-          regions: regionOrder
-            .map((groupRegion) => ({
-              region: groupRegion,
-              positions: filtered.filter(
-                (position) => position.recruitmentClass === groupCategory && position.regionGroup === groupRegion,
-              ),
-            }))
-            .filter((group) => group.positions.length > 0),
-        }))
-        .filter((group) => group.regions.length > 0),
+        .map((groupCategory) => {
+          const positionsInGroup = filtered.filter((position) => position.recruitmentClass === groupCategory);
+          return {
+            id: anchorId("job-preview", groupCategory),
+            category: groupCategory,
+            count: positionsInGroup.length,
+            positions: positionsInGroup,
+          };
+        })
+        .filter((group) => group.count > 0),
     [filtered],
   );
-  const selected = filtered.find((position) => position.id === selectedId) ?? filtered[0];
   const registeringCount = activePositions.filter((position) => position.status === "报名中").length;
   const upcomingCount = activePositions.filter((position) => position.status === "即将报名").length;
   const pendingExamCount = activePositions.filter((position) => position.status === "待考试").length;
+  const endedCount = activePositions.filter((position) => ["已截止", "已结束", "已完成录用"].includes(position.status)).length;
+  const locatorGroups = useMemo<CategoryRegionGroup[]>(
+    () =>
+      categoryOrder.map((name) => {
+        const categoryPositions = sourcePositions.filter(
+          (position) =>
+            position.recruitmentClass === name &&
+            (status === "全部状态" || position.status === status),
+        );
+        return {
+          name,
+          count: categoryPositions.length,
+          regions: regionOrder.map((regionName) => ({
+            name: regionName,
+            count: categoryPositions.filter((position) => position.regionGroup === regionName).length,
+          })),
+        };
+      }),
+    [sourcePositions, status],
+  );
+  const locatorDistricts = useMemo(() => {
+    const base = sourcePositions.filter(
+      (position) =>
+        (category === "全部类型" || position.recruitmentClass === category) &&
+        (region === "全部地区" || position.regionGroup === region) &&
+        (status === "全部状态" || position.status === status),
+    );
+    return Array.from(new Set(base.map((position) => position.district)))
+      .sort((a, b) => a.localeCompare(b, "zh-CN"))
+      .map((name) => ({
+        name,
+        count: base.filter((position) => position.district === name).length,
+      }));
+  }, [category, region, sourcePositions, status]);
 
-  async function saveTracking(position: EligiblePosition, nextStatus: JobTrackingStatus) {
-    setSaving(true);
-    const next: JobTrackingData = {
-      updatedAt: new Date().toISOString(),
-      items: [
-        ...tracking.items.filter((item) => item.positionId !== position.id),
-        { positionId: position.id, status: nextStatus, examDate: position.examDate, positionSnapshot: position },
-      ],
-    };
-    setTracking(next);
-    try {
-      await fetch("/api/job-tracking", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(next),
-      });
-    } finally {
-      setSaving(false);
-    }
+  function handleRegionChange(nextRegion: string) {
+    setRegion(nextRegion);
+    setDistrict("全部县区");
+  }
+
+  function handleDistrictChange(nextDistrict: string) {
+    setDistrict(nextDistrict);
+  }
+
+  function handleLocatorReset() {
+    setCategory("全部类型");
+    setRegion("全部地区");
+    setDistrict("全部县区");
+  }
+
+  function handleCategorySelect(nextCategory: string) {
+    setCategory(nextCategory);
+    setRegion("全部地区");
+    setDistrict("全部县区");
+  }
+
+  function handleCategoryRegionSelect(nextCategory: string, nextRegion: string) {
+    setCategory(nextCategory);
+    setRegion(nextRegion);
+    setDistrict("全部县区");
   }
 
   return (
-    <div className="space-y-6">
-      <section id="coverage" className="grid scroll-mt-24 gap-4 sm:grid-cols-3">
-        <SummaryLink label="尚未考试岗位" value={`${activePositions.length} 个`} detail="全部来自官方附件筛选" href="#positions" />
-        <SummaryLink label="仍可报名" value={`${registeringCount + upcomingCount} 个`} detail="当前或即将打开报名窗口" href="#positions" />
-        <SummaryLink label="待考试" value={`${pendingExamCount} 个`} detail="已截止但考试尚未举行" href="#positions" />
-      </section>
+    <div className="space-y-4">
+      <FilterBar
+        query={query}
+        onQueryChange={setQuery}
+        category={category}
+        onCategoryChange={setCategory}
+        publicCategories={publicCategories}
+        region={region}
+        regionOptions={regions}
+        onRegionChange={handleRegionChange}
+        district={district}
+        districtOptions={districts}
+        onDistrictChange={handleDistrictChange}
+        status={status}
+        statusOptions={statusOptions}
+        onStatusChange={setStatus}
+        showTrackedOnly={showTrackedOnly}
+        onToggleTracked={() => setShowTrackedOnly((current) => !current)}
+        filteredCount={filtered.length}
+      />
 
-      <Card id="positions" className="label-sans scroll-mt-24 rounded-[24px] border-[#e3ddcf] bg-[#fcfbf7]/95 p-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="flex min-w-[250px] flex-1 items-center gap-2 rounded-xl border border-[#e6e0d5] bg-white/80 px-4 py-2.5">
-            <Search size={17} className="text-[#718178]" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              className="w-full bg-transparent text-sm outline-none"
-              placeholder="搜索岗位、单位或地区"
-            />
-          </label>
-          <FilterSelect value={region} options={regions} onChange={setRegion} />
-          <FilterSelect value={category} options={publicCategories} onChange={setCategory} />
-          <FilterSelect value={status} options={["全部状态", "报名中", "即将报名", "待考试"]} onChange={setStatus} />
-          <Button size="sm" variant={showTrackedOnly ? "default" : "outline"} onClick={() => setShowTrackedOnly((current) => !current)}>
-            <Bookmark size={15} /> 我已关注
-          </Button>
-        </div>
-      </Card>
-
-      {selected ? (
-        <DecisionPanel
-          position={selected}
-          saving={saving}
-          trackingStatus={tracking.items.find((item) => item.positionId === selected.id)?.status ?? "未处理"}
-          onTrackingChange={(nextStatus) => saveTracking(selected, nextStatus)}
+      <div className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
+        <LocatorPanel
+          activeCount={activePositions.length}
+          filteredCount={filtered.length}
+          registeringCount={registeringCount + upcomingCount}
+          endedCount={endedCount}
+          pendingExamCount={pendingExamCount}
+          category={category}
+          region={region}
+          categoryRegionGroups={locatorGroups}
+          onResetLocator={handleLocatorReset}
+          onCategorySelect={handleCategorySelect}
+          onCategoryRegionSelect={handleCategoryRegionSelect}
+          district={district}
+          districts={locatorDistricts}
+          onDistrictChange={handleDistrictChange}
         />
-      ) : (
-        <Card className="rounded-[28px] border-[#e3ddcf] bg-[#fffdf9] px-7 py-14 text-center">
-          <h2 className="ink-title text-[28px] text-[#294a3b]">本轮没有尚未考试且符合条件的岗位</h2>
-          <p className="label-sans mx-auto mt-4 max-w-[610px] text-sm leading-7 text-[#67766e]">
-            已经考试或已完成录用流程的批次不再展示为岗位卡片。请在下方打开官方检索记录，查看已经核验的公告、附件与排除原因。
-          </p>
-          <a href="#sources" className="label-sans mt-7 inline-flex rounded-xl border border-[#ccd9ce] bg-[#f1f5ee] px-5 py-3 text-sm font-medium text-[#345546]">
-            查看本次官方检索记录
-          </a>
-        </Card>
-      )}
 
-      {filtered.length ? (
-        <section>
-          <div className="mb-4">
-            <h2 className="ink-title text-[27px]">全部可报岗位</h2>
-            <p className="label-sans mt-1 text-sm text-[#66756d]">
-              当前筛选显示 {filtered.length} 个，按国考、省考、编制、国企，以及北京、雄安、天津、石家庄顺序展开。
-            </p>
-          </div>
-          <div className="space-y-6">
-            {groupedPositions.map((categoryGroup) => (
-              <motion.div
-                key={categoryGroup.category}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className="rounded-[28px] border border-[#e4ddcf] bg-[#fffdf8]/75 p-4"
-              >
-                <div className="mb-4 flex items-end justify-between gap-3">
-                  <div>
-                    <p className="label-sans text-xs tracking-[.18em] text-[#7c8b82]">岗位类型</p>
-                    <h3 className="ink-title mt-1 text-[24px] text-[#294a3b]">{categoryGroup.category}</h3>
+        <section id="position-list" className="label-sans min-w-0 space-y-4 scroll-mt-24">
+          {filtered.length ? (
+            <div className="space-y-4">
+              {previewGroups.map((group) => (
+                <motion.section
+                  id={group.id}
+                  key={group.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="scroll-mt-24 rounded-[22px] border border-[#e4ddcf] bg-[#fffdf8]/75 p-3"
+                >
+                  <div className="mb-3 flex items-center justify-between gap-3 px-1">
+                    <h2 className="ink-title text-[24px]">{group.category}</h2>
+                    <span className="rounded-full bg-[#edf4eb] px-3 py-1 text-xs text-[#4b6b5b]">{group.count} 个</span>
                   </div>
-                  <span className="label-sans rounded-full bg-[#edf4eb] px-3 py-1 text-xs text-[#4b6b5b]">
-                    {categoryGroup.regions.reduce((sum, group) => sum + group.positions.length, 0)} 个
-                  </span>
-                </div>
-                <div className="space-y-5">
-                  {categoryGroup.regions.map((regionGroup) => (
-                    <div key={`${categoryGroup.category}-${regionGroup.region}`}>
-                      <div className="mb-3 flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-[#54715f]" />
-                        <h4 className="text-base font-semibold text-[#304d40]">{regionGroup.region}</h4>
-                        <span className="label-sans text-xs text-[#76877d]">{regionGroup.positions.length} 个符合岗位</span>
-                      </div>
-                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                        {regionGroup.positions.map((position) => (
-                          <PositionCard
-                            key={position.id}
-                            position={position}
-                            active={selected?.id === position.id}
-                            onSelect={() => setSelectedId(position.id)}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            ))}
-          </div>
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                    {group.positions.map((position) => (
+                      <PositionCard key={position.id} position={position} />
+                    ))}
+                  </div>
+                </motion.section>
+              ))}
+            </div>
+          ) : (
+            <Card className="rounded-[28px] border-[#e3ddcf] bg-[#fffdf9] px-7 py-14 text-center">
+              <h2 className="ink-title text-[28px] text-[#294a3b]">没有匹配当前筛选的岗位</h2>
+              <p className="label-sans mx-auto mt-4 max-w-[610px] text-sm leading-7 text-[#67766e]">
+                调整上方筛选或左侧定位器；也可以查看下方官方检索记录，确认排除原因。
+              </p>
+              <a href="#sources" className="label-sans mt-7 inline-flex rounded-xl border border-[#ccd9ce] bg-[#f1f5ee] px-5 py-3 text-sm font-medium text-[#345546]">
+                查看官方检索记录
+              </a>
+            </Card>
+          )}
         </section>
-      ) : null}
+      </div>
     </div>
   );
 }
 
-function DecisionPanel({
-  position,
-  saving,
-  trackingStatus,
-  onTrackingChange,
+function FilterBar({
+  query,
+  onQueryChange,
+  category,
+  onCategoryChange,
+  publicCategories,
+  region,
+  regionOptions,
+  onRegionChange,
+  district,
+  districtOptions,
+  onDistrictChange,
+  status,
+  statusOptions,
+  onStatusChange,
+  showTrackedOnly,
+  onToggleTracked,
+  filteredCount,
 }: {
-  position: EligiblePosition;
-  saving: boolean;
-  trackingStatus: JobTrackingStatus;
-  onTrackingChange: (status: JobTrackingStatus) => void;
+  query: string;
+  onQueryChange: (value: string) => void;
+  category: string;
+  onCategoryChange: (value: string) => void;
+  publicCategories: string[];
+  region: string;
+  regionOptions: string[];
+  onRegionChange: (value: string) => void;
+  district: string;
+  districtOptions: string[];
+  onDistrictChange: (value: string) => void;
+  status: string;
+  statusOptions: string[];
+  onStatusChange: (value: string) => void;
+  showTrackedOnly: boolean;
+  onToggleTracked: () => void;
+  filteredCount: number;
 }) {
-  const score = position.matchScore ?? 80;
-  const risk = position.riskLevel ?? "中";
-  const entryScore = position.historicalReferences?.[0]?.finalEntryScore ?? "官方未公开";
-  const deadline = formatTimePoint(position.registrationEndAt ?? position.registrationEndDate);
-  const examTime = formatTimePoint(position.examDate);
-
   return (
-    <Card className="ornament-pavilion overflow-hidden rounded-[30px] border-[#dfd7c8] bg-[#fffdf8]/95 p-6 lg:p-8">
-      <div className="relative z-10">
-        <header className="flex flex-wrap items-start justify-between gap-5 border-b border-[#e8e1d5] pb-6">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge>{getRecruitmentClass(position)}</Badge>
-              <Badge className="border-[#d8c69f] bg-[#faf4e6] text-[#80663b]">{getRegionGroup(position)}</Badge>
-              <StatusBadge status={position.status} />
-              <RiskBadge risk={risk} />
-            </div>
-            <h2 className="ink-title mt-4 text-[29px]">{position.organization}</h2>
-            <p className="mt-2 text-lg text-[#3b5147]">{position.title}</p>
-            <p className="label-sans mt-3 flex items-center gap-2 text-sm text-[#66766d]">
-              <MapPin size={15} />{position.region}
-            </p>
-          </div>
-          <div className="min-w-[146px] rounded-[24px] bg-[#edf2eb] px-6 py-5 text-center">
-            <p className="label-sans text-xs tracking-[.18em] text-[#687970]">匹配度</p>
-            <p className="mt-1 text-[40px] font-semibold text-[#315545]">{score}</p>
-            <p className="label-sans text-xs text-[#50705f]">{position.matchLevel ?? "较为适配"}</p>
-          </div>
-        </header>
-
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <PanelMetric icon={Users} label="招录人数" value={`${position.recruitCount ?? "-"} 人`} />
-          <PanelMetric icon={Target} label="最低进面分" value={entryScore} />
-          <PanelMetric icon={CalendarClock} label="报名截止" value={deadline} />
-          <PanelMetric icon={CalendarClock} label="考试时间" value={examTime} />
-          <PanelMetric icon={AlertTriangle} label="风险等级" value={`${risk}风险`} />
-        </div>
-
-        <TimelinePanel position={position} />
-
-        <section className="mt-6 rounded-[20px] bg-[#edf3ec] p-5">
-          <h3 className="flex items-center gap-2 font-semibold text-[#2f5141]"><ShieldCheck size={18} />推荐结论</h3>
-          <p className="mt-3 text-sm leading-7 text-[#52675d]">
-            {position.recommendation ?? "条件具有匹配基础，请在报名期以最新官方公告逐项复核。"}
-          </p>
-        </section>
-
-        <div className="mt-6 grid gap-4 lg:grid-cols-3">
-          <PolicyBlock
-            title="福利待遇"
-            icon={Wallet}
-            text={`${position.compensationReference?.text ?? "官方公告未载明具体薪酬金额。"} ${position.benefits?.join("；") ?? ""}`}
-            note={position.compensationReference?.disclaimer}
-            sourceName={position.sourceName}
-            sourceUrl={position.sourceUrl}
-            defaultOpen
+    <Card id="positions" className="label-sans sticky top-20 z-20 scroll-mt-24 rounded-[22px] border-[#d8e0d6] bg-[#f8faf4]/95 p-3 shadow-[0_12px_32px_rgba(49,72,60,.06)]">
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex min-w-[260px] flex-1 items-center gap-2 rounded-xl border border-[#e6e0d5] bg-white/80 px-3 py-2.5">
+          <Search size={17} className="text-[#718178]" />
+          <input
+            value={query}
+            onChange={(event) => onQueryChange(event.target.value)}
+            className="w-full bg-transparent text-sm outline-none"
+            placeholder="搜岗位、单位、地区"
           />
-          <PolicyBlock
-            title="房子与住房支持"
-            icon={House}
-            text={position.housingReference ?? "官方公告未载明住房、配租或住房补贴安排。"}
-            sourceName={position.sourceName}
-            sourceUrl={position.sourceUrl}
-          />
-          <PolicyBlock
-            title="户口与落户"
-            icon={IdCard}
-            text={position.householdReference ?? "官方公告未载明户口或落户承诺。"}
-            sourceName={position.sourceName}
-            sourceUrl={position.sourceUrl}
-          />
-        </div>
-
-        <div className="mt-5 grid gap-4 lg:grid-cols-2">
-          <AdviceBlock title="风险提醒" icon={AlertTriangle} items={position.riskReminders ?? ["报名状态及限制条件以官方公告为准"]} warning />
-          <AdviceBlock title="备考建议" icon={BookOpen} items={position.studyAdvice ?? ["根据考试类别安排基础练习与真题复盘"]} />
-        </div>
-
-        <footer className="label-sans mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-[#e8e1d5] pt-5 text-sm">
-          <label className="flex items-center gap-3 text-[#64746c]">
-            我的跟进
-            <select
-              aria-label={`${position.title} 跟踪状态`}
-              disabled={saving}
-              value={trackingStatus}
-              onChange={(event) => onTrackingChange(event.target.value as JobTrackingStatus)}
-              className="rounded-lg border border-[#ded8cc] bg-white/80 px-3 py-2 outline-none"
-            >
-              {trackingStatuses.map((tracking) => <option key={tracking}>{tracking}</option>)}
-            </select>
-          </label>
-          <a href={position.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-[#496b5b] hover:underline">
-            查看官方公告与附件 <ExternalLink size={14} />
-          </a>
-        </footer>
+        </label>
+        <FilterSelect value={category} options={publicCategories} onChange={onCategoryChange} />
+        <FilterSelect value={region} options={regionOptions} onChange={onRegionChange} />
+        <FilterSelect value={district} options={districtOptions} onChange={onDistrictChange} />
+        <FilterSelect value={status} options={statusOptions} onChange={onStatusChange} />
+        <Button size="sm" variant={showTrackedOnly ? "default" : "outline"} onClick={onToggleTracked}>
+          <Bookmark size={15} /> 我已关注
+        </Button>
+        <span className="rounded-full bg-[#e9f0e7] px-3 py-2 text-xs text-[#557064]">{filteredCount} 个</span>
       </div>
     </Card>
   );
 }
 
-function PositionCard({ position, active, onSelect }: { position: EligiblePosition; active: boolean; onSelect: () => void }) {
-  const risk = position.riskLevel ?? "中";
+function LocatorPanel({
+  activeCount,
+  filteredCount,
+  registeringCount,
+  endedCount,
+  pendingExamCount,
+  category,
+  region,
+  categoryRegionGroups,
+  onResetLocator,
+  onCategorySelect,
+  onCategoryRegionSelect,
+  district,
+  districts,
+  onDistrictChange,
+}: {
+  activeCount: number;
+  filteredCount: number;
+  registeringCount: number;
+  endedCount: number;
+  pendingExamCount: number;
+  category: string;
+  region: string;
+  categoryRegionGroups: CategoryRegionGroup[];
+  onResetLocator: () => void;
+  onCategorySelect: (value: string) => void;
+  onCategoryRegionSelect: (category: string, region: string) => void;
+  district: string;
+  districts: CountItem[];
+  onDistrictChange: (value: string) => void;
+}) {
   return (
-    <motion.button
-      layout
-      whileHover={{ y: -4 }}
-      whileTap={{ scale: 0.99 }}
-      type="button"
-      onClick={onSelect}
-      className={`label-sans flex h-full flex-col rounded-[25px] border p-5 text-left transition-all ${
-        active ? "border-[#8da995] bg-[#f1f5ee] shadow-[0_10px_28px_rgba(49,72,60,.08)]" : "border-[#e5ded2] bg-[#fffdf9] hover:border-[#bfccbe]"
-      }`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
-          <Badge>{getRecruitmentClass(position)}</Badge>
-          <Badge className="border-[#d8c69f] bg-[#faf4e6] text-[#80663b]">{getRegionGroup(position)}</Badge>
+    <aside className="label-sans xl:sticky xl:top-44 xl:self-start">
+      <Card id="coverage" className="scroll-mt-24 rounded-[22px] border-[#d8e0d6] bg-[#f8faf4]/95 p-4 shadow-[0_12px_32px_rgba(49,72,60,.06)]">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-[#304d40]">定位器</p>
+          <a href="#sources" className="text-xs text-[#61746b] hover:underline">官方记录</a>
         </div>
-        <RiskBadge risk={risk} />
-      </div>
-      <h3 className="mt-4 text-base font-semibold leading-7 text-[#293d34]">{position.organization}</h3>
-      <p className="mt-1 text-sm text-[#52675d]">{position.title}</p>
-      <p className="mt-3 flex items-center gap-1.5 text-xs text-[#6a776f]"><MapPin size={13} />{position.region}</p>
-      <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-[#f5f4ee] p-3 text-center">
-        <CardMetric label="匹配度" value={`${position.matchScore ?? 80}`} />
-        <CardMetric label="招录" value={`${position.recruitCount ?? "-"}人`} />
-        <CardMetric label="风险" value={`${risk}风险`} />
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-[#ebe5d9] bg-white/55 p-3 text-center">
-        <CardMetric label="报名截止" value={formatTimePoint(position.registrationEndAt ?? position.registrationEndDate)} />
-        <CardMetric label="笔试时间" value={formatTimePoint(position.examDate)} />
-      </div>
-      <p className="mt-4 line-clamp-2 text-xs leading-6 text-[#65746d]">
-        <span className="font-medium text-[#3e5a4c]">福利：</span>
-        {position.benefits?.[0] ?? position.compensationReference?.text ?? "官方公告未载明"}
-      </p>
-      <p className="line-clamp-2 text-xs leading-6 text-[#65746d]">
-        <span className="font-medium text-[#3e5a4c]">房子 / 户口：</span>
-        {position.housingReference ?? "官方未载明"}；{position.householdReference ?? "官方未载明"}
-      </p>
-      <div className="mt-auto flex items-center justify-between border-t border-[#eee7da] pt-4 text-xs">
-        <StatusBadge status={position.status} />
-        <span className="font-medium text-[#496b5b]">点击查看判断</span>
-      </div>
-    </motion.button>
-  );
-}
-
-function TimelinePanel({ position }: { position: EligiblePosition }) {
-  const items = [
-    {
-      label: "公告发布",
-      value: position.announcementDate,
-      hint: "官方原文",
-      state: "done",
-    },
-    {
-      label: "报名截止",
-      value: position.registrationEndAt ?? position.registrationEndDate,
-      hint: position.status === "报名中" ? "窗口开放中" : "已截止",
-      state: position.status === "报名中" ? "active" : "done",
-    },
-    {
-      label: "资格初审",
-      value: position.qualificationReviewEndAt,
-      hint: "审核截止",
-      state: position.status === "待考试" ? "active" : "upcoming",
-    },
-    {
-      label: "缴费截止",
-      value: position.paymentEndAt,
-      hint: "缴费确认",
-      state: position.status === "待考试" ? "active" : "upcoming",
-    },
-    {
-      label: "笔试时间",
-      value: position.examDate,
-      hint: position.status === "待考试" ? "待进行" : "考试安排",
-      state: "upcoming",
-    },
-  ].filter((item) => item.value);
-
-  if (!items.length) return null;
-
-  return (
-    <motion.section
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: "easeOut" }}
-      className="mt-6 rounded-[22px] border border-[#e6dfd2] bg-[#fbfaf5]/85 p-5"
-    >
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h3 className="flex items-center gap-2 font-semibold text-[#2f5141]">
-          <CalendarClock size={18} />考试时间轴
-        </h3>
-        <span className="label-sans text-xs text-[#7a887f]">报名、审核、缴费、笔试一眼看清</span>
-      </div>
-      <div className="grid gap-3 md:grid-cols-5">
-        {items.map((item, index) => (
-          <motion.div
-            key={`${item.label}-${item.value}`}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: index * 0.04 }}
-            whileHover={{ y: -3 }}
-            className={`relative overflow-hidden rounded-2xl border px-4 py-3 ${
-              item.state === "done"
-                ? "border-[#dae3d8] bg-[#eef4ed]"
-                : item.state === "active"
-                  ? "border-[#d9bc80] bg-[#fbf4e4]"
-                  : "border-[#dde4ea] bg-[#f3f7f8]"
-            }`}
-          >
-            <span className="label-sans text-[11px] text-[#728078]">0{index + 1}</span>
-            <p className="mt-1 text-sm font-semibold text-[#304d40]">{item.label}</p>
-            <p className="label-sans mt-2 text-sm text-[#52675d]">{formatTimePoint(item.value)}</p>
-            <p className="label-sans mt-1 text-[11px] text-[#809087]">{item.hint}</p>
-          </motion.div>
-        ))}
-      </div>
-    </motion.section>
-  );
-}
-
-function SummaryLink({ label, value, detail, href }: { label: string; value: string; detail: string; href: string }) {
-  return (
-    <a href={href} className="block rounded-[24px] transition-transform hover:-translate-y-0.5">
-      <Card className="h-full rounded-[24px] border-[#e6dfd2] bg-[#fffdf9] p-5">
-        <p className="label-sans text-sm text-[#687970]">{label}</p>
-        <p className="mt-2 text-[31px] text-[#294a3b]">{value}</p>
-        <p className="label-sans mt-1 text-xs text-[#809087]">{detail}</p>
+        <div className="mt-4 grid grid-cols-2 gap-2 text-center text-xs">
+          <LocatorStat label="匹配" value={`${activeCount}`} />
+          <LocatorStat label="显示" value={`${filteredCount}`} />
+          <LocatorStat label="可报名" value={`${registeringCount}`} />
+          <LocatorStat label="待考" value={`${pendingExamCount}`} />
+          <LocatorStat label="结束" value={`${endedCount}`} />
+        </div>
+        <CategoryRegionNavigator
+          currentCategory={category}
+          currentRegion={region}
+          groups={categoryRegionGroups}
+          onReset={onResetLocator}
+          onCategorySelect={onCategorySelect}
+          onCategoryRegionSelect={onCategoryRegionSelect}
+        />
+        <LocatorSection
+          label="县区细分"
+          current={district}
+          allLabel="全部县区"
+          items={districts}
+          onChange={onDistrictChange}
+        />
       </Card>
-    </a>
+    </aside>
   );
 }
 
-function PanelMetric({ icon: Icon, label, value }: { icon: typeof Users; label: string; value: string }) {
+function CategoryRegionNavigator({
+  currentCategory,
+  currentRegion,
+  groups,
+  onReset,
+  onCategorySelect,
+  onCategoryRegionSelect,
+}: {
+  currentCategory: string;
+  currentRegion: string;
+  groups: CategoryRegionGroup[];
+  onReset: () => void;
+  onCategorySelect: (value: string) => void;
+  onCategoryRegionSelect: (category: string, region: string) => void;
+}) {
+  const allCount = groups.reduce((sum, group) => sum + group.count, 0);
+
   return (
-    <div className="label-sans rounded-[17px] border border-[#ece5da] bg-white/65 p-4">
-      <p className="flex items-center gap-2 text-xs text-[#718178]"><Icon size={15} />{label}</p>
-      <p className="mt-2 text-sm font-medium leading-6 text-[#304c40]">{value}</p>
+    <div className="mt-4">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold text-[#6b7d73]">类型 / 地区</p>
+        <span className="text-[11px] text-[#87938c]">先选类型，再点地区</span>
+      </div>
+      <button
+        type="button"
+        onClick={onReset}
+        className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-xs transition-colors ${
+          currentCategory === "全部类型" && currentRegion === "全部地区"
+            ? "border-[#8da995] bg-[#edf4eb] text-[#315545]"
+            : "border-[#dfe7dc] bg-white/70 text-[#596f64] hover:border-[#b9c9b7] hover:bg-[#f1f5ee]"
+        }`}
+      >
+        <span className="font-medium">全部岗位</span>
+        <span className="text-[#7c8b82]">{allCount}</span>
+      </button>
+      <div className="mt-2 space-y-2">
+        {groups.map((group) => {
+          const categoryActive = currentCategory === group.name;
+          return (
+            <div
+              key={group.name}
+              className={`rounded-xl border p-2 ${
+                categoryActive ? "border-[#c6d5c4] bg-[#f3f7ef]" : "border-[#e1e8de] bg-white/55"
+              }`}
+            >
+              <button
+                type="button"
+                disabled={group.count === 0 && !categoryActive}
+                onClick={() => onCategorySelect(group.name)}
+                className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
+                  categoryActive && currentRegion === "全部地区"
+                    ? "bg-[#dfeadc] text-[#2f4f40]"
+                    : "text-[#365447] hover:bg-[#edf4eb]"
+                }`}
+              >
+                <span className="font-semibold">{group.name}</span>
+                <span className="text-xs text-[#7c8b82]">{group.count} 个</span>
+              </button>
+              <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+                {group.regions.map((item) => {
+                  const active = categoryActive && currentRegion === item.name;
+                  return (
+                    <button
+                      type="button"
+                      key={`${group.name}-${item.name}`}
+                      disabled={item.count === 0 && !active}
+                      onClick={() => onCategoryRegionSelect(group.name, item.name)}
+                      className={`flex min-w-0 items-center justify-between gap-1 rounded-lg border px-2 py-1.5 text-left text-[11px] transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${
+                        active
+                          ? "border-[#8da995] bg-[#edf4eb] text-[#315545]"
+                          : "border-[#e2e8de] bg-white/70 text-[#65766d] hover:border-[#b9c9b7] hover:bg-[#f7faf4]"
+                      }`}
+                    >
+                      <span className="min-w-0 truncate">{item.name}</span>
+                      <span className="shrink-0 text-[#7c8b82]">{item.count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-function AdviceBlock({ title, icon: Icon, items, warning = false }: { title: string; icon: typeof AlertTriangle; items: string[]; warning?: boolean }) {
+function LocatorSection({
+  label,
+  current,
+  allLabel,
+  items,
+  onChange,
+}: {
+  label: string;
+  current: string;
+  allLabel: string;
+  items: CountItem[];
+  onChange: (value: string) => void;
+}) {
   return (
-    <section className={`rounded-[18px] p-5 ${warning ? "bg-[#faf4e9]" : "bg-[#f7f6f1]"}`}>
-      <h3 className="flex items-center gap-2 font-semibold text-[#304d40]"><Icon size={17} />{title}</h3>
-      <ul className="label-sans mt-3 space-y-2 text-sm leading-6 text-[#617168]">
-        {items.map((item) => <li key={item}>- {item}</li>)}
-      </ul>
-    </section>
+    <div className="mt-4">
+      <p className="mb-2 text-xs font-semibold text-[#6b7d73]">{label}</p>
+      <div className="space-y-1">
+        <LocatorButton label={allLabel} count={items.reduce((sum, item) => sum + item.count, 0)} active={current === allLabel} onClick={() => onChange(allLabel)} />
+        {items.map((item) => (
+          <LocatorButton
+            key={item.name}
+            label={item.name}
+            count={item.count}
+            active={current === item.name}
+            disabled={item.count === 0 && current !== item.name}
+            onClick={() => onChange(item.name)}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 
-function PolicyBlock({
-  title,
-  icon: Icon,
-  text,
-  note,
-  sourceName,
-  sourceUrl,
-  defaultOpen = false,
+function LocatorButton({
+  label,
+  count,
+  active,
+  disabled = false,
+  onClick,
 }: {
-  title: string;
-  icon: typeof Wallet;
-  text: string;
-  note?: string;
-  sourceName: string;
-  sourceUrl: string;
-  defaultOpen?: boolean;
+  label: string;
+  count: number;
+  active: boolean;
+  disabled?: boolean;
+  onClick: () => void;
 }) {
   return (
-    <details open={defaultOpen} className="group rounded-[18px] border border-[#e5ddcf] bg-[#fffdf8] p-5">
-      <summary className="flex cursor-pointer list-none items-center justify-between font-semibold text-[#304d40]">
-        <span className="flex items-center gap-2"><Icon size={17} />{title}</span>
-        <span className="label-sans text-xs text-[#64786c] group-open:hidden">展开</span>
-        <span className="label-sans hidden text-xs text-[#64786c] group-open:block">收起</span>
-      </summary>
-      <p className="label-sans mt-4 text-sm leading-7 text-[#617168]">{text}</p>
-      {note ? <p className="label-sans mt-2 text-xs leading-6 text-[#947a54]">{note}</p> : null}
-      <a href={sourceUrl} target="_blank" rel="noreferrer" className="label-sans mt-4 inline-flex items-center gap-1.5 text-xs font-medium text-[#466858] hover:underline">
-        核对公告来源：{sourceName} <ExternalLink size={12} />
-      </a>
-    </details>
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`flex w-full items-center justify-between rounded-lg border px-2.5 py-1.5 text-left text-xs transition-colors ${
+        active
+          ? "border-[#8da995] bg-[#edf4eb] text-[#315545]"
+          : "border-[#dfe7dc] bg-white/70 text-[#596f64] hover:border-[#b9c9b7] hover:bg-[#f1f5ee] disabled:cursor-not-allowed disabled:opacity-40"
+      }`}
+    >
+      <span className="min-w-0 truncate">{label}</span>
+      <span className="text-[#7c8b82]">{count}</span>
+    </button>
+  );
+}
+
+function LocatorStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-[#e1e8de] bg-white/65 px-2 py-2">
+      <p className="text-[#718178]">{label}</p>
+      <p className="mt-1 font-semibold text-[#315545]">{value}</p>
+    </div>
+  );
+}
+
+function PositionCard({ position }: { position: EligiblePosition }) {
+  const risk = position.riskLevel ?? "中";
+  return (
+    <motion.div
+      layout
+      whileHover={{ y: -4 }}
+      className="h-full"
+    >
+      <Link
+        href={`/job/${encodeURIComponent(position.id)}`}
+        className="label-sans flex h-full flex-col rounded-[18px] border border-[#e5ded2] bg-[#fffdf9] p-4 text-left transition-all hover:border-[#bfccbe] hover:bg-[#f8fbf5] hover:shadow-[0_10px_28px_rgba(49,72,60,.08)]"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            <Badge className="border-[#d8c69f] bg-[#faf4e6] text-[#80663b]">{getRegionGroup(position)}</Badge>
+            <Badge className="border-[#d9e2d6] bg-[#f5f8f2] text-[#60766a]">{getDistrict(position)}</Badge>
+          </div>
+          <RiskBadge risk={risk} />
+        </div>
+        <h3 className="mt-3 line-clamp-2 text-sm font-semibold leading-6 text-[#293d34]">{position.organization}</h3>
+        <p className="mt-1 line-clamp-1 text-sm text-[#52675d]">{position.title}</p>
+        <p className="mt-2 flex items-center gap-1.5 text-xs text-[#6a776f]"><MapPin size={13} />{position.region}</p>
+        <div className="mt-3 grid grid-cols-3 gap-1.5 rounded-xl bg-[#f5f4ee] p-2.5 text-center">
+          <CardMetric label="匹配度" value={`${position.matchScore ?? 80}`} />
+          <CardMetric label="招录" value={`${position.recruitCount ?? "-"}人`} />
+          <CardMetric label="风险" value={`${risk}风险`} />
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-1.5 rounded-xl border border-[#ebe5d9] bg-white/55 p-2.5 text-center">
+          <CardMetric label="报名截止" value={formatTimePoint(position.registrationEndAt ?? position.registrationEndDate)} />
+          <CardMetric label="笔试时间" value={formatTimePoint(position.examDate)} />
+        </div>
+        <div className="mt-auto flex items-center justify-between border-t border-[#eee7da] pt-3 text-xs">
+          <StatusBadge status={position.status} />
+          <span className="font-medium text-[#496b5b]">查看详情</span>
+        </div>
+      </Link>
+    </motion.div>
   );
 }
 

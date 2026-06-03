@@ -361,6 +361,44 @@ export interface EligibleJobsReport {
     checkedAt: string;
     result: string;
   }>;
+  sourceScreening?: Array<{
+    sourceId: string;
+    name: string;
+    hardMatchedCount: number;
+    targetRegionCount: number;
+    outOfRegionCount: number;
+    statusDistribution?: Record<string, number>;
+    districtDistribution?: Record<string, number>;
+    note: string;
+  }>;
+  screeningAudit?: Array<{
+    sourceId: string;
+    targetLocationRowCount?: number;
+    shijiazhuangTargetCountyRowCount?: number;
+    shijiazhuangHardMatchedCount?: number;
+    targetLocationDistribution?: Record<string, number>;
+    hardMatchedDistribution?: Record<string, number>;
+    excludedHardConditionDistribution?: Record<string, number>;
+    shijiazhuangRows?: Array<{
+      district: string;
+      organization: string;
+      department: string;
+      title: string;
+      positionCode: string;
+      recruitCount: string;
+      location: string;
+      majorRequirement: string;
+      educationRequirement: string;
+      degreeRequirement: string;
+      grassrootsRequirement: string;
+      politicalStatusRequirement: string;
+      remark: string;
+      screeningStatus: string;
+      exclusionReasons: string[];
+    }>;
+    note?: string;
+  }>;
+  outOfRegionCandidates?: EligiblePosition[];
   positions: EligiblePosition[];
 }
 

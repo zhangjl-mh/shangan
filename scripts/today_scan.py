@@ -110,17 +110,14 @@ def render_news_markdown(report: dict) -> str:
 
 
 def render_job_markdown(report: dict) -> str:
-    positions = [
-        position for position in report.get("positions", [])
-        if position.get("status") in {"报名中", "即将报名", "待考试"}
-    ]
+    positions = report.get("positions", [])
     category_order = report.get("categoryOrder", ["国考", "省考", "编制", "国企"])
     region_order = report.get("regionOrder", ["北京", "雄安", "天津", "石家庄", "其他"])
     lines = [
         "# 今日岗位扫描报告",
         "",
         f"- 生成时间：{report['generatedAt']}",
-        f"- 当前尚未考试岗位数量：{len(positions)}",
+        f"- 硬条件匹配岗位数量：{len(positions)}",
         f"- 扫描渠道数量：{len(report.get('searchedSources', []))}",
         "",
         "## 筛选结论",
@@ -133,7 +130,7 @@ def render_job_markdown(report: dict) -> str:
         "",
     ]
     if positions:
-        lines.extend(["## 当前可报或尚待考试岗位", ""])
+        lines.extend(["## 硬条件匹配岗位", ""])
         for category in category_order:
             category_positions = [position for position in positions if position.get("recruitmentClass") == category]
             if not category_positions:
@@ -192,6 +189,23 @@ def render_job_markdown(report: dict) -> str:
                     lines.append(f"- 房子：{position.get('housingReference', '官方公告未载明住房安排。')}")
                     lines.append(f"- 户口：{position.get('householdReference', '官方公告未载明落户安排。')}")
                     lines.append("")
+    if report.get("sourceScreening"):
+        lines.extend(["## 逐来源全量筛选", ""])
+        for item in report["sourceScreening"]:
+            lines.append(
+                f"- {item['name']}：硬条件 {item['hardMatchedCount']} 个，"
+                f"目标地区 {item['targetRegionCount']} 个，其他地区 {item['outOfRegionCount']} 个。"
+                f"{item.get('note', '')}"
+            )
+        lines.append("")
+    if report.get("outOfRegionCandidates"):
+        lines.extend(["## 其他地区匹配记录", ""])
+        for position in report["outOfRegionCandidates"]:
+            lines.append(
+                f"- {position['organization']} - {position['title']}：{position.get('region', '地点以公告为准')}，"
+                f"状态 {position.get('status', '未标注')}。{position.get('displayDecision', '已进入其他地区分组展示。')}"
+            )
+        lines.append("")
     lines.extend(["## 已扫描权威渠道", ""])
     for source in report.get("searchedSources", []):
         lines.append(f"- [{source['name']}]({source['url']})：{source['result']}")
@@ -217,10 +231,6 @@ def main() -> None:
 
     news = read_json(news_path) if news_path.exists() and not args.jobs_only else None
     jobs = read_json(jobs_path)
-    jobs["positions"] = [
-        position for position in jobs.get("positions", [])
-        if position.get("status") in {"报名中", "即将报名", "待考试"}
-    ]
     if news is not None:
         validate(news, read_json(SCHEMA_DIR / "daily-news.schema.json"))
     validate(jobs, read_json(SCHEMA_DIR / "eligible-jobs.schema.json"))

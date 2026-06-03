@@ -56,7 +56,31 @@
         "additionalProperties": false
       }
     },
+    "sourceScreening": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["sourceId", "name", "hardMatchedCount", "targetRegionCount", "outOfRegionCount", "note"],
+        "properties": {
+          "sourceId": { "type": "string" },
+          "name": { "type": "string" },
+          "hardMatchedCount": { "type": "integer", "minimum": 0 },
+          "targetRegionCount": { "type": "integer", "minimum": 0 },
+          "outOfRegionCount": { "type": "integer", "minimum": 0 },
+          "statusDistribution": {
+            "type": "object",
+            "additionalProperties": { "type": "integer", "minimum": 0 }
+          },
+          "note": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
     "positions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/position" }
+    },
+    "outOfRegionCandidates": {
       "type": "array",
       "items": { "$ref": "#/$defs/position" }
     }
@@ -167,7 +191,7 @@
         "paymentEndAt": { "type": "string", "format": "date-time" },
         "examDate": { "type": "string", "format": "date" },
         "status": {
-          "enum": ["即将报名", "报名中", "待考试"]
+          "enum": ["即将报名", "报名中", "待考试", "已截止", "已结束", "已完成录用"]
         },
         "sourceName": { "type": "string" },
         "sourceUrl": { "type": "string", "format": "uri" },

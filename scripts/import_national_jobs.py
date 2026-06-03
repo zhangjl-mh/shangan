@@ -1,8 +1,8 @@
-"""Build the active eligible-position report from official recruitment checks.
+"""Build the eligible-position report from official recruitment checks.
 
 This pipeline downloads official attachments for audit and filtering, and only
-writes positions whose examination has not yet taken place. Completed exam
-tables stay in the scan record and never become display cards.
+writes target-region positions whose hard requirements match the local profile.
+Timing status is recorded on each position, not used as the final display gate.
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ import io
 import json
 import os
 import hashlib
+import re
 import subprocess
 import urllib.request
 import zipfile
@@ -162,6 +163,19 @@ NS = {"a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 CATEGORY_ORDER = ["国考", "省考", "编制", "国企"]
 REGION_ORDER = ["北京", "雄安", "天津", "石家庄", "其他"]
 CHINA_TZ = timezone(timedelta(hours=8))
+SHIJIAZHUANG_TARGET_DISTRICTS = ["井陉县", "鹿泉区", "井陉矿区", "藁城区", "栾城区", "正定县"]
+XIONGAN_DISTRICTS = ["雄县", "容城县", "安新县"]
+DISTRICT_ALIASES = {
+    "井陉县": ["河北省石家庄市井陉县", "石家庄市井陉县", "井陉县", "井陉支局", "井陉县税务局"],
+    "鹿泉区": ["河北省石家庄市鹿泉区", "石家庄市鹿泉区", "鹿泉区", "鹿泉海关", "鹿泉区税务局"],
+    "井陉矿区": ["河北省石家庄市井陉矿区", "石家庄市井陉矿区", "井陉矿区", "石家庄市矿区", "矿区税务局"],
+    "藁城区": ["河北省石家庄市藁城区", "石家庄市藁城区", "藁城区", "藁城支局", "藁城区税务局"],
+    "栾城区": ["河北省石家庄市栾城区", "石家庄市栾城区", "栾城区", "栾城调查队", "栾城区税务局"],
+    "正定县": ["河北省石家庄市正定县", "石家庄市正定县", "正定县", "正定营业管理部", "正定海关", "正定县税务局"],
+    "雄县": ["河北省保定市雄县", "雄县"],
+    "容城县": ["河北省保定市容城县", "容城县", "容城"],
+    "安新县": ["河北省保定市安新县", "安新县"],
+}
 
 
 def fetch(url: str) -> bytes:
@@ -276,21 +290,106 @@ def write_source_cache(entries: list[dict], checked_at: str) -> None:
         CACHE_PATH,
         {
             "updatedAt": checked_at,
-            "description": "岗位扫描的官方入口和附件访问留痕。positions 只展示硬条件确认符合且考试尚未举行的岗位。",
+            "description": "岗位扫描的官方入口和附件访问留痕。positions 展示全部硬条件确认符合的岗位；outOfRegionCandidates 仅用于标注其中的异地岗位。",
             "entries": entries,
         },
     )
 
 
+def compact_text(*parts: str) -> str:
+    return re.sub(r"\s+", "", " ".join(part or "" for part in parts))
+
+
+def extract_city_district(text: str, city_name: str) -> str:
+    match = re.search(rf"{city_name}([^省市县区（）()，,、\s]+[区县])", text)
+    return match.group(1) if match else ""
+
+
+def infer_district(location: str, *context_parts: str) -> str:
+    text = compact_text(location, *context_parts)
+    location_text = compact_text(location)
+
+    for district in SHIJIAZHUANG_TARGET_DISTRICTS:
+        if any(alias in location_text for alias in DISTRICT_ALIASES[district][:3]):
+            return district
+    for district in XIONGAN_DISTRICTS:
+        if any(alias in location_text for alias in DISTRICT_ALIASES[district]):
+            return district
+
+    # 国考部分岗位工作地点只写到“石家庄市”，县区藏在用人司局或备注中。
+    if any(marker in text for marker in ["石家庄", "井陉", "鹿泉", "藁城", "栾城", "正定"]):
+        for district in SHIJIAZHUANG_TARGET_DISTRICTS:
+            if any(alias in text for alias in DISTRICT_ALIASES[district]):
+                return district
+
+    if "雄安" in text:
+        for district in XIONGAN_DISTRICTS:
+            if any(alias in text for alias in DISTRICT_ALIASES[district]):
+                return district
+        return "雄安新区"
+
+    beijing = extract_city_district(text, "北京市")
+    if beijing:
+        return beijing
+    tianjin = extract_city_district(text, "天津市")
+    if tianjin:
+        return tianjin
+    shijiazhuang = extract_city_district(text, "石家庄市")
+    if shijiazhuang:
+        return shijiazhuang
+    return ""
+
+
+def target_location_keys(profile: dict) -> set[str]:
+    keys: set[str] = set()
+    for region in profile.get("target", {}).get("targetRegions", []):
+        region_text = compact_text(region)
+        if "北京" in region_text:
+            keys.add("北京")
+        if "天津" in region_text:
+            keys.add("天津")
+        if "雄安" in region_text:
+            keys.add("雄安")
+            keys.update(XIONGAN_DISTRICTS)
+        district = infer_district(region_text)
+        if district:
+            keys.add(district)
+        if "石家庄" in region_text and not district:
+            keys.add("石家庄")
+    return keys
+
+
+def target_location_matches(location: str, profile: dict, *context_parts: str) -> bool:
+    keys = target_location_keys(profile)
+    text = compact_text(location, *context_parts)
+    district = infer_district(location, *context_parts)
+    if district and district in keys:
+        return True
+    if "北京" in keys and "北京" in text:
+        return True
+    if "天津" in keys and "天津" in text:
+        return True
+    if "雄安" in keys and any(marker in text for marker in ["雄安", "雄县", "容城", "安新"]):
+        return True
+    if "石家庄" in keys and "石家庄" in text:
+        return True
+    return False
+
+
 def normalize_region_group(region: str) -> str:
     text = region or ""
+    district = infer_district(text)
+    if district in SHIJIAZHUANG_TARGET_DISTRICTS:
+        return "石家庄"
+    if district in XIONGAN_DISTRICTS or district == "雄安新区":
+        return "雄安"
     if "北京" in text:
         return "北京"
     if any(name in text for name in ["雄安", "雄县", "容城", "安新"]):
         return "雄安"
     if "天津" in text:
         return "天津"
-    if any(name in text for name in ["石家庄", "井陉", "鹿泉", "矿区", "藁城", "栾城", "正定"]):
+    if any(name in text for name in ["石家庄", "井陉", "鹿泉", "藁城", "栾城", "正定"]):
         return "石家庄"
     return "其他"
 
@@ -338,6 +437,64 @@ def sort_position_key(position: dict) -> tuple[int, int, int, str, str]:
         normalized.get("organization", ""),
         normalized.get("title", ""),
     )
+
+
+def target_region_groups(profile: dict) -> set[str]:
+    groups = {
+        normalize_region_group(region)
+        for region in profile.get("target", {}).get("targetRegions", [])
+    }
+    return {group for group in groups if group != "其他"}
+
+
+def partition_target_region_positions(positions: list[dict], profile: dict) -> tuple[list[dict], list[dict]]:
+    groups = target_region_groups(profile)
+    in_target: list[dict] = []
+    out_of_region: list[dict] = []
+    for position in positions:
+        enriched = enrich_position(position)
+        if enriched["regionGroup"] in groups:
+            in_target.append(enriched)
+        else:
+            out_of_region.append(
+                {
+                    **enriched,
+                    "displayDecision": "异地硬条件匹配，已进入 positions 的其他地区分组展示。",
+                }
+            )
+    return in_target, out_of_region
+
+
+def source_screening(
+    source_id: str,
+    name: str,
+    positions: list[dict],
+    profile: dict,
+    note: str,
+) -> dict:
+    in_target, out_of_region = partition_target_region_positions(positions, profile)
+    statuses = {}
+    districts = {}
+    for position in positions:
+        status = position.get("status", "未标注")
+        statuses[status] = statuses.get(status, 0) + 1
+        district = position.get("district") or infer_district(
+            position.get("region", ""),
+            position.get("department", ""),
+            position.get("organization", ""),
+        )
+        if district:
+            districts[district] = districts.get(district, 0) + 1
+    return {
+        "sourceId": source_id,
+        "name": name,
+        "hardMatchedCount": len(positions),
+        "targetRegionCount": len(in_target),
+        "outOfRegionCount": len(out_of_region),
+        "statusDistribution": statuses,
+        "districtDistribution": districts,
+        "note": note,
+    }
 
 
 def page_exists(url: str) -> bool:
@@ -414,31 +571,20 @@ def interview_scores(data: bytes) -> dict[tuple[str, str, str], str]:
     return scores
 
 
-def allowed_location(location: str) -> bool:
-    exact_districts = [
-        "\u6cb3\u5317\u7701\u77f3\u5bb6\u5e84\u5e02\u4e95\u9649\u53bf",
-        "\u6cb3\u5317\u7701\u77f3\u5bb6\u5e84\u5e02\u9e7f\u6cc9\u533a",
-        "\u6cb3\u5317\u7701\u77f3\u5bb6\u5e84\u5e02\u4e95\u9649\u77ff\u533a",
-        "\u6cb3\u5317\u7701\u77f3\u5bb6\u5e84\u5e02\u85c1\u57ce\u533a",
-        "\u6cb3\u5317\u7701\u77f3\u5bb6\u5e84\u5e02\u683e\u57ce\u533a",
-        "\u6cb3\u5317\u7701\u77f3\u5bb6\u5e84\u5e02\u6b63\u5b9a\u53bf",
-        "\u6cb3\u5317\u7701\u4fdd\u5b9a\u5e02\u5bb9\u57ce\u53bf",
-    ]
-    return (
-        location.startswith("\u5317\u4eac\u5e02")
-        or location.startswith("\u5929\u6d25\u5e02")
-        or any(district in location for district in exact_districts)
-        or any(area in location for area in ["\u6cb3\u5317\u7701\u4fdd\u5b9a\u5e02\u96c4\u53bf", "\u6cb3\u5317\u7701\u4fdd\u5b9a\u5e02\u5b89\u65b0\u53bf"])
-    )
-
-
 def profile_confirms(row: dict[str, str], profile: dict) -> bool:
     basic = profile["basic"]
     qualifications = profile["qualification"]
     note = row["\u5907\u6ce8"]
     major = row["\u4e13\u4e1a"]
 
-    if not allowed_location(row["\u5de5\u4f5c\u5730\u70b9"]):
+    if not target_location_matches(
+        row["\u5de5\u4f5c\u5730\u70b9"],
+        profile,
+        row["\u7528\u4eba\u53f8\u5c40"],
+        row["\u90e8\u95e8\u540d\u79f0"],
+        row["\u62db\u8003\u804c\u4f4d"],
+        note,
+    ):
         return False
     if not (
         "\u8ba1\u7b97\u673a\u7c7b" in major
@@ -476,6 +622,50 @@ def profile_confirms(row: dict[str, str], profile: dict) -> bool:
     ) and qualifications.get("englishLevel") in {"", "\u65e0"}:
         return False
     return True
+
+
+def national_hard_condition_failures(row: dict[str, str], profile: dict) -> list[str]:
+    basic = profile["basic"]
+    qualifications = profile["qualification"]
+    note = row["\u5907\u6ce8"]
+    major = row["\u4e13\u4e1a"]
+    failures: list[str] = []
+    if not (
+        "\u8ba1\u7b97\u673a\u7c7b" in major
+        or "\u8ba1\u7b97\u673a\u79d1\u5b66\u4e0e\u6280\u672f" in major
+    ):
+        failures.append("专业不匹配")
+    if "\u672c\u79d1" not in row["\u5b66\u5386"] or basic.get("education") != "\u672c\u79d1":
+        failures.append("学历不匹配")
+    if "\u5e94\u5c4a" in note or "2026\u5c4a" in note:
+        failures.append("届别不匹配")
+    if row["\u653f\u6cbb\u9762\u8c8c"] == "\u4e2d\u5171\u515a\u5458" and basic.get("politicalStatus") not in {
+        "\u515a\u5458",
+        "\u4e2d\u5171\u515a\u5458",
+    }:
+        failures.append("政治面貌不匹配")
+    if row["\u57fa\u5c42\u5de5\u4f5c\u6700\u4f4e\u5e74\u9650"] != "\u65e0\u9650\u5236":
+        failures.append("基层工作年限不匹配")
+    if "\u5973\u6027" in note or "\u9650\u5973" in note:
+        failures.append("性别不匹配")
+    if "\u7537\u6027" in note and basic.get("gender") != "\u7537":
+        failures.append("性别不匹配")
+    required_degree = row["\u5b66\u4f4d"]
+    if required_degree and basic.get("degree") != "\u5b66\u58eb":
+        failures.append("学位不匹配")
+    if any(
+        marker in note
+        for marker in [
+            "CET",
+            "\u5927\u5b66\u82f1\u8bed",
+            "\u82f1\u8bed\u56db\u7ea7",
+            "\u82f1\u8bed\u516d\u7ea7",
+            "\u96c5\u601d",
+            "\u6258\u798f",
+        ]
+    ) and qualifications.get("englishLevel") in {"", "\u65e0"}:
+        failures.append("英语证书不匹配")
+    return failures
 
 
 def describe_work(row: dict[str, str]) -> str:
@@ -615,6 +805,7 @@ def parse_sjz_positions(data: bytes, profile: dict, captured_at: str) -> list[di
                 "recruitmentType": "石家庄市2026年事业单位统一招聘（历史参考）",
                 "region": f"河北省石家庄市{district}",
                 "regionGroup": "石家庄",
+                "district": district,
                 "recruitCount": int(float(count)),
                 "responsibilities": describe_institution_work(unit, title),
                 "educationRequirement": education_requirement(education, degree),
@@ -645,6 +836,7 @@ def parse_xiongan_positions(data: bytes, profile: dict, captured_at: str) -> lis
         number, supervisor, unit, _, title, code, _, exam_category, count, ratio, major, education, degree, conditions, location, _ = row[:16]
         if not number.isdigit() or not major_matches(major) or not other_conditions_confirmed(conditions, profile):
             continue
+        district = infer_district(location, unit, supervisor)
         positions.append(
             {
                 "id": f"xiongan-sydw-2026-{code}",
@@ -657,6 +849,7 @@ def parse_xiongan_positions(data: bytes, profile: dict, captured_at: str) -> lis
                 "recruitmentType": "雄安新区2026年事业单位统一招聘（历史参考）",
                 "region": f"河北雄安新区 / {location}",
                 "regionGroup": "雄安",
+                **({"district": district} if district else {}),
                 "recruitCount": int(float(count)),
                 "responsibilities": describe_institution_work(unit, title.replace("\n", "")),
                 "educationRequirement": education_requirement(education, degree),
@@ -684,7 +877,7 @@ def current_recruitment_status(registration_end_at: datetime, exam_date: datetim
         return "报名中"
     if now.date() < exam_date.date():
         return "待考试"
-    return None
+    return "已结束"
 
 
 def parse_sjz_soe_social_positions(data: bytes, captured_at: str) -> list[dict]:
@@ -693,8 +886,6 @@ def parse_sjz_soe_social_positions(data: bytes, captured_at: str) -> list[dict]:
     payment_end_at = "2026-05-29T12:00:00+08:00"
     exam_date = datetime.fromisoformat("2026-06-06T00:00:00+08:00")
     status = current_recruitment_status(registration_end_at, exam_date)
-    if not status:
-        return []
 
     candidate_notes = {
         "STCC05": {
@@ -787,6 +978,7 @@ def parse_sjz_soe_social_positions(data: bytes, captured_at: str) -> list[dict]:
                 "recruitmentType": "石家庄市属国企面向社会公开招聘管理及专业技术岗位",
                 "region": "石家庄市（具体工作地点以用人单位确认为准）",
                 "regionGroup": "石家庄",
+                "district": "市级待确认",
                 "recruitCount": int(float(count)),
                 "responsibilities": responsibilities,
                 "educationRequirement": education,
@@ -853,7 +1045,7 @@ def cosco_registration_status(job: dict) -> str | None:
         return "即将报名"
     if now <= end_time:
         return "报名中"
-    return None
+    return "已截止"
 
 
 def cosco_major_matches(job: dict) -> bool:
@@ -950,8 +1142,6 @@ def parse_cosco_strategic_positions(captured_at: str) -> tuple[list[dict], int, 
     positions: list[dict] = []
     for job in jobs:
         status = cosco_registration_status(job)
-        if not status:
-            continue
         if job.get("education_cn") != "本科":
             continue
         if job.get("experience_cn") not in {"经验不限", "1-3年", "3-5年"}:
@@ -983,9 +1173,9 @@ def parse_cosco_strategic_positions(captured_at: str) -> tuple[list[dict], int, 
                 "majorRequirement": major,
                 "freshGraduateRequirement": "社会招聘；官方岗位未限定应届。",
                 "matchReasons": [
-                    "官方招聘平台岗位处于投递期，属于下一个可新报周期。",
+                    f"官方招聘平台岗位状态为{status}，时效仅作为风险记录，不作为硬条件过滤。",
                     "学历门槛为本科，专业要求覆盖计算机类、计算机科学与技术类或岗位职责明确为计算机技术方向。",
-                    "画像为计算机相关本科且接受其他城市，因此可纳入央企社招候选池。",
+                    "画像为计算机相关本科，岗位可纳入央企社招硬条件匹配候选池。",
                 ],
                 "riskReminders": note["riskReminders"],
                 "studyAdvice": note["studyAdvice"],
@@ -1042,6 +1232,13 @@ def parse_main_positions(data: bytes, profile: dict, scores: dict[tuple[str, str
             score = scores.get(key)
             interview_ratio = row["\u9762\u8bd5\u4eba\u5458\u6bd4\u4f8b"]
             location = row["\u5de5\u4f5c\u5730\u70b9"]
+            district = infer_district(
+                location,
+                row["\u7528\u4eba\u53f8\u5c40"],
+                row["\u90e8\u95e8\u540d\u79f0"],
+                row["\u62db\u8003\u804c\u4f4d"],
+                row["\u5907\u6ce8"],
+            )
             positions.append(
                 {
                     "id": "scs-2026-" + row["\u804c\u4f4d\u4ee3\u7801"],
@@ -1054,6 +1251,7 @@ def parse_main_positions(data: bytes, profile: dict, scores: dict[tuple[str, str
                     "recruitmentType": "2026\u5e74\u5ea6\u56fd\u8003\u4e3b\u62db\uff08\u5386\u53f2\u53c2\u8003\uff09",
                     "region": location,
                     "regionGroup": normalize_region_group(location),
+                    **({"district": district} if district else {}),
                     "recruitCount": int(float(row["\u62db\u8003\u4eba\u6570"])),
                     "responsibilities": describe_work(row),
                     "educationRequirement": education_requirement(row["\u5b66\u5386"], row["\u5b66\u4f4d"]),
@@ -1082,6 +1280,83 @@ def parse_main_positions(data: bytes, profile: dict, scores: dict[tuple[str, str
                 }
             )
     return positions
+
+
+def audit_main_positions(data: bytes, profile: dict) -> dict:
+    by_district: dict[str, int] = {}
+    hard_matched_by_district: dict[str, int] = {}
+    exclusions: dict[str, int] = {}
+    target_count = 0
+    shijiazhuang_count = 0
+    shijiazhuang_hard_matched_count = 0
+    shijiazhuang_rows: list[dict] = []
+    with zipfile.ZipFile(io.BytesIO(data)) as archive:
+        filename = next(name for name in archive.namelist() if name.lower().endswith(".xls"))
+        workbook = xlrd.open_workbook(file_contents=archive.read(filename))
+
+    for sheet in workbook.sheets():
+        headers = [str(sheet.cell_value(1, index)).strip() for index in range(sheet.ncols)]
+        if "\u5de5\u4f5c\u5730\u70b9" not in headers:
+            continue
+        for row_index in range(2, sheet.nrows):
+            row = {
+                header: str(sheet.cell_value(row_index, column_index)).strip()
+                for column_index, header in enumerate(headers)
+            }
+            location_context = (
+                row["\u7528\u4eba\u53f8\u5c40"],
+                row["\u90e8\u95e8\u540d\u79f0"],
+                row["\u62db\u8003\u804c\u4f4d"],
+                row["\u5907\u6ce8"],
+            )
+            if not target_location_matches(row["\u5de5\u4f5c\u5730\u70b9"], profile, *location_context):
+                continue
+            target_count += 1
+            district = infer_district(row["\u5de5\u4f5c\u5730\u70b9"], *location_context) or normalize_region_group(
+                row["\u5de5\u4f5c\u5730\u70b9"]
+            )
+            by_district[district] = by_district.get(district, 0) + 1
+            failures = national_hard_condition_failures(row, profile)
+            if district in SHIJIAZHUANG_TARGET_DISTRICTS:
+                shijiazhuang_count += 1
+                shijiazhuang_rows.append(
+                    {
+                        "district": district,
+                        "organization": row["\u90e8\u95e8\u540d\u79f0"],
+                        "department": row["\u7528\u4eba\u53f8\u5c40"],
+                        "title": row["\u62db\u8003\u804c\u4f4d"],
+                        "positionCode": row["\u804c\u4f4d\u4ee3\u7801"],
+                        "recruitCount": row["\u62db\u8003\u4eba\u6570"],
+                        "location": row["\u5de5\u4f5c\u5730\u70b9"],
+                        "majorRequirement": row["\u4e13\u4e1a"],
+                        "educationRequirement": row["\u5b66\u5386"],
+                        "degreeRequirement": row["\u5b66\u4f4d"],
+                        "grassrootsRequirement": row["\u57fa\u5c42\u5de5\u4f5c\u6700\u4f4e\u5e74\u9650"],
+                        "politicalStatusRequirement": row["\u653f\u6cbb\u9762\u8c8c"],
+                        "remark": row["\u5907\u6ce8"],
+                        "screeningStatus": "硬条件通过" if not failures else "排除",
+                        "exclusionReasons": failures,
+                    }
+                )
+            if failures:
+                for failure in failures:
+                    exclusions[failure] = exclusions.get(failure, 0) + 1
+            else:
+                hard_matched_by_district[district] = hard_matched_by_district.get(district, 0) + 1
+                if district in SHIJIAZHUANG_TARGET_DISTRICTS:
+                    shijiazhuang_hard_matched_count += 1
+
+    return {
+        "sourceId": "national-civil-service-2026",
+        "targetLocationRowCount": target_count,
+        "shijiazhuangTargetCountyRowCount": shijiazhuang_count,
+        "shijiazhuangHardMatchedCount": shijiazhuang_hard_matched_count,
+        "targetLocationDistribution": by_district,
+        "hardMatchedDistribution": hard_matched_by_district,
+        "excludedHardConditionDistribution": exclusions,
+        "shijiazhuangRows": shijiazhuang_rows,
+        "note": "国考审计按 profile.target.targetRegions 派生县区规则；工作地点仅写到市级时，结合用人司局、部门、职位和备注推断县区。",
+    }
 
 
 def scan_broader_official_sources(checked_at: str) -> tuple[list[dict], list[dict], str]:
@@ -1330,6 +1605,7 @@ def main() -> None:
         profile,
         interview_scores(interview_attachment),
     )
+    national_audit = audit_main_positions(main_attachment, profile)
     captured_at = now
     sjz_positions = parse_sjz_positions(
         sjz_attachment,
@@ -1352,13 +1628,17 @@ def main() -> None:
             "name": "\u56fd\u5bb6\u516c\u52a1\u5458\u5c40\uff1a2026\u5e74\u5ea6\u62db\u8003\u7b80\u7ae0\u4e0e\u9762\u8bd5\u540d\u5355",
             "url": MAIN_URL,
             "checkedAt": now,
-            "result": f"\u5b98\u65b9\u4e3b\u62db\u9644\u4ef6\u4e0e\u9762\u8bd5\u540d\u5355\u5df2\u4e0b\u8f7d\u5e76\u5168\u91cf\u7b5b\u9009\uff1b\u8be5\u6279\u6b21\u5df2\u8003\u8bd5\u7ed3\u675f\uff0c\u547d\u4e2d\u7684 {len(national_positions)} \u4e2a\u5386\u53f2\u6761\u76ee\u4e0d\u8fdb\u5165\u5c97\u4f4d\u9875\u3002",
+            "result": (
+                f"官方主招附件与面试名单已下载并全量筛选；命中画像硬条件的 {len(national_positions)} 个条目已标注时效状态。"
+                f"其中石家庄目标县区原始行 {national_audit['shijiazhuangTargetCountyRowCount']} 条，"
+                f"硬条件通过 {national_audit['shijiazhuangHardMatchedCount']} 条。"
+            ),
         },
         {
             "name": "\u56fd\u5bb6\u516c\u52a1\u5458\u5c40\uff1a2026\u5e74\u5ea6\u8865\u5145\u5f55\u7528\u516c\u544a\u4e0e\u804c\u4f4d\u8868",
             "url": SUPPLEMENT_URL,
             "checkedAt": now,
-            "result": "\u62a5\u540d\u65f6\u95f4\u4e3a2026\u5e745\u67088\u65e5\u81f35\u670810\u65e5\uff0c\u5e76\u8981\u6c42\u53c2\u52a02026\u5e74\u5ea6\u56fd\u8003\u7b14\u8bd5\uff1b\u5f53\u524d\u5df2\u7ed3\u675f\uff0c\u4e0d\u4f5c\u4e3a\u53ef\u62a5\u5c97\u4f4d\u3002",
+            "result": "报名时间为2026年5月8日至5月10日，并要求参加2026年度国考笔试；本轮记录时效与硬条件，不因已结束而删除扫描留痕。",
         },
         {
             "name": "国家公务员局：2027年度招录专题监测",
@@ -1374,19 +1654,19 @@ def main() -> None:
             "name": "石家庄市人社局：2026年事业单位统一招聘岗位表",
             "url": SJZ_ANNOUNCEMENT_URL,
             "checkedAt": now,
-            "result": f"已下载并筛选指定区县官方岗位附件；该批次笔试已结束，命中的 {len(sjz_positions)} 个历史条目不进入岗位页。",
+            "result": f"已下载并筛选指定区县官方岗位附件；命中硬条件的 {len(sjz_positions)} 个条目已保留，并在岗位状态中标注该批次已结束。",
         },
         {
             "name": "石家庄市人事考试中心：2026年公开选聘公告",
             "url": SJZ_LATEST_SELECTION_URL,
             "checkedAt": now,
-            "result": "公告发布于2026年5月14日，现场报名为5月18日至22日；截至本次检索已经截止，不纳入可展示岗位。",
+            "result": "公告发布于2026年5月14日，现场报名为5月18日至22日；本轮记录为官方来源复核与时效留痕。",
         },
         {
             "name": "中国雄安官网：2026年事业单位统一招聘岗位表",
             "url": XIONGAN_ANNOUNCEMENT_URL,
             "checkedAt": now,
-            "result": f"已下载并筛选官方岗位附件；报名已于2026年2月13日结束且笔试已举行，命中的 {len(xiongan_positions)} 个历史条目不进入岗位页。",
+            "result": f"已下载并筛选官方岗位附件；命中硬条件的 {len(xiongan_positions)} 个条目已保留，并在岗位状态中标注报名与笔试均已结束。",
         },
         {
             "name": "石家庄市国资委：市属国有企业面向社会公开招聘公告及岗位表",
@@ -1394,14 +1674,14 @@ def main() -> None:
             "checkedAt": now,
             "result": (
                 f"已下载并全量筛选管理及专业技术岗位附件；计算机方向匹配 {len(sjz_soe_positions)} 个。"
-                "报名截至2026年5月27日17:00，已不属于下一周期可新报名岗位；仅保留为已报名后续跟踪和同类岗位样本。"
+                "报名截至2026年5月27日17:00；本轮去掉时效硬过滤，命中岗位继续保留并标注状态。"
             ),
         },
         {
             "name": "中国远洋海运集团官方招聘平台：2026专项招聘岗位接口",
             "url": COSCO_STRATEGIC_PROJECT_URL,
             "checkedAt": now,
-            "result": f"官方专项招聘接口返回 {cosco_total} 个岗位；按本科、计算机方向、社招经验和投递期筛选，确认 {len(cosco_positions)} 个仍可新报名岗位。",
+            "result": f"官方专项招聘接口返回 {cosco_total} 个岗位；按本科、计算机方向和社招经验硬条件筛出 {len(cosco_positions)} 个，工作地点在上海，进入其他地区分组展示。",
         },
         {
             "name": "北京市规划和自然资源委员会所属事业单位公开招聘",
@@ -1434,17 +1714,67 @@ def main() -> None:
             "result": "编制招聘报名截至2026年6月1日17时；公告要求社会人员具有北京市常住户口，未纳入可报岗位。",
         },
     ]
-    actionable_sjz_soe_positions = [
-        position for position in sjz_soe_positions if position.get("status") in {"报名中", "即将报名"}
+    hard_matched_positions = [
+        *national_positions,
+        *sjz_positions,
+        *xiongan_positions,
+        *sjz_soe_positions,
+        *cosco_positions,
     ]
+    target_positions, out_of_region_candidates = partition_target_region_positions(
+        hard_matched_positions,
+        profile,
+    )
     positions = sorted(
-        [enrich_position(position) for position in actionable_sjz_soe_positions + cosco_positions],
+        target_positions + out_of_region_candidates,
         key=sort_position_key,
     )
+    out_of_region_candidates = sorted(out_of_region_candidates, key=sort_position_key)
+    source_screenings = [
+        source_screening(
+            "national-civil-service-2026",
+            "国家公务员局2026年度招考简章",
+            national_positions,
+            profile,
+            "按画像地区、学历、学位、专业、政治面貌、基层经历和备注硬条件逐行筛选；时效只记录为岗位状态。",
+        ),
+        source_screening(
+            "shijiazhuang-2026-unified",
+            "石家庄市2026年事业单位统一招聘",
+            sjz_positions,
+            profile,
+            "按指定区县、学历学位、计算机专业和公告其他条件逐行筛选。",
+        ),
+        source_screening(
+            "xiongan-2026-unified",
+            "雄安新区2026年事业单位统一招聘",
+            xiongan_positions,
+            profile,
+            "按雄安地区、学历学位、计算机专业和公告其他条件逐行筛选。",
+        ),
+        source_screening(
+            "shijiazhuang-soe-2026-social",
+            "石家庄市属国企2026年社招",
+            sjz_soe_positions,
+            profile,
+            "按本科、计算机方向、市属国企正式招聘和岗位经验说明逐岗筛选。",
+        ),
+        source_screening(
+            "cosco-strategic-2026",
+            "中远海运2026专项招聘",
+            cosco_positions,
+            profile,
+            "按本科、经验区间、计算机方向逐岗筛选；工作地点不在目标地区，但符合硬条件，进入其他地区分组展示。",
+        ),
+    ]
     national_note = (
         "\u672c\u8f6e\u5df2\u4e0b\u8f7d\u5e76\u7b5b\u9009\u56fd\u5bb6\u516c\u52a1\u5458\u5c40\u5b98\u65b9\u62db\u8003\u7b80\u7ae0\u548c\u8fdb\u5165\u9762\u8bd5\u4eba\u5458\u540d\u5355\uff1b"
-        f"\u5176\u4e2d\u547d\u4e2d\u753b\u50cf\u4e0e\u5730\u533a\u7684 {len(national_positions)} \u4e2a\u6761\u76ee\u5747\u5df2\u5b8c\u6210\u8003\u8bd5\uff0c\u5df2\u4ece\u5c97\u4f4d\u5c55\u793a\u4e2d\u79fb\u9664\u3002"
-        "\u540c\u65f6\u6838\u9a8c\u56fd\u8003\u8865\u5f55\u516c\u544a\uff1a\u8865\u5f55\u62a5\u540d\u5df2\u4e8e2026\u5e745\u670810\u65e5\u7ed3\u675f\uff0c\u4e14\u9700\u6709\u672c\u5e74\u5ea6\u7b14\u8bd5\u6210\u7ee9\uff0c\u4e0d\u5c06\u5176\u6807\u6210\u53ef\u62a5\u3002"
+        f"\u5176\u4e2d\u547d\u4e2d\u753b\u50cf\u4e0e\u76ee\u6807\u5730\u533a\u786c\u6761\u4ef6\u7684 {len(national_positions)} \u4e2a\u6761\u76ee\u5df2\u4fdd\u7559\u5e76\u6807\u6ce8\u72b6\u6001\u3002"
+        f"石家庄目标县区国考原始行 {national_audit['shijiazhuangTargetCountyRowCount']} 条，"
+        f"按学历、专业、届别、基层经历、政治面貌、资格证等硬条件筛后通过 "
+        f"{national_audit['shijiazhuangHardMatchedCount']} 条；"
+        f"排除分布为 {national_audit['excludedHardConditionDistribution']}。"
+        "\u540c\u65f6\u6838\u9a8c\u56fd\u8003\u8865\u5f55\u516c\u544a\uff1a\u8865\u5f55\u62a5\u540d\u5df2\u4e8e2026\u5e745\u670810\u65e5\u7ed3\u675f\uff0c\u4e14\u9700\u6709\u672c\u5e74\u5ea6\u7b14\u8bd5\u6210\u7ee9\uff1b\u65f6\u6548\u53ea\u8fdb\u5165\u98ce\u9669\u4e0e\u8bf4\u660e\uff0c\u4e0d\u4f5c\u4e3a positions \u786c\u8fc7\u6ee4\u3002"
         + (
             "\u56fd\u5bb6\u516c\u52a1\u5458\u5c402027\u5e74\u5ea6\u62db\u5f55\u4e13\u9898\u5165\u53e3\u5df2\u53d1\u5e03\uff0c\u672c\u6b21\u626b\u63cf\u5fc5\u987b\u8f6c\u5411\u65b0\u5e74\u5ea6\u9644\u4ef6\u3002"
             if upcoming_portal_published
@@ -1452,11 +1782,11 @@ def main() -> None:
         )
     )
     regional_note = (
-        f"石家庄统一招聘官方附件命中 {len(sjz_positions)} 个条目但考试已结束，5月公开选聘也已于5月22日报名截止；"
-        f"雄安统一招聘官方附件命中 {len(xiongan_positions)} 个条目但报名与笔试均已结束；"
+        f"石家庄统一招聘官方附件命中 {len(sjz_positions)} 个目标地区硬条件条目，状态已标注为已结束；5月公开选聘也已于5月22日报名截止；"
+        f"雄安统一招聘官方附件命中 {len(xiongan_positions)} 个目标地区硬条件条目，状态已标注为已结束；"
         f"石家庄市属国企面向社会招聘已全量筛选，计算机方向匹配 {len(sjz_soe_positions)} 个，"
-        "但报名截至5月27日17:00，未报名者已无法新报，本次不再作为下一周期岗位展示；"
-        f"中远海运2026专项招聘官方接口返回 {cosco_total} 个岗位，按画像确认 {len(cosco_positions)} 个仍在投递期的央企社招岗位；"
+        "报名截至5月27日17:00，时效仅作为风险提示；"
+        f"中远海运2026专项招聘官方接口返回 {cosco_total} 个岗位，按硬条件确认 {len(cosco_positions)} 个上海央企社招岗位，进入其他地区分组展示；"
         "北京市近期尚在窗口内的规划自然资源委、残疾人定向、退役大学生士兵定向、首都体育学院与密云教委编制公告，"
         "分别存在北京市常住户口、定向身份或届别等硬限制，未纳入岗位列表。"
         f"{broader_note}"
@@ -1466,8 +1796,8 @@ def main() -> None:
         scan_cache_entry("国家公务员局：2026年度进入面试人员名单", INTERVIEW_URL, now, "官方附件已缓存并用于进面分参考。", interview_attachment),
         scan_cache_entry("石家庄市人社局：2026年事业单位岗位表", SJZ_POSITIONS_URL, now, "官方附件已缓存并用于历史批次筛选。", sjz_attachment),
         scan_cache_entry("中国雄安官网：2026年事业单位岗位表", XIONGAN_POSITIONS_URL, now, "官方附件已缓存并用于历史批次筛选。", xiongan_attachment),
-        scan_cache_entry("石家庄市国资委：市属国企社招岗位表", SJZ_SOE_SOCIAL_POSITIONS_URL, now, "官方附件已缓存；报名已截止，本轮仅用于已报名跟踪和同类岗位样本。", sjz_soe_attachment),
-        scan_cache_entry("中国远洋海运集团官方招聘平台：2026专项招聘接口", COSCO_STRATEGIC_API_URL, now, f"官方接口返回 {cosco_total} 个岗位；筛选后写入 {len(cosco_positions)} 个仍可投递岗位。", cosco_snapshot),
+        scan_cache_entry("石家庄市国资委：市属国企社招岗位表", SJZ_SOE_SOCIAL_POSITIONS_URL, now, "官方附件已缓存；本轮按硬条件筛选并记录时效状态。", sjz_soe_attachment),
+        scan_cache_entry("中国远洋海运集团官方招聘平台：2026专项招聘接口", COSCO_STRATEGIC_API_URL, now, f"官方接口返回 {cosco_total} 个岗位；筛选后得到 {len(cosco_positions)} 个硬条件匹配的上海岗位，写入其他地区分组。", cosco_snapshot),
         *broader_cache_entries,
     ]
     write_source_cache(source_cache_entries, now)
@@ -1485,7 +1815,8 @@ def main() -> None:
             "categoryOrder": CATEGORY_ORDER,
             "regionOrder": REGION_ORDER,
             "referencePolicy": (
-                "岗位页优先展示仍可新报名或即将报名、且经画像硬条件筛选值得立即核验的国考、省考、编制和国企岗位；已截止但尚待考试的批次只保留检索留痕和已报名跟踪提示。"
+                "岗位页展示经画像硬条件确认匹配的国考、省考、编制和国企岗位；报名、考试和结束状态只作为风险提示与备考参考，不作为 positions 入库硬过滤。"
+                "目标地区之外的硬条件匹配岗位进入其他地区分组展示，并通过 outOfRegionCandidates 标注为异地岗位。"
                 "待遇、房子与户口优先采用公告原文，未载明时明确显示官方未载明；进面分和报录比仅展示可追溯官方数据。"
             ),
             "scanWorkflow": [
@@ -1499,29 +1830,32 @@ def main() -> None:
                 },
                 {
                     "step": "3. 全量硬条件筛选",
-                    "description": "对岗位表全部行按画像地区、学历、学位、专业、户籍、届别、身份和经历要求筛选；不抽样、不只返回推荐项。",
+                    "description": "对每个来源的岗位表全部行逐一按学历、学位、专业、户籍、届别、资格证、工作经验、政治面貌等硬条件筛选；不抽样、不只返回推荐项。",
                 },
                 {
-                    "step": "4. 四类四区排序",
-                    "description": "所有符合岗位写入 positions，并按国考、省考、编制、国企；北京、雄安、天津、石家庄、其他排序。",
+                    "step": "4. 分区入库展示",
+                    "description": "硬条件匹配后写入 positions，并按北京、雄安、天津、石家庄、其他分组展示；其他城市同步标注到 outOfRegionCandidates 便于识别异地岗位。",
                 },
                 {
                     "step": "5. 逐岗判断整理",
-                    "description": "对每个展示岗位补充匹配判断、风险、备考建议、福利待遇、住房、户口和可追溯来源。",
+                    "description": "对每个入库岗位补充匹配判断、状态风险、备考建议、福利待遇、住房、户口和可追溯来源。",
                 },
             ],
             "screeningNote": national_note
             + (f"\u5730\u65b9\u4e0e\u56fd\u4f01\u626b\u63cf\uff1a{regional_note}" if regional_note else ""),
             "searchedSources": official_sources + broader_sources + existing_sources,
+            "sourceScreening": source_screenings,
+            "screeningAudit": [national_audit],
             "regionalScanNote": regional_note,
             "positions": positions,
+            "outOfRegionCandidates": out_of_region_candidates,
         }
     )
     report.pop("profileHash", None)
     write_json(REPORT_PATH, report)
     print(
-        f"[岗位同步完成] 当前可展示 {len(positions)} 个 | 已排除历史国考 {len(national_positions)} 个 | "
-        f"已排除历史石家庄编制 {len(sjz_positions)} 个 | 已排除历史雄安编制 {len(xiongan_positions)} 个 | "
+        f"[岗位同步完成] 硬条件匹配展示 {len(positions)} 个 | 其中异地 {len(out_of_region_candidates)} 个 | "
+        f"来源逐项筛选 {len(source_screenings)} 组 | "
         f"\u6765\u6e90 {ARTICLE_URL}"
     )
 
