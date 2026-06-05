@@ -111,36 +111,15 @@ export function renderShenlunMarkdown(roadmap: StudyRoadmap) {
 export function renderXingceMarkdown(roadmap: XingceRoadmap) {
   const lines: string[] = [`# ${roadmap.title}`, "", roadmap.description, ""];
 
-  if (roadmap.basisNote) {
-    lines.push("## 使用说明", "", roadmap.basisNote, "");
-  }
-
-  if (roadmap.examProfile) {
-    const profile = roadmap.examProfile;
-    lines.push(
-      "## 官方大纲口径",
-      "",
-      `- 依据：${profile.syllabusTitle}`,
-      `- 发布日期：${profile.syllabusDate}`,
-      `- 题型属性：${profile.questionNature}`,
-      `- 时限：${profile.durationMinutes} 分钟`,
-      `- 满分：${profile.score} 分`,
-      `- 原文：${profile.syllabusUrl}`,
-      "",
-      `官方测查板块：${profile.officialModules.join("、")}`,
-      "",
-    );
-  }
-
   if (roadmap.studyPrinciples) {
-    lines.push("## 学习总原则", "");
+    lines.push("## 课程导航总原则", "");
     roadmap.studyPrinciples.forEach((principle) => {
       lines.push(`- ${principle.title}：${principle.detail}`);
     });
     lines.push("");
   }
 
-  lines.push(`## ${formatStageHeading(roadmap.stages.length)}`, "");
+  lines.push(`## 学习顺序：${formatStageHeading(roadmap.stages.length)}`, "");
   roadmap.stages.forEach((stage) => {
     lines.push(`### ${stage.title}`, "", `- 目标：${stage.goal}`, `- 周期：${stage.duration ?? "按需安排"}`, "");
     stage.tasks.forEach((task) => lines.push(`- ${task}`));
@@ -151,18 +130,34 @@ export function renderXingceMarkdown(roadmap: XingceRoadmap) {
   });
 
   if (roadmap.moduleGuides) {
-    lines.push("## 模块训练工作台", "");
+    lines.push("## 模块课程导航", "");
     roadmap.moduleGuides.forEach((module) => {
-      lines.push(`### ${module.title}`, "", module.ability, "", `主题：${module.topics.join("、")}`, "", "方法：");
+      lines.push(`### ${module.title}`, "", module.ability, "", `题型范围：${module.topics.join("、")}`, "", "课程使用顺序：");
       module.methods.forEach((method) => lines.push(`- ${method}`));
-      lines.push("", "易错点：");
+      lines.push("", "课后刷题动作：");
+      module.drills.forEach((drill) => lines.push(`- ${drill}`));
+      lines.push("", "常见误区：");
       module.pitfalls.forEach((pitfall) => lines.push(`- ${pitfall}`));
+      const relatedTools = getXingceRelatedTools(module.id, roadmap);
+      if (relatedTools.length) {
+        lines.push("", "配套公式与检查项：");
+        relatedTools.forEach((tool) => {
+          lines.push("", `#### ${tool.title}`);
+          tool.items.forEach((item) => lines.push(`- ${item}`));
+        });
+      }
       const teacherGroup = roadmap.teacherGroups?.find((group) => group.moduleId === module.id);
       if (teacherGroup) {
-        lines.push("", "跟课老师：", "", teacherGroup.selectionNote, "");
-        teacherGroup.teachers.forEach((teacher) => {
+        const selectionNote = teacherGroup.selectionNote.replace(/[。；;]+$/, "");
+        lines.push("", "老师与课程：", "", `${selectionNote}。每个模块只能确定一套主线课程。`, "");
+        teacherGroup.teachers.forEach((teacher, index) => {
+          const tier = index === 0 || teacher.role.includes("主线")
+            ? "主线"
+            : teacher.role.includes("冲刺") || teacher.role.includes("补充") || teacher.role.includes("提速") || teacher.role.includes("套卷")
+              ? "专项补充/冲刺"
+              : "备选";
           lines.push(
-            `#### ${teacher.name}`,
+            `#### ${teacher.name}（${tier}）`,
             "",
             `- 机构/来源：${teacher.institution ?? "按可获得课程资源选择"}`,
             `- 角色：${teacher.role}`,
@@ -184,7 +179,7 @@ export function renderXingceMarkdown(roadmap: XingceRoadmap) {
   }
 
   if (roadmap.teacherSelectionRules) {
-    lines.push("## 选老师原则", "");
+    lines.push("## 老师与课程选择原则", "", "课程分为主线课、专项补漏和冲刺课。主线只选一套，后两者仅在明确短板或阶段需要时加入。", "");
     roadmap.teacherSelectionRules.forEach((rule) => lines.push(`- [ ] ${rule}`));
     lines.push("");
   }
@@ -198,25 +193,34 @@ export function renderXingceMarkdown(roadmap: XingceRoadmap) {
     });
   }
 
-  if (roadmap.formulaCards) {
-    lines.push("## 速算与关系卡", "");
-    roadmap.formulaCards.forEach((card) => {
-      lines.push(`### ${card.title}`, "");
-      card.rules.forEach((rule) => lines.push(`- ${rule}`));
-      lines.push("");
-    });
-  }
-
   if (roadmap.timePlan) {
     lines.push("## 考场节奏", "");
     roadmap.timePlan.forEach((phase) => lines.push(`- ${phase.phase}（${phase.target}）：${phase.method}`));
     lines.push("");
   }
 
+  if (roadmap.examProfile) {
+    const profile = roadmap.examProfile;
+    lines.push(
+      "## 考试依据",
+      "",
+      roadmap.basisNote ?? "",
+      "",
+      `- 依据：${profile.syllabusTitle}`,
+      `- 发布日期：${profile.syllabusDate}`,
+      `- 题型属性：${profile.questionNature}`,
+      `- 时限：${profile.durationMinutes} 分钟`,
+      `- 满分：${profile.score} 分`,
+      `- 官方测查板块：${profile.officialModules.join("、")}`,
+      `- 原文：${profile.syllabusUrl}`,
+      "",
+    );
+  }
+
   if (roadmap.references) {
-    lines.push("## 参考来源", "");
+    lines.push("## 公开参考来源", "");
     roadmap.references.forEach((reference) => {
-      lines.push(`- [${reference.title}](${reference.url}) - ${reference.publisher}（访问日期：${reference.accessedAt}）`);
+      lines.push(`- [${reference.title}](${reference.url}) - ${reference.publisher}；用途：${reference.note}（访问日期：${reference.accessedAt}）`);
     });
     lines.push("");
   }
@@ -239,4 +243,33 @@ function formatStageHeading(count: number) {
   };
 
   return `${labels[count] ?? count}阶段训练路线`;
+}
+
+const xingceModuleToolKeywords: Record<string, string[]> = {
+  data: ["资料", "基础夯实", "强化刷题"],
+  reasoning: ["判断", "基础夯实", "强化刷题"],
+  verbal: ["言语", "基础夯实", "强化刷题"],
+  common: ["常识", "模拟与冲刺"],
+  quantity: ["数量", "强化刷题", "模拟与冲刺"],
+  politics: ["常识", "模拟与冲刺"],
+};
+
+function getXingceRelatedTools(moduleId: string, roadmap: XingceRoadmap) {
+  const keywords = xingceModuleToolKeywords[moduleId] ?? [];
+  const tools: Array<{ title: string; items: string[] }> = [];
+
+  roadmap.formulaCards?.forEach((card) => {
+    if (keywords.some((keyword) => card.title.includes(keyword) || card.rules.some((rule) => rule.includes(keyword)))) {
+      tools.push({ title: card.title, items: card.rules });
+    }
+  });
+
+  roadmap.practiceChecklist?.forEach((checklist) => {
+    const matchingItems = checklist.items.filter((item) => keywords.some((keyword) => item.includes(keyword)));
+    if (matchingItems.length) {
+      tools.push({ title: checklist.title, items: matchingItems });
+    }
+  });
+
+  return tools.slice(0, 4);
 }
