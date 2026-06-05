@@ -9,9 +9,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "content:seed": "node scripts/seed_library_content.mjs",
-    "agent:profile": "python scripts/ensure_profile.py",
-    "agent:job": "python scripts/import_national_jobs.py",
-    "scan:today": "python scripts/ensure_profile.py && python scripts/import_national_jobs.py && python scripts/today_scan.py"
+    "scan:today": "python scripts/today_scan.py"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.3",

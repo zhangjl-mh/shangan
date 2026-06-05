@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Folder, Settings } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -10,7 +9,6 @@ const navigation = [
   { label: "首页", href: "/" },
   { label: "申论", href: "/shenlun" },
   { label: "行测", href: "/xingce" },
-  { label: "岗位", href: "/job" },
   { label: "时政", href: "/news" },
 ];
 
@@ -46,26 +44,7 @@ export function SiteHeader() {
             );
           })}
         </nav>
-        <div className="label-sans ml-auto flex shrink-0 items-center gap-2 text-[#303b37] lg:gap-6">
-          <Link
-            href="/job#sources"
-            aria-label="查看文件数据与官方检索记录"
-            className="hidden items-center gap-2.5 border-r border-[#e5ded2] px-2 py-2 pr-6 transition-colors hover:text-deep-green lg:flex"
-          >
-            <Folder size={20} strokeWidth={1.8} />
-            文件数据
-          </Link>
-          <Link
-            href="/profile"
-            className={cn(
-              "flex items-center gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-[#ecebe4]",
-              pathname === "/profile" && "text-deep-green",
-            )}
-          >
-            <Settings size={20} strokeWidth={1.7} />
-            <span className="hidden lg:inline">画像设置</span>
-          </Link>
-        </div>
+        <div className="ml-auto w-[42px]" aria-hidden="true" />
       </div>
     </header>
   );

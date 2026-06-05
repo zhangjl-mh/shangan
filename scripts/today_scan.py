@@ -1,8 +1,4 @@
-"""Finalize files produced by the today-scan skill.
-
-This script does not scrape sites or call a model. The skill prepares verified
-JSON facts, then this deterministic step validates and renders display files.
-"""
+"""Validate and render the daily current-affairs report."""
 
 from __future__ import annotations
 
@@ -17,8 +13,7 @@ from jsonschema import validate
 
 ROOT = Path(__file__).resolve().parent.parent
 CONTENT_DIR = Path(os.getenv("GONGKAO_CONTENT_DIR", ROOT / "content" / "local"))
-DATA_DIR = Path(os.getenv("GONGKAO_DATA_DIR", ROOT / "data"))
-SCHEMA_DIR = ROOT / "agents" / "schema"
+SCHEMA_PATH = ROOT / "agents" / "schema" / "daily-news.schema.json"
 
 
 def read_json(path: Path) -> dict:
@@ -65,7 +60,7 @@ def render_news_markdown(report: dict) -> str:
             lines.append("")
         if report.get("candidatePool"):
             lines.extend(["### 候选池", ""])
-            for candidate in report.get("candidatePool", []):
+            for candidate in report["candidatePool"]:
                 prefix = "已选" if candidate.get("selected") else "未选"
                 lines.append(
                     f"- {prefix}：[{candidate['title']}]({candidate['url']})"
@@ -109,177 +104,37 @@ def render_news_markdown(report: dict) -> str:
     return "\n".join(lines)
 
 
-def render_job_markdown(report: dict) -> str:
-    positions = report.get("positions", [])
-    category_order = report.get("categoryOrder", ["国考", "省考", "编制", "国企"])
-    region_order = report.get("regionOrder", ["北京", "雄安", "天津", "石家庄", "其他"])
-    lines = [
-        "# 今日岗位扫描报告",
-        "",
-        f"- 生成时间：{report['generatedAt']}",
-        f"- 硬条件匹配岗位数量：{len(positions)}",
-        f"- 扫描渠道数量：{len(report.get('searchedSources', []))}",
-        "",
-        "## 筛选结论",
-        "",
-        report.get("screeningNote", "暂无说明。"),
-        "",
-        "## 参考数据规则",
-        "",
-        report.get("referencePolicy", "仅展示有可追溯信源的信息。"),
-        "",
-    ]
-    if positions:
-        lines.extend(["## 硬条件匹配岗位", ""])
-        for category in category_order:
-            category_positions = [position for position in positions if position.get("recruitmentClass") == category]
-            if not category_positions:
-                continue
-            lines.extend([f"### {category}", ""])
-            for region in region_order:
-                region_positions = [position for position in category_positions if position.get("regionGroup") == region]
-                if not region_positions:
-                    continue
-                lines.extend([f"#### {region}", ""])
-                for position in region_positions:
-                    lines.extend(
-                        [
-                            f"##### {position['organization']} - {position['title']}",
-                            "",
-                            f"- 地区：{position['region']}{(' / ' + position['district']) if position.get('district') else ''}",
-                            f"- 状态：{position['status']}",
-                            f"- 招录人数：{position.get('recruitCount', '官方未公开')}",
-                            f"- 报名截止：{position.get('registrationEndAt') or position.get('registrationEndDate', '以官方公告为准')}",
-                            f"- 资格初审截止：{position.get('qualificationReviewEndAt', '以官方公告为准')}",
-                            f"- 缴费截止：{position.get('paymentEndAt', '以官方公告为准')}",
-                            f"- 笔试时间：{position.get('examDate', '以官方公告为准')}",
-                            f"- 岗位代码：{position.get('positionCode', '官方未公开')}",
-                            f"- 原文：[{position['sourceName']}]({position['sourceUrl']})",
-                            "",
-                        ]
-                    )
-                    if position.get("recommendation"):
-                        lines.extend(
-                            [
-                                f"- 推荐结论：{position['recommendation']}",
-                                f"- 匹配度：{position.get('matchScore', '未评估')} / 风险等级：{position.get('riskLevel', '未评估')}",
-                                "",
-                            ]
-                        )
-                    if position.get("responsibilities"):
-                        lines.extend([f"- 工作内容：{position['responsibilities']}", ""])
-                    for reason in position.get("matchReasons", []):
-                        lines.append(f"- 匹配原因：{reason}")
-                    for risk in position.get("riskReminders", []):
-                        lines.append(f"- 风险提醒：{risk}")
-                    for advice in position.get("studyAdvice", []):
-                        lines.append(f"- 备考建议：{advice}")
-                    for history in position.get("historicalReferences", []):
-                        lines.append(
-                            f"- {history['year']}参考：进面/入围分 {history.get('finalEntryScore', '官方未公开')}；"
-                            f"报录比 {history.get('applicationRatio', '官方未公开')}；"
-                            f"来源 [{history['sourceName']}]({history['sourceUrl']})"
-                        )
-                    for note in position.get("applicationNotes", []):
-                        lines.append(f"- 报考提示：{note}")
-                    if position.get("compensationReference"):
-                        pay = position["compensationReference"]
-                        lines.extend(["", f"- 薪资估算：{pay['text']}（{pay['disclaimer']}）"])
-                    lines.append(f"- 福利待遇：{'；'.join(position.get('benefits', [])) or '官方公告未载明。'}")
-                    lines.append(f"- 房子：{position.get('housingReference', '官方公告未载明住房安排。')}")
-                    lines.append(f"- 户口：{position.get('householdReference', '官方公告未载明落户安排。')}")
-                    lines.append("")
-    if report.get("sourceScreening"):
-        lines.extend(["## 逐来源全量筛选", ""])
-        for item in report["sourceScreening"]:
-            lines.append(
-                f"- {item['name']}：硬条件 {item['hardMatchedCount']} 个，"
-                f"目标地区 {item['targetRegionCount']} 个，其他地区 {item['outOfRegionCount']} 个。"
-                f"{item.get('note', '')}"
-            )
-        lines.append("")
-    if report.get("outOfRegionCandidates"):
-        lines.extend(["## 其他地区匹配记录", ""])
-        for position in report["outOfRegionCandidates"]:
-            lines.append(
-                f"- {position['organization']} - {position['title']}：{position.get('region', '地点以公告为准')}，"
-                f"状态 {position.get('status', '未标注')}。{position.get('displayDecision', '已进入其他地区分组展示。')}"
-            )
-        lines.append("")
-    lines.extend(["## 已扫描权威渠道", ""])
-    for source in report.get("searchedSources", []):
-        lines.append(f"- [{source['name']}]({source['url']})：{source['result']}")
-    return "\n".join(lines)
-
-
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Finalize today's news and job scan data.")
+    parser = argparse.ArgumentParser(description="Finalize daily current-affairs data.")
     parser.add_argument("--date", default=date.today().isoformat(), dest="scan_date")
-    parser.add_argument(
-        "--jobs-only",
-        action="store_true",
-        help="Only validate and render the job scan report for this date.",
-    )
     args = parser.parse_args()
 
     news_path = CONTENT_DIR / "news" / f"{args.scan_date}.json"
-    jobs_path = CONTENT_DIR / "job" / "eligible-jobs.json"
-    if not news_path.exists() and not args.jobs_only:
+    if not news_path.exists():
         raise SystemExit(f"缺少当日时政文件：{news_path}")
-    if not jobs_path.exists():
-        raise SystemExit(f"缺少岗位扫描文件：{jobs_path}")
 
-    news = read_json(news_path) if news_path.exists() and not args.jobs_only else None
-    jobs = read_json(jobs_path)
-    if news is not None:
-        validate(news, read_json(SCHEMA_DIR / "daily-news.schema.json"))
-    validate(jobs, read_json(SCHEMA_DIR / "eligible-jobs.schema.json"))
-    write_json(jobs_path, jobs)
+    news = read_json(news_path)
+    validate(news, read_json(SCHEMA_PATH))
 
-    markdown_dir = CONTENT_DIR / "markdown"
-    news_markdown = markdown_dir / f"{args.scan_date}-daily-news.md"
-    jobs_markdown = markdown_dir / f"{args.scan_date}-job-scan.md"
-    outputs = []
-    if news is not None:
-        write_text(news_markdown, render_news_markdown(news))
-        outputs.append(str(news_markdown))
-    write_text(jobs_markdown, render_job_markdown(jobs))
-    outputs.append(str(jobs_markdown))
+    markdown_path = CONTENT_DIR / "markdown" / f"{args.scan_date}-daily-news.md"
+    write_text(markdown_path, render_news_markdown(news))
 
-    source_registry = read_json(DATA_DIR / "job-sources.json")
     manifest = {
         "scanDate": args.scan_date,
         "finalizedAt": datetime.now().astimezone().isoformat(timespec="seconds"),
-        "mode": "jobs-only" if args.jobs_only else "news-and-jobs",
-        "news": (
-            {
-                "file": str(news_path),
-                "items": len(news["items"]),
-                "verifiedAt": news.get("meta", {}).get("verifiedAt"),
-            }
-            if news is not None
-            else None
-        ),
-        "jobs": {
-            "file": str(jobs_path),
-            "positions": len(jobs.get("positions", [])),
-            "searchedSources": len(jobs.get("searchedSources", [])),
-            "registeredOfficialSources": len(source_registry.get("sources", [])),
+        "mode": "daily-news",
+        "news": {
+            "file": str(news_path),
+            "items": len(news["items"]),
+            "verifiedAt": news.get("meta", {}).get("verifiedAt"),
         },
-        "outputs": outputs,
+        "outputs": [str(markdown_path)],
     }
     manifest_path = CONTENT_DIR / "scan" / f"{args.scan_date}.json"
     write_json(manifest_path, manifest)
 
-    print(
-        f"[今日扫描完成] {args.scan_date} | "
-        f"时政 {manifest['news']['items'] if manifest['news'] else 0} 条 | "
-        f"当前可展示岗位 {manifest['jobs']['positions']} 个 | "
-        f"权威入口 {manifest['jobs']['searchedSources']} 个"
-    )
-    if news is not None:
-        print(f"[输出] {news_markdown}")
-    print(f"[输出] {jobs_markdown}")
+    print(f"[今日时政完成] {args.scan_date} | 时政 {len(news['items'])} 条")
+    print(f"[输出] {markdown_path}")
     print(f"[清单] {manifest_path}")
 
 

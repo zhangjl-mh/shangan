@@ -1,55 +1,12 @@
-# 上岸
+# 我要上岸
 
-公考智能备考驾驶舱。应用可运行在本机或单实例服务器，读取 Codex / Claude Code Skills 或后续 Python Pipeline 写入的文件 JSON 内容，并提供阅读、筛选、画像编辑与浏览器 PDF 导出能力。
+本项目是一个本地优先的公考备考工作台，集中管理：
 
-## 先用这几个命令
+- 每日时政
+- 申论学习内容
+- 行测学习内容
 
-安装并启动页面：
-
-```bash
-npm install
-python -m pip install -r requirements.txt
-npm run dev
-```
-
-在 Codex / Claude Code 中说：
-
-```txt
-今日扫描
-```
-
-该工作流会整理当天权威时政，并扫描符合画像的官方岗位，最终写入页面读取的 JSON 和 Markdown 文件。
-
-已有当日资讯 JSON 后，也可以直接执行本地收口与官方岗位附件同步：
-
-```bash
-npm run scan:today
-```
-
-指定日期：
-
-```bash
-npm run scan:today -- --date 2026-05-27
-```
-
-若不存在 `data/profile.local.json`，命令会先运行 `scripts/ensure_profile.py`，在终端询问学历、专业、毕业年份、学位、政治面貌、目标地区等岗位筛选信息，保存本地画像后继续岗位扫描。也可以单独执行：
-
-```bash
-npm run agent:profile
-```
-
-## 当前实现
-
-- `/`：水墨风驾驶舱首页，读取画像、时政、岗位和学习路线摘要。
-- `/shenlun`：申论学习路线、资料、建议与输出成果布局。
-- `/xingce`：行测模块及本地路线承载页。
-- `/job`：岗位判断工作台，展示匹配度、风险、备考建议、待遇/住房/户口口径及官方信源，支持筛选与个人跟踪状态。
-- `/news`：按日期展示本地时政报告，以左侧标题、右侧详情阅读，支持来源/主题筛选、关键词搜索及 Markdown 下载。
-- `/profile`：编辑并保存本地用户画像。
-
-页面没有内容时只显示空状态，不展示演示岗位或虚构信源。
-
-## 快速启动
+## 启动
 
 ```bash
 npm install
@@ -58,258 +15,36 @@ npm run dev
 
 打开 [http://localhost:3000](http://localhost:3000)。
 
-构建检查：
+## 页面
+
+- `/`：学习驾驶舱
+- `/news`：每日时政
+- `/shenlun`：申论内容
+- `/xingce`：行测内容
+
+## 内容工作流
+
+业务技能位于 `agents/skills/`：
+
+| 请求 | Skill |
+| --- | --- |
+| 今日扫描、每日时政、更新资讯 | `agents/skills/daily-news/SKILL.md` |
+| 补全申论、补全行测、整理学习路线 | `agents/skills/study-content/SKILL.md` |
+
+每日时政数据写入：
+
+```txt
+content/local/news/YYYY-MM-DD.json
+content/local/markdown/YYYY-MM-DD-daily-news.md
+content/local/scan/YYYY-MM-DD.json
+```
+
+完成数据整理后执行：
 
 ```bash
+python scripts/today_scan.py --date YYYY-MM-DD
 npm run typecheck
 npm run build
 ```
 
-初始化学习内容：
-
-```bash
-npm run content:seed
-```
-
-该命令会将版本管理中的申论、行测基础知识库首次生成到 `content/local/`；若本地已有 Skills 生成的内容，则保留已有文件而不覆盖。
-
-`scan:today` 会先检查或交互创建本地画像，再运行 `scripts/import_national_jobs.py`，同步国家公务员局、北京公务员/事业单位、天津事业单位、国务院国资委/中央企业、北京/天津/石家庄国资委、雄安官网以及石家庄指定区县门户的官方入口与岗位附件。岗位页只接收考试尚未举行、且硬条件确认符合画像的岗位，状态可为 `报名中`、`即将报名` 或 `待考试`；已完成考试、报名窗口关闭或硬条件不符的公告只形成检索留痕。
-
-该命令不会调用模型。`ensure_profile.py` 仅在本地创建画像；`import_national_jobs.py` 仅访问登记的官方附件并进行确定性筛选；`today_scan.py` 不联网，仅校验 Agent / Skill 已整理的时政与岗位 JSON，并输出 Markdown 与本次扫描清单。前端页面本身始终不发起采集任务。
-
-岗位附件核验下载后会保存于 `content/official/job/source-files/`；每次扫描的入口、访问状态、附件哈希和排除结论会写入 `content/local/job/source-cache.json`。若官方站点临时发生 TLS 或网络故障，同一年度扫描可读取官方原始快照复现筛选结果；公告原文 URL 始终保留在岗位记录中。
-
-## 数据边界
-
-前端不采集招聘或时政信息，不调用模型，也不触发 Agent。它仅写入用户自己的本地状态：
-
-```txt
-data/profile.local.json
-data/job-tracking.local.json
-```
-
-Skills 或 Pipeline 负责生成业务内容：
-
-```txt
-content/local/shenlun/roadmap.json
-content/local/xingce/roadmap.json
-content/local/news/YYYY-MM-DD.json
-content/local/job/eligible-jobs.json
-```
-
-产品运行时没有 mock 或 official 示例数据回退。
-
-## 核心扫描流程
-
-页面不是“有内容就展示”，而是只展示 Agent / Skills 已经收集、核验和整理后的本地数据。当前固定为两步：
-
-```txt
-时政：权威入口检索 -> 候选池收集 -> 阅读原文 -> 选取最适合备考的 5 篇 -> 写入 JSON / Markdown
-岗位：官方入口检索 -> 下载岗位表 -> 全量硬条件筛选 -> 全部符合岗位入库 -> 分类排序与逐岗判断
-```
-
-时政 JSON 要保留 `candidateSources` 和 `candidatePool`，说明检索过哪些权威入口、哪些候选被阅读、为什么选入或未选入最终五篇。岗位 JSON 要保留 `searchedSources`、`scanWorkflow`、`categoryOrder`、`regionOrder`，说明检索过哪些官方入口、下载了哪些附件、为什么排除，以及全部符合岗位如何排序展示。
-
-申论模块另提供经公开来源整理、可版本管理的基础知识库：
-
-```txt
-content/library/shenlun/roadmap.json
-```
-
-读取顺序为 `content/local/shenlun/roadmap.json` 优先，其次为基础知识库。基础知识库不是示例数据：其中考试事实依据标注官方大纲来源，题型技巧标注公开培训机构或公开辅导资料来源；后续 Skills 可生成个性化 `local` 路线覆盖展示。
-
-## 申论学习中心
-
-`/shenlun` 当前覆盖：
-
-```txt
-考试依据与三类试卷能力地图
-七阶段学习路线
-六步通用作答流程
-归纳概括、综合分析、提出对策、贯彻执行、申发论述五类题型技法
-三遍材料阅读法与要点加工
-常见应用文文种
-大作文立意、结构与论证方法
-主题表达素材
-八周系统计划与三周冲刺计划
-考场时间安排与复盘清单
-官方及机构公开参考来源
-Markdown / PDF 导出
-```
-
-申论知识库 Schema 位于：
-
-```txt
-agents/schema/shenlun-roadmap.schema.json
-```
-
-## 行测训练中心
-
-`/xingce` 基础知识库位于 `content/library/xingce/roadmap.json`，覆盖官方大纲列示的政治理论、常识判断、言语理解与表达、数量关系、判断推理、资料分析六个板块，并提供方法、速算关系、训练路线和考场节奏。其 Schema 位于：
-
-```txt
-agents/schema/xingce-roadmap.schema.json
-```
-
-与申论相同，`content/local/xingce/roadmap.json` 存在时优先展示个性化本地内容。
-
-## 岗位范围
-
-岗位页承载当前采集到、且已由 Skills 依据本地画像判断为符合报考条件的岗位。目标地区属于用户本地画像信息，不在公开仓库文档或示例数据中固化。
-
-岗位展示第一层固定为 `国考`、`省考`、`编制`、`国企`；第二层固定按 `北京`、`雄安`、`天津`、`石家庄`、`其他` 排序。数据字段中 `category` 仍只使用 `公务员`、`编制`、`国企`，但公务员岗位必须通过 `recruitmentClass` 细分为 `国考` 或 `省考`。教师或医疗岗位仅在属于正式编制招聘且符合条件时归入 `编制`；国企岗位排除劳务派遣、外包与无法回溯官方信源的转载信息。
-
-岗位数据协议位于：
-
-```txt
-agents/schema/eligible-jobs.schema.json
-```
-
-权威岗位渠道清单位于：
-
-```txt
-data/job-sources.json
-```
-
-每次由 Skills 扫描后，应按“检索最新官方公告 -> 下载岗位表 -> 全量筛选 -> 四类四区排序 -> 逐岗核验待遇/住房/户口”的顺序，在本地岗位报告中记录实际访问渠道、命中公告和排除原因；页面只展示已确认符合画像且考试尚未举行的真实岗位，状态可为 `报名中`、`即将报名` 或 `待考试`。本轮结果必须重新生成，不把旧 `positions` 当作新扫描结果混入。
-
-每条展示岗位必须带官方来源 URL 和采集时间。报名截止、考试完成或录用流程已结束的批次不得作为岗位卡片展示，仅保留官方扫描记录。岗位详情优先整理：
-
-```txt
-岗位代码、公告工作内容、经标注的职责归纳、报名与考试时间、风险与备考建议
-官方福利待遇、住房/租房支持、落户/户口说明
-同岗位或高度可比岗位的历年进面/入围分、报录比、招录人数
-官方待遇信息，或清楚标记为非官方承诺的薪资推算区间
-```
-
-进面分、报录比只采用官方公告、官方公示或用人单位正式发布的可追溯信息；薪资未公布金额时，页面可按地区与岗位类别显示宽区间推算，但必须标记为非招录机关待遇承诺，不拼凑论坛数据。
-
-### 2026-05-28 岗位扫描结果
-
-本轮已核查并筛选国家公务员局、北京公务员补录、北京近期事业单位招聘、北京国资委国企招聘、天津事业单位、天津中德应用技术大学、国务院国资委委属事业单位、中央企业社招、中国雄安官网、石家庄市人社局、石家庄市国资委与石家庄指定区县门户。国考 2026 批次、石家庄统一事业单位招聘与公开选聘、雄安统一招聘均已过考试或报名窗口，不进入岗位页；北京、天津和中央企业近期可打开公告中，因北京户籍/应届、硕士博士、高级职称、既有笔试成绩、教师资格或相关纪检审计管理经历等硬条件，未新增可确认符合画像且仍未考试的岗位。
-
-截至 `2026-05-28`，国家公务员局 `2027年度考试录用公务员` 专题入口尚未发布，因此当前没有可导入的官方下一年度国考职位表。页面会在后续扫描时继续检查该入口。
-
-当前岗位页保留石家庄市属国企面向社会公开招聘中 4 个计算机相关岗位，均为 `待考试`：专业技术岗、商业数字化运营专员、项目部技术工程师、技术部技术工程师。报名已于 `2026-05-27 17:00` 截止，笔试时间为 `2026-06-06`，页面会用时间轴展示报名截止、资格初审、缴费截止与笔试安排；未报名则不能再新报名，已报名用户可用作备考跟踪。本轮共写入 45 条官方来源记录和 38 条访问/附件缓存记录。
-
-### 岗位数据隐私边界
-
-部署所需的 `content/local/job/` 岗位结果、扫描清单和导出 Markdown 可随项目提交；生成流程不写入姓名、毕业年份或画像哈希等私密字段。原始画像 `data/profile.local.json` 与个人报名跟踪 `data/job-tracking.local.json` 始终不进入版本控制。
-
-## 画像与重新生成
-
-用户可以在页面保存画像，也可以由 Skills 通过问询生成 `data/profile.local.json`。页面不会自动运行 Agent；需要刷新岗位时执行“今日扫描”工作流。
-
-## 时政数据
-
-时政数据协议位于：
-
-```txt
-agents/schema/daily-news.schema.json
-```
-
-每条热点应保留原文 URL、来源和发布时间。页面提供当前报告的 Markdown 下载，且可以利用浏览器打印能力导出 PDF。
-
-当前已生成按日期归档的本地日报：
-
-```txt
-content/local/news/2026-05-26.json
-content/local/markdown/2026-05-26-daily-news.md
-content/local/news/2026-05-27.json
-content/local/markdown/2026-05-27-daily-news.md
-content/local/news/2026-05-28.json
-content/local/markdown/2026-05-28-daily-news.md
-```
-
-本期资讯链接在 `2026-05-28` 已逐条访问核验，并保留候选池与选取原因。若当天尚没有取得可核验的权威原文，页面继续显示最近一份已核验日报，不以占位资讯冒充今日数据。
-
-### 2026-05-28 已核验每日时政
-
-本期从 10 条候选中选取 5 条当天发布、可访问且最适合备考加工的权威资讯：
-
-| 主题 | 来源 |
-| --- | --- |
-| 长江经济带书写高质量发展新篇章 | [新华社](https://www.news.cn/politics/20260528/a652048be926451ea90ffc84a953dd61/c.html) |
-| 我国首部海洋生物医药产业发展的政策文件发布 | [新华社](https://www.news.cn/politics/20260528/c226f7daadbc4fdabed00331f33c7e56/c.html) |
-| 莫让 AED 在生死关头“掉链子” | [新华网](https://www.news.cn/politics/20260528/acb573bf1af24da9acfffe6b4eba53e6/c.html) |
-| 遇到强降雨灾害，记住“跑、躲、等”三字诀 | [新华网](https://www.news.cn/politics/20260528/b3ff7a324cd644188f9b9e5e30650eb9/c.html) |
-| 深入理解以人民为中心的发展思想 | [经济日报（新华网转载）](http://www.news.cn/politics/20260528/d11ea374364a4e63aba53bec2e07e20f/c.html) |
-
-## 今日扫描 Skill
-
-本项目内置扫描技能：
-
-```txt
-agents/skills/today-scan/SKILL.md
-```
-
-在本项目协作中说“今日扫描”时，工作流为：
-
-```txt
-python scripts/ensure_profile.py 检查画像；没有画像则终端问询并保存
-↓
-读取画像与岗位官方渠道清单
-↓
-检索当日权威时政，先形成候选池，再阅读原文选取最适合备考的 5 篇
-↓
-写入带 candidateSources / candidatePool / items 的新闻 JSON
-↓
-python scripts/import_national_jobs.py 同步国考、省考、编制、国企官方入口和附件，并检查下一年度国考入口
-↓
-同步北京、雄安、天津、石家庄及国资系统官方入口，写入扫描缓存
-↓
-保留所有确认符合画像的岗位，按国考/省考/编制/国企与地区顺序展示
-↓
-python scripts/today_scan.py --date YYYY-MM-DD
-↓
-前端读取最新文件展示
-```
-
-确定性收口脚本会生成：
-
-```txt
-content/local/markdown/YYYY-MM-DD-daily-news.md
-content/local/markdown/YYYY-MM-DD-job-scan.md
-content/local/scan/YYYY-MM-DD.json
-```
-
-## 项目 Skills
-
-项目内的数据生产规则现已拆分为可单独调用的业务 Skills，并保留一键组合入口：
-
-| 请求 | Skill |
-| --- | --- |
-| 今日扫描，同时刷新时政和岗位 | `agents/skills/today-scan/SKILL.md` |
-| 每日时政、今日资讯、按日期核验新闻 | `agents/skills/daily-news/SKILL.md` |
-| 岗位检索、岗位判断、下一年度国考监测 | `agents/skills/job-scan/SKILL.md` |
-| 申论/行测内容、题型技巧与学习路线补全 | `agents/skills/study-content/SKILL.md` |
-| 本地画像创建与更新 | `agents/skills/profile-intake/SKILL.md` |
-
-本机开发环境通过 `~/Skills/shangan-workbench` 作为 Codex / Claude Code 的发现入口，并将其链接到当前项目的 `.agents/skills/` 与 `.claude/skills/`。这些链接是本机生成配置，不进入 Git；可部署的业务规则始终保存在上表所列的项目目录中。
-
-## 部署与文件数据架构
-
-应用可以从本机运行迁移到单实例服务器运行，但继续遵守“同一应用读取 JSON 文件”的边界，不增加数据库，也不让浏览器直接访问模型或外部采集任务。
-
-```txt
-Codex / Skills（离线或运维触发）
-          ↓ 写入
-服务器持久化目录：content/local + data
-          ↓ Next.js Server Components / Route Handler 读取或保存
-浏览器页面（展示、筛选、画像/报名跟踪编辑、导出）
-```
-
-开发环境默认读取项目内的 `content/local/` 与 `data/`。部署时建议将两个目录映射到服务器持久化磁盘，并在服务进程中配置：
-
-```env
-GONGKAO_CONTENT_DIR=/srv/gongkao/content/local
-GONGKAO_DATA_DIR=/srv/gongkao/data
-```
-
-这仍然是文件数据架构，不是数据服务拆分。原因是部署发布常会替换应用代码目录；如果画像和 Agent 生成内容只写进发布包，重启或下一次发布可能丢失数据。该方案适合单用户、单实例部署；若未来横向扩容到多个实例，文件一致性需要重新评估。
-
-重要边界：当前产品按“单用户、无登录”设计。部署在可被公众访问的服务器时，`/profile` 与画像保存接口会暴露个人信息的查看和修改能力。上线前必须在应用之外限制访问范围，例如仅内网/VPN 访问，或由反向代理提供访问控制；否则不能存放真实画像数据。
-
-## Token 与安全
-
-未来 Python 自动化路线可在 `.env` 中配置模型 Token；前端不读取或暴露 Token。公开时政、学习内容和已清理私密字段的岗位展示数据可随项目提交；本地画像与报名跟踪文件由 `.gitignore` 排除，避免个人状态进入仓库。
+页面只读取本地文件，不在浏览器中启动扫描、调用模型或抓取外部网站。

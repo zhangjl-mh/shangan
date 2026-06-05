@@ -4,13 +4,9 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import type {
   DailyNews,
-  EligibleJobsReport,
-  Profile,
   StudyRoadmap,
 } from "@/lib/types";
-import { normalizeProfile } from "@/lib/profile";
 import {
-  dataDirectory,
   libraryContentDirectory,
   localContentDirectory,
 } from "@/lib/storage-paths";
@@ -22,11 +18,6 @@ async function readJsonFile<T>(filePath: string): Promise<T | null> {
   } catch {
     return null;
   }
-}
-
-export async function readProfile() {
-  const profile = await readJsonFile<Profile>(path.join(dataDirectory, "profile.local.json"));
-  return profile ? normalizeProfile(profile) : null;
 }
 
 export async function readRoadmap<T extends StudyRoadmap = StudyRoadmap>(
@@ -42,12 +33,6 @@ export async function readRoadmap<T extends StudyRoadmap = StudyRoadmap>(
 
   return readJsonFile<T>(
     path.join(libraryContentDirectory, subject, "roadmap.json"),
-  );
-}
-
-export async function readEligibleJobs() {
-  return readJsonFile<EligibleJobsReport>(
-    path.join(localContentDirectory, "job", "eligible-jobs.json"),
   );
 }
 

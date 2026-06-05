@@ -25,7 +25,7 @@ content/local/markdown/YYYY-MM-DD-daily-news.md
 5. 阅读候选资讯原文后，按政策性、治理性、申论可加工度、行测常识关联度和公共服务价值，选取最适合备考的 5 篇写入 `items`。不足 5 篇时保留真实数量，不用旧闻填充。
 6. 对纳入 `items` 的每一条资讯实际访问原文 URL。仅保留来源、标题、发布时间和事件事实能够从原文确认的条目。
 7. 以备考加工信息补充 `policyBackground`、`shenlunAngles`、`xingceLinks`、`materials` 和 `examQuestions`；这些内容必须与原文事实区分清楚，不写成官方表述。
-8. 写入 JSON，并校验 Schema。若岗位报告文件已存在，执行 `python scripts/today_scan.py --date YYYY-MM-DD` 生成 Markdown 与扫描清单；否则先保留已校验 JSON，说明需要岗位数据才能运行组合收口脚本。
+8. 写入 JSON，并校验 Schema。执行 `python scripts/today_scan.py --date YYYY-MM-DD` 生成 Markdown 与扫描清单。
 
 ## 内容标准
 

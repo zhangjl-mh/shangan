@@ -4,9 +4,6 @@ node_modules/
 .env.local
 .env.*.local
 
-# Private user state.
-data/profile.local.json
-data/job-tracking.local.json
 # Archived work products may contain raw profile prompts or prior snapshots.
 deliverables/
 # Generated local skill discovery links; canonical operator skills live in ~/Skills.
