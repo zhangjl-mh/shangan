@@ -1,5 +1,7 @@
 # 08 最终验收
 
+完成状态以 `docs/workflow.md` 和 `docs/checks.md` 为准。
+
 使用 `docs/templates/acceptance.md` 汇总需求、交接和检查证据。
 
 1. 逐项判断验收标准，证据必须可定位。

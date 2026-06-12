@@ -14,7 +14,7 @@
       "id": "run-artifacts",
       "effect": "allow",
       "paths": [
-        ".agents/harness/runs/**"
+        "docs/runs/**"
       ]
     },
     {

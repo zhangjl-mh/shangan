@@ -12,4 +12,4 @@ description: 路由“我要上岸”项目任务。当用户要求学习路线�
 | 知识点、题型与技巧补全 | `.agents/skills/study-content/SKILL.md` |
 | 岗位采集与筛选 | `.agents/skills/job-filter/SKILL.md` |
 
-确认需求后按 `.agents/harness/manifest.json` 执行流水线。
+确认需求后按 `docs/manifest.json` 执行流水线。

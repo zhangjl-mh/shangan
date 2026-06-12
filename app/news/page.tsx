@@ -3,7 +3,7 @@ import { CalendarDays, ShieldCheck } from "lucide-react";
 import { PrintButton } from "@/app/components/export/print-button";
 import { EmptyState } from "@/app/components/layout/empty-state";
 import { PipelineStrip } from "@/app/components/layout/pipeline-strip";
-import { NewsBrowser } from "@/app/news/_components/news-browser";
+import { NewsBrowser } from "@/app/news/components/news-browser";
 import { Card } from "@/app/components/ui/card";
 import { Reveal } from "@/app/components/ui/reveal";
 import { listDailyNewsDates, readNewsByDate } from "@/app/services/content";

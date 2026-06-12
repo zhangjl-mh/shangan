@@ -8,7 +8,7 @@ node_modules/
 deliverables/
 
 # Harness runtime state.
-.agents/harness/runs/
+docs/runs/
 .claude/skills/
 
 __pycache__/

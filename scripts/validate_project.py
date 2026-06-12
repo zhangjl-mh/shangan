@@ -27,8 +27,9 @@ ROOT = Path(__file__).resolve().parents[1]
 SCHEMAS_DIR = ROOT / "schemas"
 DATA_DIR = ROOT / "data"
 SKILLS_DIR = ROOT / ".agents" / "skills"
-HARNESS_CONFIG = ROOT / ".agents" / "harness" / "manifest.json"
+HARNESS_CONFIG = ROOT / "docs" / "manifest.json"
 INVALID_JSON = object()
+PRIVATE_COMPONENT_DIRECTORY = "_" + "components"
 
 TEXT_SUFFIXES = {
     "",
@@ -55,19 +56,28 @@ IGNORED_PARTS = {".git", ".next", "node_modules", "deliverables", "__pycache__"}
 
 @dataclass(frozen=True)
 class SchemaRule:
+    root: str
     pattern: str
     schema_name: str
 
 
 SCHEMA_RULES = (
-    SchemaRule("daily-news/*.json", "daily-news.schema.json"),
-    SchemaRule("shenlun/route.json", "shenlun-route.schema.json"),
-    SchemaRule("xingce/route.json", "xingce-route.schema.json"),
-    SchemaRule("user-profile/profile.json", "user-profile.schema.json"),
-    SchemaRule("jobs/national-civil-service.json", "job-filter.schema.json"),
-    SchemaRule("harness/executions/*.json", "harness-execution.schema.json"),
-    SchemaRule("handoffs/*.json", "agent-handoff.schema.json"),
-    SchemaRule("acceptance/*.json", "acceptance-report.schema.json"),
+    SchemaRule("data", "daily-news/*.json", "daily-news.schema.json"),
+    SchemaRule("data", "shenlun/route.json", "shenlun-route.schema.json"),
+    SchemaRule("data", "xingce/route.json", "xingce-route.schema.json"),
+    SchemaRule("data", "user-profile/profile.json", "user-profile.schema.json"),
+    SchemaRule(
+        "data",
+        "jobs/national-civil-service.json",
+        "job-filter.schema.json",
+    ),
+    SchemaRule("data", "handoffs/*.json", "agent-handoff.schema.json"),
+    SchemaRule("data", "acceptance/*.json", "acceptance-report.schema.json"),
+    SchemaRule(
+        "docs",
+        "runs/*/execution.json",
+        "harness-execution.schema.json",
+    ),
 )
 
 # Keep obsolete paths segmented so this validator is itself valid controlled text.
@@ -78,6 +88,10 @@ LEGACY_REFERENCES = (
     ("old library content path", ("content", "library"), False),
     ("old official content path", ("content", "official"), False),
     ("old root scan script", ("scripts", "today_scan.py"), True),
+    ("old Harness path", (".agents", "harness"), False),
+    ("nested Harness docs path", ("docs", "harness"), False),
+    ("misspelled Harness docs path", ("docs", "herness"), False),
+    ("private component directory", (PRIVATE_COMPONENT_DIRECTORY,), False),
 )
 LEGACY_ROOTS = ("agents", "content", "components", "lib")
 
@@ -195,7 +209,8 @@ class ProjectValidator:
             validate_json_lines(jsonl_path, self.errors)
 
         for rule in SCHEMA_RULES:
-            matched_paths = sorted(DATA_DIR.glob(rule.pattern))
+            rule_root = ROOT / rule.root
+            matched_paths = sorted(rule_root.glob(rule.pattern))
             if not matched_paths:
                 continue
             schema = schemas.get(rule.schema_name)
@@ -208,8 +223,11 @@ class ProjectValidator:
 
             validator = Draft202012Validator(schema, format_checker=FormatChecker())
             for data_path in matched_paths:
-                instance = loaded_data.get(data_path)
-                if data_path not in loaded_data:
+                if data_path in loaded_data:
+                    instance = loaded_data[data_path]
+                else:
+                    instance = load_json(data_path, self.errors)
+                if instance is INVALID_JSON:
                     continue
                 validation_errors = sorted(
                     validator.iter_errors(instance),
@@ -324,6 +342,43 @@ class ProjectValidator:
                 f"{relative(HARNESS_CONFIG)} execution.maxRepairRounds must be 3, "
                 f"found {max_repair_rounds!r}"
             )
+
+        if config.get("runDirectory") != "docs/runs":
+            self.error(
+                f"{relative(HARNESS_CONFIG)} runDirectory must be 'docs/runs'"
+            )
+
+        referenced_paths: list[tuple[str, Any]] = [
+            ("policy", config.get("policy")),
+        ]
+        templates = config.get("templates")
+        if isinstance(templates, dict):
+            referenced_paths.extend(
+                (f"templates.{name}", path)
+                for name, path in templates.items()
+            )
+        else:
+            self.error(f"{relative(HARNESS_CONFIG)} must define templates")
+
+        if isinstance(stages, list):
+            referenced_paths.extend(
+                (f"stages[{index}].prompt", stage.get("prompt"))
+                for index, stage in enumerate(stages)
+                if isinstance(stage, dict)
+            )
+
+        for label, configured_path in referenced_paths:
+            if not isinstance(configured_path, str) or not configured_path.strip():
+                self.error(
+                    f"{relative(HARNESS_CONFIG)} {label} must be a repository path"
+                )
+                continue
+            target = ROOT / configured_path
+            if not target.is_file():
+                self.error(
+                    f"{relative(HARNESS_CONFIG)} {label} does not exist: "
+                    f"{configured_path}"
+                )
 
     def validate_legacy_references(self) -> None:
         for path in controlled_text_files():

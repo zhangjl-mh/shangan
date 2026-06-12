@@ -5,6 +5,7 @@
 - 写入文件全部位于需求的 `ownedPaths`，且不命中 `excludedPaths`。
 - JSON 可解析，并按对应 `schemas/*.schema.json` 校验。
 - 正式数据无临时字段、占位值和遗留路径引用。
+- 不存在旧 Harness 路径、嵌套 Harness 文档目录、拼写错误目录或下划线私有组件目录。
 - 交接、执行记录、验收报告字段完整。
 
 ## 项目命令

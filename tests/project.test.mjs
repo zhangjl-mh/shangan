@@ -65,12 +65,12 @@ test("core App Router routes are present", async () => {
 
 test("components, types, and services live under app", async () => {
   const requiredFiles = [
-    "app/_components/module-card.tsx",
+    "app/components/home/module-card.tsx",
     "app/components/layout/site-header.tsx",
     "app/components/ui/button.tsx",
-    "app/news/_components/news-browser.tsx",
-    "app/shenlun/_components/question-type-explorer.tsx",
-    "app/xingce/_components/module-explorer.tsx",
+    "app/news/components/news-browser.tsx",
+    "app/shenlun/components/question-type-explorer.tsx",
+    "app/xingce/components/module-explorer.tsx",
     "app/services/content.ts",
     "app/services/export.ts",
     "app/services/storage-paths.ts",
@@ -107,6 +107,31 @@ test("app imports do not target legacy component or service roots", async () => 
         `${file} imports obsolete alias ${oldAlias}`,
       );
     }
+    assert.equal(
+      contents.includes(["_", "components"].join("")),
+      false,
+      `${file} imports a private component directory`,
+    );
+  }
+});
+
+test("legacy Harness and component directories are absent", async () => {
+  const legacyDirectories = [
+    [".agents", "harness"].join("/"),
+    ["docs", "harness"].join("/"),
+    ["docs", "herness"].join("/"),
+    ["app", ["_", "components"].join("")].join("/"),
+    ["app", "news", ["_", "components"].join("")].join("/"),
+    ["app", "shenlun", ["_", "components"].join("")].join("/"),
+    ["app", "xingce", ["_", "components"].join("")].join("/"),
+  ];
+
+  for (const directory of legacyDirectories) {
+    assert.equal(
+      await exists(directory),
+      false,
+      `legacy directory must be removed: ${directory}`,
+    );
   }
 });
 
@@ -141,7 +166,7 @@ test("frontend filesystem access is read-only and confined to data", async () =>
 });
 
 test("Harness has exactly eight stages and three fix rounds", async () => {
-  const configPath = ".agents/harness/manifest.json";
+  const configPath = "docs/manifest.json";
   assert.equal(await exists(configPath), true, `missing ${configPath}`);
 
   const config = JSON.parse(await read(configPath));
@@ -155,6 +180,20 @@ test("Harness has exactly eight stages and three fix rounds", async () => {
     3,
     "Harness execution.maxRepairRounds must be 3",
   );
+  assert.equal(config.runDirectory, "docs/runs");
+
+  const referencedPaths = [
+    config.policy,
+    ...Object.values(config.templates ?? {}),
+    ...stages.map((stage) => stage.prompt),
+  ];
+  for (const referencedPath of referencedPaths) {
+    assert.equal(
+      await exists(referencedPath),
+      true,
+      `Harness path does not exist: ${referencedPath}`,
+    );
+  }
 });
 
 test("package scripts expose validation, tests, scans, and full checks", async () => {

@@ -1,5 +1,7 @@
 # 01 需求确认
 
+阶段顺序与完成条件以 `docs/workflow.md` 为准，本文件只补充需求确认动作。
+
 读取用户需求、`AGENTS.md`、相关 Skill、Schema 和写入策略。
 
 1. 使用 `docs/templates/requirement.md` 固化目标、输入、`ownedPaths`、`excludedPaths`、非目标和可验证验收标准。

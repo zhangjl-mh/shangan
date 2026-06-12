@@ -10,11 +10,12 @@
 
 | 目录              | 职责                         | 详细规范                  |
 | ----------------- | ---------------------------- | ------------------------- |
-| `docs/`           | 需求文档、流程说明、校验规则 | `docs/README.md`          |
+| `docs/`           | Harness 编排、流程与校验规则 | `docs/README.md`          |
 | `.agents/skills/` | 业务技能路由与执行脚本       | `.agents/skills/SKILL.md` |
 | `schemas/`        | 数据结构契约                 | `schemas/` 各文件         |
 | `data/`           | 正式业务数据                 | `docs/workflow.md`        |
 | `app/`            | 前端页面与组件               | `app/` 各页面 README      |
+| `scripts/`        | 项目级校验与维护脚本         | `docs/checks.md`          |
 
 ---
 

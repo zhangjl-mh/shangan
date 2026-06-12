@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { PrintButton } from "@/app/components/export/print-button";
 import { PipelineStrip } from "@/app/components/layout/pipeline-strip";
-import { XingceModuleExplorer } from "@/app/xingce/_components/module-explorer";
+import { XingceModuleExplorer } from "@/app/xingce/components/module-explorer";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { Card } from "@/app/components/ui/card";

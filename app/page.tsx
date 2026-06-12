@@ -5,7 +5,7 @@ import {
   ClipboardList,
   Globe2,
 } from "lucide-react";
-import { ModuleCard } from "@/app/_components/module-card";
+import { ModuleCard } from "@/app/components/home/module-card";
 import { EmptyState } from "@/app/components/layout/empty-state";
 import { PipelineStrip } from "@/app/components/layout/pipeline-strip";
 import { Button } from "@/app/components/ui/button";
