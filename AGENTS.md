@@ -1,146 +1,45 @@
-# 我要上岸项目协作规则
+# AGENTS.md
 
-## 项目说明
+## 项目概述
 
-“我要上岸”是一个备考学习项目，Agent 负责生成和更新数据，Next.js 只负责页面展示。
+**我要上岸** — 公务员考试备考助手，核心能力：学习路线推荐、岗位筛选、每日时政资讯。
 
-核心规则：
-
-* 数据统一放在 `data/`。
-* Next.js 不抓取网站、不调用模型、不生成业务数据。
-* Agent 根据用户请求读取对应 Skill，生成结构化 JSON / Markdown。
-* 所有生成结果必须能被前端直接读取。
-
-## 目录规范
-
-```txt
-agents/
-└── skills/
-    └── daily-news/
-        ├── SKILL.md
-        ├── schema.json
-        ├── examples.md
-        └── scripts/
-            └── scan.py
-
-data/
-├── news/
-│   └── YYYY-MM-DD.json
-├── markdown/
-│   └── YYYY-MM-DD-daily-news.md
-└── study/
-    ├── shenlun.json
-    ├── xingce.json
-    └── roadmap.json
-```
-
-## Skill 格式
-
-每个 Skill 必须放在 `agents/skills/` 下，一个 Skill 一个目录。
-
-`SKILL.md` 必须使用标准格式：
-
-```md
----
-name: daily-news
-description: 当用户要求生成、更新、补齐每日时政材料时使用本技能。
 ---
 
-# 每日时政
+## 目录结构
 
-技能说明和执行规则写在这里。
+| 目录              | 职责                         | 详细规范                  |
+| ----------------- | ---------------------------- | ------------------------- |
+| `docs/`           | 需求文档、流程说明、校验规则 | `docs/README.md`          |
+| `.agents/skills/` | 业务技能路由与执行脚本       | `.agents/skills/SKILL.md` |
+| `schemas/`        | 数据结构契约                 | `schemas/` 各文件         |
+| `data/`           | 正式业务数据                 | `docs/workflow.md`        |
+| `app/`            | 前端页面与组件               | `app/` 各页面 README      |
+
+---
+
+## Agent 流水线
+
+```
+需求确认 → 数据处理 → 数据校验 → 前端调整 → 结构校验 → 测试 → 完成
 ```
 
-注意：
+详细执行规范见 `docs/workflow.md`，校验规则见 `docs/checks.md`。
 
-* frontmatter 开头和结尾都是 `---`。
-* 不要使用长横线。
-* `name` 简短稳定。
-* `description` 写清楚触发场景。
+---
 
-## 技能调用
+## HANDOFF 协议
 
-| 用户请求                               | 使用 Skill                              |
-| -------------------------------------- | --------------------------------------- |
-| 今日扫描、今日时政、每日时政、更新资讯 | `agents/skills/daily-news/SKILL.md`     |
-| 补齐某天/某段日期时政                  | `agents/skills/daily-news/SKILL.md`     |
-| 补全申论、整理申论技巧                 | `agents/skills/study-content/SKILL.md`  |
-| 补全行测、整理行测技巧                 | `agents/skills/study-content/SKILL.md`  |
-| 生成学习计划、本周怎么学               | `agents/skills/study-plan/SKILL.md`     |
-| 错题复盘、分析薄弱点                   | `agents/skills/mistake-review/SKILL.md` |
+每个 Agent 完成后必须输出：
 
-## 每日时政规则
-
-触发 `daily-news` 时：
-
-1. 默认扫描今天和昨天。
-2. 日期按 `Asia/Shanghai` 处理。
-3. 只采集权威原文。
-4. 昨天已存在的资讯，今天不重复写入。
-5. 不用旧闻凑数。
-6. 不使用转载页、聚合页、搜索结果页作为原文。
-7. 输出到：
-
-```txt
-data/news/YYYY-MM-DD.json
-data/markdown/YYYY-MM-DD-daily-news.md
 ```
-
-执行命令：
-
-```bash
-python scripts/today_scan.py --date YYYY-MM-DD
+---AGENT-HANDOFF---
+requirement-id:   REQ-{id}
+agent:            {当前 Agent}
+status:           completed | awaiting_review | has_bugs | all_passed
+output:           {产物路径}
+issues:           {问题描述，无则填 none}
+next-agent:       {下一个 Agent}
+next-step-prompt: {下一个 Agent 的启动提示词}
+---END-HANDOFF---
 ```
-
-## 子 Agent
-
-| 子 Agent             | 职责                                                |
-| -------------------- | --------------------------------------------------- |
-| main-agent           | 判断用户意图，选择 Skill，汇总结果                  |
-| news-scan-agent      | 扫描每日时政，生成 `data/news/` 和 `data/markdown/` |
-| study-content-agent  | 整理申论、行测、学习路线                            |
-| study-plan-agent     | 生成每日/每周学习计划                               |
-| mistake-review-agent | 整理错题和薄弱点                                    |
-| data-guard-agent     | 校验 JSON、Markdown 和数据目录                      |
-
-## 数据写入规则
-
-* 只写入 `data/`。
-* 不把正式数据写进 `src/`、`app/`、`components/`。
-* 不把扫描日志、候选池、调试信息暴露给前端。
-* JSON 字段要稳定。
-* Markdown 必须由 JSON 生成。
-* 更新旧数据前先读取旧文件并去重。
-
-## 前端规则
-
-Next.js 只读取 `data/`：
-
-```txt
-data/news/YYYY-MM-DD.json
-data/study/shenlun.json
-data/study/xingce.json
-data/study/roadmap.json
-```
-
-前端只负责：
-
-* 展示数据
-* 分类筛选
-* 搜索
-* 页面交互
-
-前端禁止：
-
-* 抓取外部新闻
-* 调用模型
-* 执行扫描脚本
-* 硬编码正式业务数据
-
-## 禁止事项
-
-* 不编造新闻标题、日期、来源、URL。
-* 不用旧闻冒充今日资讯。
-* 不跳过 Schema 校验。
-* 不生成与 JSON 不一致的 Markdown。
-* 不让页面承担数据生产任务。

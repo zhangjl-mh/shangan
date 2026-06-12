@@ -4,18 +4,11 @@ node_modules/
 .env.local
 .env.*.local
 
-# Private profile and local job state.
-data/profile.local.json
-data/job-tracking.local.json
-
-# Generated job evidence and scan outputs.
-content/official/job/
-content/local/job/
-
 # Archived work products may contain raw profile prompts or prior snapshots.
 deliverables/
-# Generated local skill discovery links; canonical operator skills live in ~/Skills.
-.agents/skills/
+
+# Harness runtime state.
+.agents/harness/runs/
 .claude/skills/
 
 __pycache__/

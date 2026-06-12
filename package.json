@@ -8,8 +8,11 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "content:seed": "node scripts/seed_library_content.mjs",
-    "scan:today": "python scripts/today_scan.py"
+    "test": "node --test tests/project.test.mjs",
+    "validate:project": "python scripts/validate_project.py",
+    "scan:today": "python .agents/skills/daily-news/scripts/today_scan.py",
+    "scan:jobs:national": "python .agents/skills/job-filter/scripts/scan_national_jobs.py",
+    "check": "npm run validate:project && npm run lint && npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.3",

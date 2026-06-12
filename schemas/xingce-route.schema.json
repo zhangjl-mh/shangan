@@ -1,0 +1,335 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shangan.local/schemas/xingce-route.schema.json",
+  "title": "Xingce Study Route",
+  "type": "object",
+  "required": [
+    "meta",
+    "title",
+    "description",
+    "examProfile",
+    "stages",
+    "moduleGuides",
+    "references"
+  ],
+  "properties": {
+    "meta": {
+      "$ref": "#/$defs/meta"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "basisNote": {
+      "type": "string"
+    },
+    "examProfile": {
+      "type": "object",
+      "required": [
+        "syllabusTitle",
+        "syllabusDate",
+        "syllabusUrl",
+        "durationMinutes",
+        "score",
+        "officialModules"
+      ],
+      "properties": {
+        "syllabusTitle": {
+          "type": "string"
+        },
+        "syllabusDate": {
+          "type": "string",
+          "format": "date"
+        },
+        "syllabusUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "durationMinutes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "score": {
+          "type": "number",
+          "minimum": 0
+        },
+        "questionNature": {
+          "type": "string"
+        },
+        "officialModules": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "notice": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "stages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "goal", "tasks"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "duration": {
+            "type": "string"
+          },
+          "goal": {
+            "type": "string"
+          },
+          "tasks": {
+            "$ref": "#/$defs/stringArray"
+          },
+          "outputs": {
+            "$ref": "#/$defs/stringArray"
+          },
+          "milestone": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "moduleGuides": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "ability", "methods"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "ability": {
+            "type": "string"
+          },
+          "topics": {
+            "$ref": "#/$defs/stringArray"
+          },
+          "methods": {
+            "$ref": "#/$defs/stringArray"
+          },
+          "pitfalls": {
+            "$ref": "#/$defs/stringArray"
+          },
+          "drills": {
+            "$ref": "#/$defs/stringArray"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "teacherSelectionRules": {
+      "$ref": "#/$defs/stringArray"
+    },
+    "formulaCards": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["title", "rules"],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "rules": {
+            "$ref": "#/$defs/stringArray"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "timePlan": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["phase", "target", "method"],
+        "properties": {
+          "phase": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "practiceChecklist": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["title", "items"],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "items": {
+            "$ref": "#/$defs/stringArray"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "suggestions": {
+      "$ref": "#/$defs/stringArray"
+    },
+    "references": {
+      "$ref": "#/$defs/references"
+    },
+    "studyPrinciples": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["title", "detail"],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "dailyExecution": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["period", "focus", "actions", "standard"],
+        "properties": {
+          "period": {
+            "type": "string"
+          },
+          "focus": {
+            "type": "string"
+          },
+          "actions": {
+            "$ref": "#/$defs/stringArray"
+          },
+          "standard": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "teacherGroups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["moduleId", "module", "teachers"],
+        "properties": {
+          "moduleId": {
+            "type": "string"
+          },
+          "module": {
+            "type": "string"
+          },
+          "selectionNote": {
+            "type": "string"
+          },
+          "teachers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "institution"],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "institution": {
+                  "type": "string"
+                },
+                "howToUse": {
+                  "$ref": "#/$defs/stringArray"
+                }
+              },
+              "additionalProperties": true
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "$defs": {
+    "meta": {
+      "type": "object",
+      "required": ["type", "subject", "version", "updatedAt"],
+      "properties": {
+        "type": {
+          "const": "study-roadmap"
+        },
+        "subject": {
+          "const": "xingce"
+        },
+        "version": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date"
+        },
+        "contentKind": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "stringArray": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "references": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["title", "publisher", "url", "accessedAt"],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "publisher": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "note": {
+            "type": "string"
+          },
+          "accessedAt": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

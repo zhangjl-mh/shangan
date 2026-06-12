@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { CalendarDays, ShieldCheck } from "lucide-react";
-import { PrintButton } from "@/components/export/print-button";
-import { EmptyState } from "@/components/layout/empty-state";
-import { PipelineStrip } from "@/components/layout/pipeline-strip";
-import { NewsBrowser } from "@/components/news/news-browser";
-import { Card } from "@/components/ui/card";
-import { Reveal } from "@/components/ui/reveal";
-import { listDailyNewsDates, readNewsByDate } from "@/lib/content";
+import { PrintButton } from "@/app/components/export/print-button";
+import { EmptyState } from "@/app/components/layout/empty-state";
+import { PipelineStrip } from "@/app/components/layout/pipeline-strip";
+import { NewsBrowser } from "@/app/news/_components/news-browser";
+import { Card } from "@/app/components/ui/card";
+import { Reveal } from "@/app/components/ui/reveal";
+import { listDailyNewsDates, readNewsByDate } from "@/app/services/content";
 
 export const dynamic = "force-dynamic";
 
@@ -81,7 +81,7 @@ export default async function NewsPage({
           <EmptyState
             className="min-h-[440px]"
             title="暂无本地时政数据"
-            description="Skills 生成 content/local/news/YYYY-MM-DD.json 后，可在此筛选热点、核验信源并下载 Markdown。"
+            description="Skills 生成 data/daily-news/YYYY-MM-DD.json 后，可在此筛选热点、核验信源并下载 Markdown。"
           />
         </Card>
       )}

@@ -1,5 +1,5 @@
-import { readRoadmap } from "@/lib/content";
-import { renderShenlunMarkdown } from "@/lib/export";
+import { readRoadmap } from "@/app/services/content";
+import { renderShenlunMarkdown } from "@/app/services/export";
 
 export const dynamic = "force-dynamic";
 

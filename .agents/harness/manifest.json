@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "1.0",
+  "name": "shangan-eight-stage-harness",
+  "version": "1.0.0",
+  "workingDirectory": ".",
+  "runDirectory": ".agents/harness/runs",
+  "policy": ".agents/harness/policies/write-ownership.json",
+  "templates": {
+    "requirement": "docs/templates/requirement.md",
+    "handoff": "docs/templates/handoff.md",
+    "acceptance": "docs/templates/acceptance.md"
+  },
+  "execution": {
+    "mode": "sequential",
+    "maxRepairRounds": 3,
+    "repairStage": "07",
+    "repairRerunStages": [
+      "03",
+      "05",
+      "06"
+    ],
+    "completionStage": "08",
+    "completionStatus": "all_passed",
+    "incompleteStatuses": [
+      "awaiting_review",
+      "has_bugs"
+    ]
+  },
+  "stages": [
+    {
+      "id": "01",
+      "name": "requirement-confirmation",
+      "prompt": ".agents/harness/prompts/01-requirement-confirmation.md"
+    },
+    {
+      "id": "02",
+      "name": "data-processing",
+      "prompt": ".agents/harness/prompts/02-data-processing.md"
+    },
+    {
+      "id": "03",
+      "name": "data-validation",
+      "prompt": ".agents/harness/prompts/03-data-validation.md"
+    },
+    {
+      "id": "04",
+      "name": "frontend-adjustment",
+      "prompt": ".agents/harness/prompts/04-frontend-adjustment.md"
+    },
+    {
+      "id": "05",
+      "name": "structure-validation",
+      "prompt": ".agents/harness/prompts/05-structure-validation.md"
+    },
+    {
+      "id": "06",
+      "name": "test-execution",
+      "prompt": ".agents/harness/prompts/06-test-execution.md"
+    },
+    {
+      "id": "07",
+      "name": "auto-repair",
+      "prompt": ".agents/harness/prompts/07-auto-repair.md",
+      "maxRounds": 3
+    },
+    {
+      "id": "08",
+      "name": "final-acceptance",
+      "prompt": ".agents/harness/prompts/08-final-acceptance.md"
+    }
+  ],
+  "artifacts": {
+    "executionSchema": "schemas/harness-execution.schema.json",
+    "handoffSchema": "schemas/agent-handoff.schema.json",
+    "acceptanceSchema": "schemas/acceptance-report.schema.json"
+  }
+}

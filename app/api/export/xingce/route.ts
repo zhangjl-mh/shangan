@@ -1,6 +1,6 @@
-import { readRoadmap } from "@/lib/content";
-import { renderXingceMarkdown } from "@/lib/export";
-import type { XingceRoadmap } from "@/lib/types";
+import { readRoadmap } from "@/app/services/content";
+import { renderXingceMarkdown } from "@/app/services/export";
+import type { XingceRoadmap } from "@/app/types/content";
 
 export const dynamic = "force-dynamic";
 

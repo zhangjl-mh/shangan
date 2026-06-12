@@ -18,16 +18,16 @@ import {
   Sparkles,
   Target,
 } from "lucide-react";
-import { PrintButton } from "@/components/export/print-button";
-import { EmptyState } from "@/components/layout/empty-state";
-import { PipelineStrip } from "@/components/layout/pipeline-strip";
-import { ShenlunMarkdownDownloadButton } from "@/components/shenlun/markdown-download-button";
-import { QuestionTypeExplorer } from "@/components/shenlun/question-type-explorer";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { Reveal } from "@/components/ui/reveal";
-import { readRoadmap } from "@/lib/content";
-import type { RoadmapStage } from "@/lib/types";
+import { PrintButton } from "@/app/components/export/print-button";
+import { EmptyState } from "@/app/components/layout/empty-state";
+import { PipelineStrip } from "@/app/components/layout/pipeline-strip";
+import { ShenlunMarkdownDownloadButton } from "@/app/shenlun/_components/markdown-download-button";
+import { QuestionTypeExplorer } from "@/app/shenlun/_components/question-type-explorer";
+import { Badge } from "@/app/components/ui/badge";
+import { Card } from "@/app/components/ui/card";
+import { Reveal } from "@/app/components/ui/reveal";
+import { readRoadmap } from "@/app/services/content";
+import type { RoadmapStage } from "@/app/types/content";
 
 export const dynamic = "force-dynamic";
 

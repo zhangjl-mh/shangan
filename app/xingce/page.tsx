@@ -12,15 +12,15 @@ import {
   Route,
   ShieldCheck,
 } from "lucide-react";
-import { PrintButton } from "@/components/export/print-button";
-import { PipelineStrip } from "@/components/layout/pipeline-strip";
-import { XingceModuleExplorer } from "@/components/xingce/module-explorer";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Reveal } from "@/components/ui/reveal";
-import { readRoadmap } from "@/lib/content";
-import type { XingceRoadmap } from "@/lib/types";
+import { PrintButton } from "@/app/components/export/print-button";
+import { PipelineStrip } from "@/app/components/layout/pipeline-strip";
+import { XingceModuleExplorer } from "@/app/xingce/_components/module-explorer";
+import { Badge } from "@/app/components/ui/badge";
+import { Button } from "@/app/components/ui/button";
+import { Card } from "@/app/components/ui/card";
+import { Reveal } from "@/app/components/ui/reveal";
+import { readRoadmap } from "@/app/services/content";
+import type { XingceRoadmap } from "@/app/types/content";
 
 export const dynamic = "force-dynamic";
 

@@ -5,17 +5,17 @@ import {
   ClipboardList,
   Globe2,
 } from "lucide-react";
-import { ModuleCard } from "@/components/dashboard/module-card";
-import { EmptyState } from "@/components/layout/empty-state";
-import { PipelineStrip } from "@/components/layout/pipeline-strip";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Reveal } from "@/components/ui/reveal";
+import { ModuleCard } from "@/app/_components/module-card";
+import { EmptyState } from "@/app/components/layout/empty-state";
+import { PipelineStrip } from "@/app/components/layout/pipeline-strip";
+import { Button } from "@/app/components/ui/button";
+import { Card } from "@/app/components/ui/card";
+import { Reveal } from "@/app/components/ui/reveal";
 import {
   readLatestNews,
   readRoadmap,
-} from "@/lib/content";
-import { formatDisplayDate, formatShortDate } from "@/lib/utils";
+} from "@/app/services/content";
+import { formatDisplayDate, formatShortDate } from "@/app/utils";
 
 export const dynamic = "force-dynamic";
 

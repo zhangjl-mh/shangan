@@ -1,0 +1,375 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shangan.local/schemas/shenlun-route.schema.json",
+  "title": "Shenlun Study Route",
+  "type": "object",
+  "required": [
+    "meta",
+    "title",
+    "description",
+    "examGuide",
+    "stages",
+    "questionTypes",
+    "references"
+  ],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["type", "subject", "version", "updatedAt"],
+      "properties": {
+        "type": {
+          "const": "study-roadmap"
+        },
+        "subject": {
+          "const": "shenlun"
+        },
+        "version": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date"
+        },
+        "contentKind": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "basisNote": {
+      "type": "string"
+    },
+    "examGuide": {
+      "type": "object",
+      "required": [
+        "syllabusTitle",
+        "syllabusDate",
+        "syllabusUrl",
+        "durationMinutes",
+        "score",
+        "paperTypes"
+      ],
+      "properties": {
+        "syllabusTitle": {
+          "type": "string"
+        },
+        "syllabusDate": {
+          "type": "string",
+          "format": "date"
+        },
+        "syllabusUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "durationMinutes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "score": {
+          "type": "number",
+          "minimum": 0
+        },
+        "notice": {
+          "type": "string"
+        },
+        "paperTypes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["title", "focus", "abilities"],
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "focus": {
+                "type": "string"
+              },
+              "abilities": {
+                "$ref": "#/$defs/stringArray"
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "answerRules": {
+          "$ref": "#/$defs/stringArray"
+        }
+      },
+      "additionalProperties": true
+    },
+    "stages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "goal", "tasks"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "level": {
+            "type": "string"
+          },
+          "duration": {
+            "type": "string"
+          },
+          "goal": {
+            "type": "string"
+          },
+          "tasks": {
+            "$ref": "#/$defs/stringArray"
+          },
+          "knowledgePoints": {
+            "$ref": "#/$defs/stringArray"
+          },
+          "outputs": {
+            "$ref": "#/$defs/stringArray"
+          },
+          "milestone": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "coreWorkflow": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "purpose", "actions", "output"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "actions": {
+            "$ref": "#/$defs/stringArray"
+          },
+          "output": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "questionTypes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "coreGoal",
+          "answerFramework",
+          "pointMethods",
+          "pitfalls",
+          "drills"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string"
+          },
+          "taskSignals": {
+            "$ref": "#/$defs/stringArray"
+          },
+          "coreGoal": {
+            "type": "string"
+          },
+          "answerFramework": {
+            "$ref": "#/$defs/stringArray"
+          },
+          "pointMethods": {
+            "$ref": "#/$defs/stringArray"
+          },
+          "pitfalls": {
+            "$ref": "#/$defs/stringArray"
+          },
+          "drills": {
+            "$ref": "#/$defs/stringArray"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "readingMethod": {
+      "type": "object",
+      "properties": {
+        "passes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["title", "actions"],
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "time": {
+                "type": "string"
+              },
+              "actions": {
+                "$ref": "#/$defs/stringArray"
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "markerLegend": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "processingRules": {
+          "$ref": "#/$defs/stringArray"
+        }
+      },
+      "additionalProperties": true
+    },
+    "documentTypes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["title", "audience", "structure", "focus"],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "audience": {
+            "type": "string"
+          },
+          "structure": {
+            "$ref": "#/$defs/stringArray"
+          },
+          "focus": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "essayMethod": {
+      "type": "object",
+      "properties": {
+        "positioning": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "structure": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["part", "method"],
+            "properties": {
+              "part": {
+                "type": "string"
+              },
+              "method": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "argumentTools": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "pitfalls": {
+          "$ref": "#/$defs/stringArray"
+        }
+      },
+      "additionalProperties": true
+    },
+    "suggestions": {
+      "$ref": "#/$defs/stringArray"
+    },
+    "materials": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "type", "url"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "references": {
+      "$ref": "#/$defs/references"
+    }
+  },
+  "$defs": {
+    "stringArray": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "references": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["title", "publisher", "url", "accessedAt"],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "publisher": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "note": {
+            "type": "string"
+          },
+          "accessedAt": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "@/app/globals.css";
-import { SiteHeader } from "@/components/layout/site-header";
+import { SiteHeader } from "@/app/components/layout/site-header";
 
 export const metadata: Metadata = {
   title: "上岸 | 公考备考驾驶舱",

@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shangan.local/schemas/user-profile.schema.json",
+  "title": "User Profile",
+  "type": "object",
+  "required": [
+    "version",
+    "updatedAt",
+    "basic",
+    "experience",
+    "qualifications",
+    "preferences"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "basic": {
+      "type": "object",
+      "required": ["age", "gender", "education", "major"],
+      "properties": {
+        "age": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "gender": {
+          "type": "string"
+        },
+        "education": {
+          "type": "string"
+        },
+        "degree": {
+          "type": "string"
+        },
+        "major": {
+          "type": "string"
+        },
+        "majorCode": {
+          "type": "string"
+        },
+        "birthMonth": {
+          "type": "string"
+        },
+        "graduationYear": {
+          "type": ["string", "integer"]
+        },
+        "freshGraduateStatus": {
+          "type": ["string", "boolean"]
+        },
+        "householdRegistration": {
+          "type": "string"
+        },
+        "studentOrigin": {
+          "type": "string"
+        },
+        "politicalStatus": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "experience": {
+      "type": "object",
+      "properties": {
+        "grassrootsYears": {
+          "type": ["string", "number"]
+        },
+        "employer": {
+          "type": "string"
+        },
+        "workYears": {
+          "type": ["string", "number"]
+        },
+        "industryExperience": {
+          "type": ["string", "array"],
+          "items": {
+            "type": "string"
+          }
+        },
+        "veteranOrServiceProgram": {
+          "type": ["string", "boolean"]
+        },
+        "hasRelevantWrittenExamScore": {
+          "type": ["string", "boolean"]
+        }
+      },
+      "additionalProperties": true
+    },
+    "qualifications": {
+      "type": "object",
+      "properties": {
+        "english": {
+          "type": ["string", "array"],
+          "items": {
+            "type": "string"
+          }
+        },
+        "computer": {
+          "type": ["string", "array"],
+          "items": {
+            "type": "string"
+          }
+        },
+        "professional": {
+          "type": ["string", "array"],
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "preferences": {
+      "type": "object",
+      "required": ["regions"],
+      "properties": {
+        "regions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "acceptGrassroots": {
+          "type": ["string", "boolean"]
+        },
+        "acceptRelocation": {
+          "type": ["string", "boolean"]
+        },
+        "acceptCampusRecruitment": {
+          "type": ["string", "boolean"]
+        },
+        "acceptSocialRecruitment": {
+          "type": ["string", "boolean"]
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

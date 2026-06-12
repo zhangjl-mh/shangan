@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "1.0",
+  "mode": "deny-by-default",
+  "ownershipSource": "requirement.ownedPaths",
+  "rules": [
+    {
+      "id": "owned-paths-only",
+      "effect": "allow",
+      "paths": [
+        "${requirement.ownedPaths}"
+      ]
+    },
+    {
+      "id": "run-artifacts",
+      "effect": "allow",
+      "paths": [
+        ".agents/harness/runs/**"
+      ]
+    },
+    {
+      "id": "excluded-paths-win",
+      "effect": "deny",
+      "paths": [
+        "${requirement.excludedPaths}"
+      ],
+      "priority": 100
+    },
+    {
+      "id": "repository-internals",
+      "effect": "deny",
+      "paths": [
+        ".git/**",
+        "node_modules/**"
+      ],
+      "priority": 200
+    }
+  ],
+  "stageWrites": {
+    "01": [
+      "requirement artifact",
+      "run artifacts"
+    ],
+    "02": [
+      "owned data paths",
+      "run artifacts"
+    ],
+    "03": [
+      "run artifacts"
+    ],
+    "04": [
+      "owned frontend paths",
+      "run artifacts"
+    ],
+    "05": [
+      "run artifacts"
+    ],
+    "06": [
+      "run artifacts"
+    ],
+    "07": [
+      "owned paths implicated by failed checks",
+      "run artifacts"
+    ],
+    "08": [
+      "acceptance artifact",
+      "run artifacts"
+    ]
+  },
+  "conflictPolicy": "deny-wins",
+  "unownedChanges": "preserve"
+}

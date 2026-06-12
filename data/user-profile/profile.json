@@ -1,0 +1,43 @@
+{
+  "version": "1.0",
+  "updatedAt": "2026-06-09T08:45:00+08:00",
+  "basic": {
+    "age": 26,
+    "gender": "男",
+    "education": "本科",
+    "degree": "unknown",
+    "major": "计算机科学与技术",
+    "majorCode": "080901",
+    "birthMonth": "unknown",
+    "graduationYear": "unknown",
+    "freshGraduateStatus": "unknown",
+    "householdRegistration": "unknown",
+    "studentOrigin": "unknown",
+    "politicalStatus": "unknown"
+  },
+  "experience": {
+    "grassrootsYears": "unknown",
+    "employer": "unknown",
+    "workYears": "unknown",
+    "industryExperience": "unknown",
+    "veteranOrServiceProgram": "unknown",
+    "hasRelevantWrittenExamScore": "unknown"
+  },
+  "qualifications": {
+    "english": "unknown",
+    "computer": "unknown",
+    "professional": "unknown"
+  },
+  "preferences": {
+    "regions": [
+      "北京",
+      "天津",
+      "雄安",
+      "石家庄"
+    ],
+    "acceptGrassroots": "unknown",
+    "acceptRelocation": "unknown",
+    "acceptCampusRecruitment": "unknown",
+    "acceptSocialRecruitment": "unknown"
+  }
+}

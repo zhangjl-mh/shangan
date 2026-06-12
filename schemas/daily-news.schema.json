@@ -1,0 +1,238 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shangan.local/schemas/daily-news.schema.json",
+  "title": "Daily News",
+  "type": "object",
+  "required": ["meta", "date", "title", "summary", "items"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["type", "date", "generatedAt", "itemCount"],
+      "properties": {
+        "type": {
+          "const": "daily-news"
+        },
+        "date": {
+          "type": "string",
+          "format": "date"
+        },
+        "generatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "skillVersion": {
+          "type": "string"
+        },
+        "sourceCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "itemCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "candidateCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "selectionRule": {
+          "type": "string"
+        },
+        "scopeNote": {
+          "type": "string"
+        },
+        "verifiedAt": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "summary": {
+      "type": "string"
+    },
+    "candidateSources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "url", "checkedAt", "result"],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "checkedAt": {
+            "type": "string"
+          },
+          "result": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "candidatePool": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "source", "url", "reason", "selected"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "publishTime": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "selected": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/newsItem"
+      }
+    }
+  },
+  "$defs": {
+    "stringArray": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "newsItem": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "source",
+        "url",
+        "publishTime",
+        "summary",
+        "keywords",
+        "verification"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "publishTime": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "keywords": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "policyBackground": {
+          "type": "string"
+        },
+        "shenlunAngles": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["title", "explanation"],
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "explanation": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "xingceLinks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["module", "point", "explanation"],
+            "properties": {
+              "module": {
+                "type": "string"
+              },
+              "point": {
+                "type": "string"
+              },
+              "explanation": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "materials": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "examQuestions": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "importance": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "tags": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "verification": {
+          "type": "object",
+          "required": ["verifiedAt", "status", "note"],
+          "properties": {
+            "verifiedAt": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "note": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
