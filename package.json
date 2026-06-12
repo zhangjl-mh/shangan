@@ -8,10 +8,13 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/project.test.mjs",
+    "test": "node --test tests/project.test.mjs && python -m unittest discover -s tests -p \"test_*.py\"",
     "validate:project": "python scripts/validate_project.py",
     "scan:today": "python .agents/skills/daily-news/scripts/today_scan.py",
-    "scan:jobs:national": "python .agents/skills/job-filter/scripts/scan_national_jobs.py",
+    "jobs:download": "python .agents/skills/job-filter/scripts/job_pipeline.py download",
+    "jobs:build": "python .agents/skills/job-filter/scripts/job_pipeline.py build",
+    "jobs:validate": "python .agents/skills/job-filter/scripts/job_pipeline.py validate",
+    "jobs:all": "python .agents/skills/job-filter/scripts/job_pipeline.py all",
     "check": "npm run validate:project && npm run lint && npm run typecheck && npm test && npm run build"
   },
   "dependencies": {

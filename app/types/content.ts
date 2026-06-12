@@ -243,36 +243,91 @@ export interface DailyNews {
   }>;
 }
 
-export interface JobFilterPosition {
+export type JobEligibility =
+  | "eligible"
+  | "needs_confirmation"
+  | "ineligible";
+
+export interface JobPosition {
   id: string;
+  examId: string;
+  examLabel: string;
+  cycle: string;
   title: string;
   organization: string;
-  department?: string;
-  positionCode?: string;
-  region?: string;
-  eligibility?: string;
-  matchScore?: number;
-  matchReasons?: string[];
-  riskReminders?: string[];
-  sourceUrl?: string;
+  department: string;
+  positionCode: string;
+  region: string;
+  recruitCount: number;
+  requirements: {
+    major: string;
+    education: string;
+    degree: string;
+    politicalStatus: string;
+    grassrootsYears: string;
+    serviceProject: string;
+    remarks: string;
+  };
+  eligibility: JobEligibility;
+  timingStatus: "active" | "historical";
+  matchReasons: string[];
+  confirmationFields: string[];
+  exclusionReasons: string[];
+  registration: {
+    opensAt: string;
+    closesAt: string;
+  };
+  source: {
+    attachmentId: string;
+    url: string;
+    portalUrl: string;
+    member: string;
+    sheet: string;
+    row: number;
+  };
 }
 
-export interface JobFilterResult {
-  schemaVersion: string;
-  domain: string;
-  label?: string;
-  cycle: string | number;
+export interface JobIndex {
+  schemaVersion: "3.0";
   generatedAt: string;
-  runId: string;
-  completeness: string;
-  positions: JobFilterPosition[];
-  referencePositions?: JobFilterPosition[];
-  pendingVerification: JobFilterPosition[];
-  excluded: Array<{
-    id: string;
-    title: string;
-    organization: string;
-    reasons: string[];
+  cycle: string;
+  catalog: {
+    path: string;
+    rowCount: number;
+    sha256: string;
+  };
+  sources: Array<{
+    examId: string;
+    label: string;
+    portalUrl: string;
   }>;
-  audit: Record<string, unknown>;
+  stats: {
+    total: number;
+    eligible: number;
+    needsConfirmation: number;
+    ineligible: number;
+    active: number;
+    historical: number;
+  };
+}
+
+export interface JobQuery {
+  exam?: string;
+  region?: string;
+  eligibility?: JobEligibility | "default" | "all";
+  timing?: "active" | "historical" | "all";
+  keyword?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface JobQueryResult {
+  items: JobPosition[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+  exams: Array<{ id: string; label: string }>;
+  regions: string[];
+  index: JobIndex | null;
 }

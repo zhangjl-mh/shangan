@@ -68,7 +68,7 @@ SCHEMA_RULES = (
     SchemaRule("data", "user-profile/profile.json", "user-profile.schema.json"),
     SchemaRule(
         "data",
-        "jobs/national-civil-service.json",
+        "jobs/index.json",
         "job-filter.schema.json",
     ),
     SchemaRule("data", "handoffs/*.json", "agent-handoff.schema.json"),
@@ -109,6 +109,7 @@ class ProjectValidator:
             ("skill frontmatter", self.validate_skills),
             ("JSON and schemas", self.validate_json_data),
             ("daily news integrity", self.validate_daily_news),
+            ("job catalog integrity", self.validate_jobs),
             ("Harness configuration", self.validate_harness),
             ("legacy references", self.validate_legacy_references),
             ("legacy root directories", self.validate_legacy_roots),
@@ -297,6 +298,75 @@ class ProjectValidator:
                     item_location,
                     seen_titles,
                 )
+
+    def validate_jobs(self) -> None:
+        sources_path = DATA_DIR / "jobs" / "sources.json"
+        index_path = DATA_DIR / "jobs" / "index.json"
+        if not sources_path.is_file():
+            self.error(f"missing job source manifest: {relative(sources_path)}")
+            return
+
+        sources = load_json(sources_path, self.errors)
+        if sources is INVALID_JSON or not isinstance(sources, dict):
+            return
+        configured = sources.get("sources")
+        if not isinstance(configured, list) or not configured:
+            self.error(f"{relative(sources_path)} must define non-empty sources")
+            return
+        expected_exam_ids = {
+            "national-civil-service",
+            "beijing-civil-service",
+            "tianjin-civil-service",
+            "hebei-civil-service",
+        }
+        actual_exam_ids = {
+            item.get("examId")
+            for item in configured
+            if isinstance(item, dict)
+        }
+        missing_exam_ids = expected_exam_ids - actual_exam_ids
+        if missing_exam_ids:
+            self.error(
+                f"{relative(sources_path)} misses first-release exams: "
+                f"{sorted(missing_exam_ids)}"
+            )
+
+        for source in configured:
+            if not isinstance(source, dict):
+                self.error(f"{relative(sources_path)} contains a non-object source")
+                continue
+            attachments = source.get("attachments")
+            if not isinstance(attachments, list) or not attachments:
+                self.error(
+                    f"{relative(sources_path)} source {source.get('examId')!r} "
+                    "must define attachments"
+                )
+                continue
+            for attachment in attachments:
+                if not isinstance(attachment, dict):
+                    continue
+                configured_path = attachment.get("path")
+                if not isinstance(configured_path, str):
+                    self.error("job attachment path must be a string")
+                    continue
+                attachment_path = ROOT / configured_path
+                if not attachment_path.is_file():
+                    self.error(f"missing official job attachment: {configured_path}")
+
+        if not index_path.is_file():
+            self.error(f"missing built job index: {relative(index_path)}")
+            return
+        index = load_json(index_path, self.errors)
+        if index is INVALID_JSON or not isinstance(index, dict):
+            return
+        catalog = index.get("catalog")
+        catalog_path = (
+            ROOT / catalog.get("path", "")
+            if isinstance(catalog, dict)
+            else ROOT / "__missing_catalog__"
+        )
+        if not catalog_path.is_file():
+            self.error(f"missing normalized job catalog: {relative(catalog_path)}")
 
     def check_duplicate(
         self,

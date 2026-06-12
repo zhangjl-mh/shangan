@@ -20,3 +20,32 @@
 - 只服务单个业务能力的采集或处理脚本，放在对应 `.agents/skills/<skill>/scripts/`。
 - Harness 运行记录写入 `docs/runs/<execution-id>/execution.json`，按
   `schemas/harness-execution.schema.json` 校验；`docs/runs/` 不进入版本管理。
+
+## Harness CLI
+
+入口为 `python scripts/harness.py`，配置来源固定为 `docs/manifest.json`。
+
+```text
+python scripts/harness.py init --requirement requirement.json --execution-id REQ-001-run
+python scripts/harness.py run REQ-001-run
+python scripts/harness.py resume REQ-001-run
+python scripts/harness.py status REQ-001-run
+python scripts/harness.py validate REQ-001-run
+```
+
+`init` 也可直接使用 `--id`、`--title`、`--objective`、重复的
+`--owned-path` 与 `--excluded-path`。每次运行在 `docs/runs/<execution-id>/`
+保存 `requirement.json`、`execution.json`、阶段 prompts、runner 日志、handoffs
+和写入审计 evidence。
+
+默认 runner 为：
+
+```text
+codex.cmd exec --json --output-schema <handoff-schema> --output-last-message <handoff>
+```
+
+测试或本地集成可通过 `--runner "<command>"` 或 `HARNESS_RUNNER` 注入 runner。
+runner 会收到 `HARNESS_ROOT`、`HARNESS_EXECUTION_ID`、`HARNESS_EXECUTION_DIR`、
+`HARNESS_WORKING_DIRECTORY`、`HARNESS_STAGE_ID` 和 `HARNESS_REPAIR_ROUND`
+环境变量，并必须向
+`--output-last-message` 指定路径写入符合 Agent Handoff Schema 的 JSON。

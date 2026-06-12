@@ -22,6 +22,24 @@ npm run build
 
 完整检查使用 `npm run check`。命令未执行、失败或证据缺失均不得输出 `all_passed`。
 
+## Harness 检查
+
+```text
+python -m unittest tests.test_harness
+python scripts/harness.py validate <execution-id>
+```
+
+- 每阶段执行前后比较 `git status --porcelain`，并对已变更文件计算摘要，以识别
+  阶段期间对既有脏文件的继续修改。
+- `docs/runs/**` 为运行产物；其他变更必须命中需求 `ownedPaths`，且不得命中
+  `excludedPaths`。禁止规则优先。
+- runner 非零退出、缺失/无效 handoff 时保留当前阶段并标记 `paused`；
+  使用 `resume` 从该阶段重试。
+- 03、05、06 任一阶段失败进入 07。每轮 07 后回跑 03、05、06，最多三轮，
+  随后必须进入 08。
+- 只有 08 返回 `all_passed` 且 03、05、06 最新结果均通过，执行状态才可为
+  `all_passed`。
+
 ## 最终状态
 
 | 状态 | 含义 |

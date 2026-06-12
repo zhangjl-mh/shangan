@@ -3,6 +3,7 @@ import {
   ArrowRight,
   BookOpenText,
   ClipboardList,
+  BriefcaseBusiness,
   Globe2,
 } from "lucide-react";
 import { ModuleCard } from "@/app/components/home/module-card";
@@ -74,7 +75,7 @@ export default async function DashboardPage() {
       </section>
 
       <div className="mx-auto max-w-[1450px] space-y-5 px-5 py-5 lg:px-10">
-        <Reveal className="grid gap-4 md:grid-cols-3" delay={0.1}>
+        <Reveal className="grid gap-4 md:grid-cols-2 xl:grid-cols-4" delay={0.1}>
           <ModuleCard
             href="/shenlun"
             icon={BookOpenText}
@@ -98,6 +99,14 @@ export default async function DashboardPage() {
             description="每日热点 · 政策解读 · 时政积累"
             note={news ? news.date : "等待今日时政"}
             tint="bg-[#728bb4]"
+          />
+          <ModuleCard
+            href="/jobs"
+            icon={BriefcaseBusiness}
+            title="岗位"
+            description="国考 · 京津冀省考 · 条件筛选"
+            note="官方附件本地归档"
+            tint="bg-[#9a7855]"
           />
         </Reveal>
 

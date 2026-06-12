@@ -40,12 +40,14 @@ test("core App Router routes are present", async () => {
   const pageRoutes = [
     "app/page.tsx",
     "app/news/page.tsx",
+    "app/jobs/page.tsx",
     "app/shenlun/page.tsx",
     "app/xingce/page.tsx",
   ];
   const apiRoutes = [
     "app/api/export/shenlun/route.ts",
     "app/api/export/xingce/route.ts",
+    "app/api/jobs/route.ts",
   ];
 
   for (const route of [...pageRoutes, ...apiRoutes]) {
@@ -73,6 +75,7 @@ test("components, types, and services live under app", async () => {
     "app/xingce/components/module-explorer.tsx",
     "app/services/content.ts",
     "app/services/export.ts",
+    "app/services/jobs.ts",
     "app/services/storage-paths.ts",
     "app/types/content.ts",
     "app/utils.ts",
@@ -207,8 +210,8 @@ test("package scripts expose validation, tests, scans, and full checks", async (
     "python .agents/skills/daily-news/scripts/today_scan.py",
   );
   assert.equal(
-    scripts["scan:jobs:national"],
-    "python .agents/skills/job-filter/scripts/scan_national_jobs.py",
+    scripts["jobs:all"],
+    "python .agents/skills/job-filter/scripts/job_pipeline.py all",
   );
 
   for (const command of [

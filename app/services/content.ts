@@ -4,13 +4,11 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import type {
   DailyNews,
-  JobFilterResult,
   StudyRoadmap,
 } from "@/app/types/content";
 import {
   dailyNewsDirectory,
   dataDirectory,
-  jobsDirectory,
 } from "@/app/services/storage-paths";
 
 async function readJsonFile<T>(filePath: string): Promise<T | null> {
@@ -52,11 +50,5 @@ export async function readNewsByDate(date: string) {
 
   return readJsonFile<DailyNews>(
     path.join(dailyNewsDirectory, `${date}.json`),
-  );
-}
-
-export async function readJobFilterResult() {
-  return readJsonFile<JobFilterResult>(
-    path.join(jobsDirectory, "national-civil-service.json"),
   );
 }

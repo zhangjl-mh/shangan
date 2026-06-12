@@ -7,6 +7,7 @@
     "schemaVersion",
     "handoffId",
     "createdAt",
+    "stageId",
     "status",
     "task",
     "summary"
@@ -24,9 +25,18 @@
       "type": "string",
       "format": "date-time"
     },
+    "stageId": {
+      "type": "string",
+      "pattern": "^0[1-8]$"
+    },
     "status": {
       "type": "string",
-      "minLength": 1
+      "enum": [
+        "completed",
+        "awaiting_review",
+        "has_bugs",
+        "all_passed"
+      ]
     },
     "fromAgent": {
       "type": "string"
@@ -39,10 +49,12 @@
       "required": ["id", "title"],
       "properties": {
         "id": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1
         },
         "title": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1
         },
         "objective": {
           "type": "string"

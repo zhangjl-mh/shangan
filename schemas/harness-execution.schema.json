@@ -8,8 +8,15 @@
     "executionId",
     "harness",
     "startedAt",
+    "updatedAt",
     "status",
-    "steps"
+    "requirement",
+    "currentStage",
+    "repairRound",
+    "repairMode",
+    "pendingStages",
+    "steps",
+    "ownershipViolations"
   ],
   "properties": {
     "schemaVersion": {
@@ -44,9 +51,20 @@
       "type": ["string", "null"],
       "format": "date-time"
     },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
     "status": {
       "type": "string",
-      "minLength": 1
+      "enum": [
+        "initialized",
+        "running",
+        "paused",
+        "all_passed",
+        "has_bugs",
+        "awaiting_review"
+      ]
     },
     "workingDirectory": {
       "type": "string"
@@ -57,17 +75,91 @@
         "type": ["string", "number", "boolean", "null"]
       }
     },
+    "requirement": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "objective",
+        "ownedPaths",
+        "excludedPaths"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "objective": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ownedPaths": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        },
+        "excludedPaths": {
+          "$ref": "#/$defs/stringArray"
+        }
+      },
+      "additionalProperties": true
+    },
+    "currentStage": {
+      "type": ["string", "null"],
+      "pattern": "^0[1-8]$"
+    },
+    "repairRound": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3
+    },
+    "repairMode": {
+      "type": "boolean"
+    },
+    "pendingStages": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^0[1-8]$"
+      }
+    },
     "steps": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["name", "status"],
+        "required": [
+          "name",
+          "stageId",
+          "attempt",
+          "repairRound",
+          "status",
+          "startedAt",
+          "finishedAt",
+          "exitCode",
+          "artifacts",
+          "writeAudit"
+        ],
         "properties": {
           "name": {
             "type": "string"
           },
           "status": {
             "type": "string"
+          },
+          "stageId": {
+            "type": "string",
+            "pattern": "^0[1-8]$"
+          },
+          "attempt": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "repairRound": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
           },
           "command": {
             "type": "string"
@@ -88,9 +180,43 @@
           },
           "artifacts": {
             "$ref": "#/$defs/stringArray"
+          },
+          "writeAudit": {
+            "type": "object",
+            "required": ["changedPaths", "violations"],
+            "properties": {
+              "changedPaths": {
+                "$ref": "#/$defs/stringArray"
+              },
+              "violations": {
+                "$ref": "#/$defs/stringArray"
+              }
+            },
+            "additionalProperties": false
           }
         },
         "additionalProperties": true
+      }
+    },
+    "ownershipViolations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["stageId", "attempt", "paths"],
+        "properties": {
+          "stageId": {
+            "type": "string",
+            "pattern": "^0[1-8]$"
+          },
+          "attempt": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "paths": {
+            "$ref": "#/$defs/nonEmptyStringArray"
+          }
+        },
+        "additionalProperties": false
       }
     },
     "result": {
@@ -133,6 +259,14 @@
       "type": "array",
       "items": {
         "type": "string"
+      }
+    },
+    "nonEmptyStringArray": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
       }
     }
   },

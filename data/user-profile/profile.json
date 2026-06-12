@@ -5,15 +5,15 @@
     "age": 26,
     "gender": "男",
     "education": "本科",
-    "degree": "unknown",
+    "degree": "学士",
     "major": "计算机科学与技术",
     "majorCode": "080901",
     "birthMonth": "unknown",
-    "graduationYear": "unknown",
-    "freshGraduateStatus": "unknown",
-    "householdRegistration": "unknown",
-    "studentOrigin": "unknown",
-    "politicalStatus": "unknown"
+    "graduationYear": 2023,
+    "freshGraduateStatus": false,
+    "householdRegistration": "河北",
+    "studentOrigin": "河北",
+    "politicalStatus": "中共党员"
   },
   "experience": {
     "grassrootsYears": "unknown",

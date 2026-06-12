@@ -10,6 +10,7 @@ const navigation = [
   { label: "申论", href: "/shenlun" },
   { label: "行测", href: "/xingce" },
   { label: "时政", href: "/news" },
+  { label: "岗位", href: "/jobs" },
 ];
 
 export function SiteHeader() {

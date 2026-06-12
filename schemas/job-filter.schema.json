@@ -1,317 +1,109 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://shangan.local/schemas/job-filter.schema.json",
-  "title": "Job Filter Result",
+  "title": "Job Catalog Index",
   "type": "object",
   "required": [
     "schemaVersion",
-    "domain",
-    "cycle",
     "generatedAt",
-    "runId",
-    "completeness",
+    "cycle",
     "profileSnapshot",
-    "sources",
     "catalog",
-    "decisions",
-    "positions",
-    "pendingVerification",
-    "excluded",
-    "audit"
+    "sources",
+    "stats"
   ],
   "properties": {
-    "schemaVersion": {
-      "type": "string",
-      "minLength": 1
-    },
-    "domain": {
-      "type": "string",
-      "minLength": 1
-    },
-    "label": {
-      "type": "string"
-    },
-    "cycle": {
-      "type": ["string", "integer"]
-    },
-    "generatedAt": {
-      "type": "string",
-      "format": "date-time"
-    },
-    "runId": {
-      "type": "string",
-      "minLength": 1
-    },
-    "completeness": {
-      "type": "string"
-    },
+    "schemaVersion": { "const": "3.0" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "cycle": { "type": "string", "minLength": 1 },
     "profileSnapshot": {
       "type": "object",
-      "required": ["hash", "updatedAt", "unknownFields"],
+      "required": ["sha256", "updatedAt", "unknownFields"],
       "properties": {
-        "hash": {
-          "type": "string"
-        },
-        "updatedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
+        "sha256": { "type": "string", "minLength": 64 },
+        "updatedAt": { "type": "string", "format": "date-time" },
         "unknownFields": {
-          "$ref": "#/$defs/stringArray"
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
         }
       },
-      "additionalProperties": true
+      "additionalProperties": false
     },
-    "sourceScope": {
-      "$ref": "#/$defs/stringArray"
+    "catalog": {
+      "type": "object",
+      "required": ["path", "rowCount", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "rowCount": { "type": "integer", "minimum": 0 },
+        "sha256": { "type": "string", "minLength": 64 }
+      },
+      "additionalProperties": false
     },
     "sources": {
       "type": "array",
+      "minItems": 1,
       "items": {
-        "$ref": "#/$defs/source"
-      }
-    },
-    "catalog": {
-      "$ref": "#/$defs/fileIndex"
-    },
-    "decisions": {
-      "$ref": "#/$defs/fileIndex"
-    },
-    "positions": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/position"
-      }
-    },
-    "referencePositions": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/position"
-      }
-    },
-    "pendingVerification": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/position"
-      }
-    },
-    "excluded": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/excludedPosition"
-      }
-    },
-    "audit": {
-      "type": "object",
-      "required": [
-        "sourceRows",
-        "validRows",
-        "eligible",
-        "ineligible",
-        "needsConfirmation"
-      ],
-      "properties": {
-        "sourceRows": {
-          "$ref": "#/$defs/nonNegativeInteger"
-        },
-        "validRows": {
-          "$ref": "#/$defs/nonNegativeInteger"
-        },
-        "duplicateRows": {
-          "$ref": "#/$defs/nonNegativeInteger"
-        },
-        "skippedRows": {
-          "$ref": "#/$defs/nonNegativeInteger"
-        },
-        "parseErrors": {
-          "$ref": "#/$defs/nonNegativeInteger"
-        },
-        "eligible": {
-          "$ref": "#/$defs/nonNegativeInteger"
-        },
-        "ineligible": {
-          "$ref": "#/$defs/nonNegativeInteger"
-        },
-        "needsConfirmation": {
-          "$ref": "#/$defs/nonNegativeInteger"
-        },
-        "currentActionable": {
-          "$ref": "#/$defs/nonNegativeInteger"
-        },
-        "inactiveEligible": {
-          "$ref": "#/$defs/nonNegativeInteger"
-        },
-        "interviewRosterRows": {
-          "$ref": "#/$defs/nonNegativeInteger"
-        },
-        "interviewPositionCodes": {
-          "$ref": "#/$defs/nonNegativeInteger"
-        },
-        "conservation": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "boolean"
-          }
-        }
-      },
-      "additionalProperties": true
-    },
-    "notes": {
-      "$ref": "#/$defs/stringArray"
-    }
-  },
-  "$defs": {
-    "nonNegativeInteger": {
-      "type": "integer",
-      "minimum": 0
-    },
-    "stringArray": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "source": {
-      "type": "object",
-      "required": ["id", "name", "url", "checkedAt"],
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        },
-        "url": {
-          "type": "string",
-          "format": "uri"
-        },
-        "portalUrl": {
-          "type": "string",
-          "format": "uri"
-        },
-        "checkedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "artifact": {
-          "type": "object",
-          "properties": {
-            "path": {
-              "type": "string"
+        "type": "object",
+        "required": ["examId", "label", "portalUrl", "registration", "attachments"],
+        "properties": {
+          "examId": { "type": "string", "minLength": 1 },
+          "label": { "type": "string", "minLength": 1 },
+          "portalUrl": { "type": "string", "format": "uri" },
+          "registration": {
+            "type": "object",
+            "required": ["opensAt", "closesAt"],
+            "properties": {
+              "opensAt": { "type": "string", "format": "date-time" },
+              "closesAt": { "type": "string", "format": "date-time" }
             },
-            "sha256": {
-              "type": "string"
-            },
-            "rows": {
-              "$ref": "#/$defs/nonNegativeInteger"
-            }
+            "additionalProperties": false
           },
-          "additionalProperties": true
-        }
-      },
-      "additionalProperties": true
+          "attachments": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["id", "url", "path", "sha256", "size"],
+              "properties": {
+                "id": { "type": "string" },
+                "url": { "type": "string", "format": "uri" },
+                "path": { "type": "string" },
+                "sha256": { "type": "string", "minLength": 64 },
+                "size": { "type": "integer", "minimum": 1 }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
     },
-    "fileIndex": {
+    "stats": {
       "type": "object",
-      "required": ["path", "rowCount"],
+      "required": ["total", "eligible", "needsConfirmation", "ineligible", "active", "historical"],
       "properties": {
-        "path": {
-          "type": "string"
-        },
-        "rowCount": {
-          "$ref": "#/$defs/nonNegativeInteger"
-        },
-        "profileIndependent": {
-          "type": "boolean"
-        },
-        "triState": {
-          "$ref": "#/$defs/stringArray"
-        }
+        "total": { "type": "integer", "minimum": 0 },
+        "eligible": { "type": "integer", "minimum": 0 },
+        "needsConfirmation": { "type": "integer", "minimum": 0 },
+        "ineligible": { "type": "integer", "minimum": 0 },
+        "active": { "type": "integer", "minimum": 0 },
+        "historical": { "type": "integer", "minimum": 0 }
       },
-      "additionalProperties": true
+      "additionalProperties": false
     },
-    "position": {
-      "type": "object",
-      "required": ["id", "title", "organization"],
-      "properties": {
-        "id": {
-          "type": "string"
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source", "message"],
+        "properties": {
+          "source": { "type": "string" },
+          "message": { "type": "string" }
         },
-        "positionCode": {
-          "type": "string"
-        },
-        "title": {
-          "type": "string"
-        },
-        "organization": {
-          "type": "string"
-        },
-        "department": {
-          "type": "string"
-        },
-        "cycle": {
-          "type": ["string", "integer"]
-        },
-        "recruitCount": {
-          "$ref": "#/$defs/nonNegativeInteger"
-        },
-        "region": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string"
-        },
-        "eligibility": {
-          "type": "string"
-        },
-        "matchScore": {
-          "type": "number"
-        },
-        "matchReasons": {
-          "$ref": "#/$defs/stringArray"
-        },
-        "confirmationFields": {
-          "$ref": "#/$defs/stringArray"
-        },
-        "sourceUrl": {
-          "type": "string",
-          "format": "uri"
-        }
-      },
-      "additionalProperties": true
-    },
-    "excludedPosition": {
-      "type": "object",
-      "required": ["id", "title", "organization", "reasons"],
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "positionCode": {
-          "type": "string"
-        },
-        "title": {
-          "type": "string"
-        },
-        "organization": {
-          "type": "string"
-        },
-        "region": {
-          "type": "string"
-        },
-        "failedFields": {
-          "$ref": "#/$defs/stringArray"
-        },
-        "reasons": {
-          "$ref": "#/$defs/stringArray"
-        },
-        "sourceUrl": {
-          "type": "string",
-          "format": "uri"
-        }
-      },
-      "additionalProperties": true
+        "additionalProperties": false
+      }
     }
   },
-  "additionalProperties": true
+  "additionalProperties": false
 }
