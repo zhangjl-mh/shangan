@@ -222,23 +222,27 @@ class HarnessTestCase(unittest.TestCase):
     def test_command_runner_supports_injected_fake_command(self):
         script = (
             "import json,os,sys,pathlib;"
+            "prompt=sys.stdin.read();"
             "p=pathlib.Path(sys.argv[sys.argv.index('--output-last-message')+1]);"
             "p.parent.mkdir(parents=True,exist_ok=True);"
-            "p.write_text(json.dumps({'stage':os.environ['HARNESS_STAGE_ID']}),"
+            "p.write_text(json.dumps({'stage':os.environ['HARNESS_STAGE_ID'],'prompt':prompt}),"
             "encoding='utf-8')"
         )
         runner = command_runner([sys.executable, "-c", script])
         output = self.root / "runner-output.json"
 
         result = runner(
-            "prompt",
+            "中文 prompt",
             {"HARNESS_ROOT": str(self.root), "HARNESS_STAGE_ID": "03"},
             output,
             self.root / "schemas" / "agent-handoff.schema.json",
         )
 
         self.assertEqual(result.exit_code, 0)
-        self.assertEqual(result.handoff, {"stage": "03"})
+        self.assertEqual(
+            result.handoff,
+            {"stage": "03", "prompt": "中文 prompt"},
+        )
 
     def test_validate_reports_tampered_handoff(self):
         runner = FakeRunner(crash={"01": [True]})

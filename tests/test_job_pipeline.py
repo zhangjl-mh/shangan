@@ -89,6 +89,10 @@ class JobPipelineTests(unittest.TestCase):
                 "majorCode": "080901",
                 "freshGraduateStatus": False,
                 "politicalStatus": "中共党员",
+                "gender": "男",
+                "age": 26,
+                "householdRegistration": "河北",
+                "studentOrigin": "河北",
             },
             "experience": {
                 "grassrootsYears": "unknown",
@@ -111,6 +115,11 @@ class JobPipelineTests(unittest.TestCase):
                 "grassrootsYears": "不限",
                 "serviceProject": "不限",
                 "remarks": "",
+                "freshGraduate": "",
+                "age": "",
+                "gender": "",
+                "household": "",
+                "certificate": "",
                 **requirements,
             },
             "registration": {
@@ -145,6 +154,20 @@ class JobPipelineTests(unittest.TestCase):
             datetime(2025, 10, 20, tzinfo=timezone.utc),
         )
         self.assertEqual(result["eligibility"], "ineligible")
+
+    def test_gender_and_graduation_restrictions_in_remarks_are_excluded(self):
+        position = self.position(
+            remarks="2026应届毕业生；根据工作性质，仅限女性报考",
+        )
+        result = pipeline.evaluate_position(
+            position,
+            self.profile,
+            datetime(2025, 10, 20, tzinfo=timezone.utc),
+        )
+        self.assertEqual(result["eligibility"], "ineligible")
+        self.assertTrue(
+            any("性别要求" in reason for reason in result["exclusionReasons"])
+        )
 
     def test_non_official_download_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "non-official"):

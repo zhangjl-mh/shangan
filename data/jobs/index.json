@@ -1,0 +1,120 @@
+{
+  "schemaVersion": "3.0",
+  "generatedAt": "2026-06-15T08:59:12+08:00",
+  "cycle": "2026",
+  "profileSnapshot": {
+    "sha256": "8e74e09dcf22318822c1b39e32cf6cfe9cfca2f17b2c8cfdb5eb042ddc7d467e",
+    "updatedAt": "2026-06-15T00:00:00+08:00",
+    "unknownFields": [
+      "acceptCampusRecruitment",
+      "acceptGrassroots",
+      "acceptRelocation",
+      "acceptSocialRecruitment",
+      "birthMonth",
+      "computer",
+      "employer",
+      "english",
+      "grassrootsYears",
+      "hasRelevantWrittenExamScore",
+      "industryExperience",
+      "professional",
+      "veteranOrServiceProgram",
+      "workYears"
+    ]
+  },
+  "catalog": {
+    "path": "data/jobs/catalog/positions.jsonl",
+    "rowCount": 29954,
+    "sha256": "cdef95da580fee34db179cfccec4c5bda560c8030aee6d91004577ead40f6cfe"
+  },
+  "sources": [
+    {
+      "examId": "national-civil-service",
+      "label": "2026年国考",
+      "portalUrl": "http://bm.scs.gov.cn/pp/gkweb/core/web/ui/business/home/gkhome.html",
+      "registration": {
+        "opensAt": "2025-10-15T08:00:00+08:00",
+        "closesAt": "2025-10-24T18:00:00+08:00"
+      },
+      "attachments": [
+        {
+          "id": "national-2026-positions",
+          "url": "http://dl.scs.gov.cn/download/8a81f6d19780e4080199e13f881f0153",
+          "path": "data/jobs/sources/national-civil-service/2026/positions.zip",
+          "sha256": "0055e7eb78906e2dcefb8e31963e2fd74baf980aa98893eebb54fd9d7f9176cb",
+          "size": 1860532
+        }
+      ]
+    },
+    {
+      "examId": "beijing-civil-service",
+      "label": "2026年北京市考",
+      "portalUrl": "https://rsj.beijing.gov.cn/bm/ztzl/gwy/",
+      "registration": {
+        "opensAt": "2025-11-17T09:00:00+08:00",
+        "closesAt": "2025-11-21T18:00:00+08:00"
+      },
+      "attachments": [
+        {
+          "id": "beijing-2026-positions",
+          "url": "https://www.beijing.gov.cn/gongkai/rsxx/gwyzk/202511/P020251110416491745191.xlsx",
+          "path": "data/jobs/sources/beijing-civil-service/2026/positions.xlsx",
+          "sha256": "f35a34f0a17bf49c8275cd112692b1a6f5cc3474b56a1def945e11093d313dcd",
+          "size": 473970
+        }
+      ]
+    },
+    {
+      "examId": "tianjin-civil-service",
+      "label": "2026年天津市考",
+      "portalUrl": "https://gklx.hrss.tj.gov.cn/",
+      "registration": {
+        "opensAt": "2025-11-05T08:30:00+08:00",
+        "closesAt": "2025-11-11T18:00:00+08:00"
+      },
+      "attachments": [
+        {
+          "id": "tianjin-2026-positions",
+          "url": "https://www.tj.gov.cn/zwgk/zfxxgkzl/fdzdgknr/zkly/zk/202511/W020251105378392303487.xlsx",
+          "path": "data/jobs/sources/tianjin-civil-service/2026/positions.xlsx",
+          "sha256": "b36eafc091957364e22534491a87e7b3a4dba1c6090fc6c8a8a623e0d545de81",
+          "size": 208094
+        }
+      ]
+    },
+    {
+      "examId": "hebei-civil-service",
+      "label": "2026年河北省考",
+      "portalUrl": "https://jtt.hebei.gov.cn/jtyst/zwgk/jcxxgk/tggs/101769650776087.html",
+      "registration": {
+        "opensAt": "2026-02-01T09:00:00+08:00",
+        "closesAt": "2026-02-05T17:00:00+08:00"
+      },
+      "attachments": [
+        {
+          "id": "hebei-2026-positions",
+          "url": "https://jtt.hebei.gov.cn/cms/ewebeditor/uploadfile/2026/02/04/20260204150827140.xlsx",
+          "path": "data/jobs/sources/hebei-civil-service/2026/positions.xlsx",
+          "sha256": "155279e319b84661886d5ba847ed3e2b8b260652b722d64f878ffd192a65c58e",
+          "size": 546877
+        },
+        {
+          "id": "hebei-2026-contacts",
+          "url": "https://jtt.hebei.gov.cn/cms/ewebeditor/uploadfile/2026/02/04/20260204150838739.xls",
+          "path": "data/jobs/sources/hebei-civil-service/2026/contacts.xls",
+          "sha256": "3173267246bd77d9e72c7f3a68cea01b2970e918135bf91c60f985350daba8bb",
+          "size": 29696
+        }
+      ]
+    }
+  ],
+  "stats": {
+    "total": 29954,
+    "eligible": 868,
+    "needsConfirmation": 743,
+    "ineligible": 28343,
+    "active": 0,
+    "historical": 29954
+  },
+  "errors": []
+}

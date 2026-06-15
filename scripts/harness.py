@@ -170,8 +170,10 @@ def command_runner(command: Sequence[str]) -> Runner:
             args,
             input=prompt,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             cwd=working_directory,
-            env={**os.environ, **environment},
+            env={**os.environ, "PYTHONUTF8": "1", **environment},
             capture_output=True,
             check=False,
         )

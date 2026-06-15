@@ -156,7 +156,10 @@ test("frontend filesystem access is read-only and confined to data", async () =>
     }
   }
 
-  assert.deepEqual(fsUsers, ["app/services/content.ts"]);
+  assert.deepEqual(fsUsers, [
+    "app/services/content.ts",
+    "app/services/jobs.ts",
+  ]);
 
   const storagePaths = await read("app/services/storage-paths.ts");
   assert.match(storagePaths, /path\.join\(process\.cwd\(\),\s*["']data["']\)/);
@@ -204,7 +207,8 @@ test("package scripts expose validation, tests, scans, and full checks", async (
   const scripts = packageJson.scripts ?? {};
 
   assert.equal(scripts["validate:project"], "python scripts/validate_project.py");
-  assert.equal(scripts.test, "node --test tests/project.test.mjs");
+  assert.ok(scripts.test?.includes("node --test tests/project.test.mjs"));
+  assert.ok(scripts.test?.includes("python -m unittest discover"));
   assert.equal(
     scripts["scan:today"],
     "python .agents/skills/daily-news/scripts/today_scan.py",

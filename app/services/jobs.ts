@@ -1,6 +1,6 @@
 import "server-only";
 
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import type {
   JobIndex,
@@ -14,15 +14,29 @@ let catalogPromise: Promise<{
   index: JobIndex | null;
   positions: JobPosition[];
 }> | null = null;
+let catalogMtimeMs = -1;
+
+const regionOptions = ["北京", "天津", "河北", "雄安新区", "石家庄"];
 
 async function loadCatalog() {
-  if (!catalogPromise) {
+  const indexPath = path.join(jobsDirectory, "index.json");
+  let indexMtimeMs: number;
+  try {
+    indexMtimeMs = (await stat(indexPath)).mtimeMs;
+  } catch {
+    return { index: null, positions: [] };
+  }
+  if (!catalogPromise || indexMtimeMs !== catalogMtimeMs) {
+    catalogMtimeMs = indexMtimeMs;
     catalogPromise = (async () => {
       try {
         const index = JSON.parse(
-          await readFile(path.join(jobsDirectory, "index.json"), "utf8"),
+          await readFile(indexPath, "utf8"),
         ) as JobIndex;
-        const catalogPath = path.join(process.cwd(), index.catalog.path);
+        if (index.catalog.path !== "data/jobs/catalog/positions.jsonl") {
+          throw new Error("Unexpected job catalog path");
+        }
+        const catalogPath = path.join(jobsDirectory, "catalog", "positions.jsonl");
         const contents = await readFile(catalogPath, "utf8");
         const positions = contents
           .split(/\r?\n/)
@@ -47,12 +61,12 @@ export async function queryJobs(query: JobQuery = {}): Promise<JobQueryResult> {
     if (query.exam && query.exam !== "all" && position.examId !== query.exam) {
       return false;
     }
-    if (
-      query.region &&
-      query.region !== "all" &&
-      !position.region.includes(query.region)
-    ) {
-      return false;
+    if (query.region && query.region !== "all") {
+      const matchesHebei =
+        query.region === "河北" && position.examId === "hebei-civil-service";
+      if (!matchesHebei && !position.region.includes(query.region)) {
+        return false;
+      }
     }
     if (
       query.eligibility &&
@@ -99,10 +113,6 @@ export async function queryJobs(query: JobQuery = {}): Promise<JobQueryResult> {
       ]),
     ).values(),
   );
-  const regions = Array.from(
-    new Set(positions.map((position) => position.region).filter(Boolean)),
-  ).sort((a, b) => a.localeCompare(b, "zh-CN"));
-
   return {
     items: filtered.slice(start, start + pageSize),
     total: filtered.length,
@@ -110,11 +120,12 @@ export async function queryJobs(query: JobQuery = {}): Promise<JobQueryResult> {
     pageSize,
     pageCount,
     exams,
-    regions,
+    regions: regionOptions,
     index,
   };
 }
 
 export function resetJobCatalogCacheForTests() {
   catalogPromise = null;
+  catalogMtimeMs = -1;
 }

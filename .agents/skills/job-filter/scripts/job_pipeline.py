@@ -39,19 +39,26 @@ XLSX_NS = {
 }
 
 COLUMN_ALIASES: dict[str, tuple[str, ...]] = {
-    "organization": ("部门名称", "招录机关", "单位名称", "机关名称"),
-    "department": ("用人司局", "用人单位", "招录单位", "职位所在部门"),
+    "organization": ("部门名称", "招录机关", "单位名称", "机关名称", "招考单位", "部门"),
+    "department": ("用人司局", "用人单位", "用人部门", "招录单位", "职位所在部门", "招考部门", "单位"),
     "title": ("招考职位", "职位名称", "职位", "岗位名称"),
-    "positionCode": ("职位代码", "职位编码", "岗位代码", "招录职位代码"),
-    "region": ("工作地点", "职位所在地", "工作地区", "行政区划", "地区"),
+    "positionCode": ("职位代码", "职位编码", "岗位代码", "招录职位代码", "代码"),
+    "region": ("工作地点", "职位所在地", "工作地区", "行政区划", "地区", "考区"),
     "recruitCount": ("招考人数", "计划招录人数", "招录人数", "人数"),
     "majorRequirement": ("专业", "专业要求", "所学专业"),
-    "educationRequirement": ("学历", "学历要求"),
-    "degreeRequirement": ("学位", "学位要求"),
+    "educationRequirement": ("学历", "学历要求", "学历低限"),
+    "degreeRequirement": ("学位", "学位要求", "学位低限"),
+    "educationDegreeRequirement": ("学历学位",),
     "politicalRequirement": ("政治面貌", "政治面貌要求"),
-    "grassrootsRequirement": ("基层工作最低年限", "基层工作经历", "基层工作年限"),
+    "grassrootsRequirement": ("基层工作最低年限", "基层工作经历最低年限", "基层工作经历", "基层工作年限"),
     "serviceProjectRequirement": ("服务基层项目工作经历", "服务基层项目经历"),
-    "remarks": ("备注", "其他条件", "其他要求", "职位要求"),
+    "freshGraduateRequirement": ("招录对象",),
+    "ageRequirement": ("年龄", "年龄要求"),
+    "genderRequirement": ("性别", "性别要求"),
+    "householdRequirement": ("户别要求", "户籍要求", "户籍或生源要求"),
+    "certificateRequirement": ("资格证书", "证书要求"),
+    "additionalRequirement": ("其他条件", "其它条件"),
+    "remarks": ("备注", "其他条件", "其他要求", "职位要求", "其他资格条件"),
 }
 
 REQUIRED_COLUMNS = ("organization", "title", "positionCode")
@@ -300,6 +307,12 @@ def parse_source(source: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dic
         for member, sheet, rows in tables:
             header = find_header(rows)
             if header is None:
+                errors.append(
+                    {
+                        "source": attachment["id"],
+                        "message": f"{member}/{sheet} has no recognized position header",
+                    }
+                )
                 continue
             header_index, mapping = header
             for row_number, row in enumerate(rows[header_index + 1 :], start=header_index + 2):
@@ -318,6 +331,35 @@ def parse_source(source: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dic
                     )
                     continue
                 code = values["positionCode"]
+                combined_education = values.get("educationDegreeRequirement", "")
+                education = values.get("educationRequirement", "")
+                degree = values.get("degreeRequirement", "")
+                if combined_education:
+                    parts = [
+                        part.strip()
+                        for part in re.split(r"[;；]", combined_education)
+                        if part.strip()
+                    ]
+                    education = parts[0] if parts else combined_education
+                    degree = parts[1] if len(parts) > 1 else ""
+                grassroots = values.get("grassrootsRequirement", "")
+                fresh_graduate = values.get("freshGraduateRequirement", "")
+                if "应届" in compact(grassroots):
+                    fresh_graduate = grassroots
+                    grassroots = ""
+                remarks = "；".join(
+                    value
+                    for value in (
+                        fresh_graduate,
+                        values.get("ageRequirement", ""),
+                        values.get("genderRequirement", ""),
+                        values.get("householdRequirement", ""),
+                        values.get("certificateRequirement", ""),
+                        values.get("additionalRequirement", ""),
+                        values.get("remarks", ""),
+                    )
+                    if value and not is_unlimited(value)
+                )
                 positions.append(
                     {
                         "id": stable_id(
@@ -338,12 +380,17 @@ def parse_source(source: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dic
                         "recruitCount": integer_or_zero(values.get("recruitCount")),
                         "requirements": {
                             "major": values.get("majorRequirement", ""),
-                            "education": values.get("educationRequirement", ""),
-                            "degree": values.get("degreeRequirement", ""),
+                            "education": education,
+                            "degree": degree,
                             "politicalStatus": values.get("politicalRequirement", ""),
-                            "grassrootsYears": values.get("grassrootsRequirement", ""),
+                            "grassrootsYears": grassroots,
                             "serviceProject": values.get("serviceProjectRequirement", ""),
-                            "remarks": values.get("remarks", ""),
+                            "freshGraduate": fresh_graduate,
+                            "age": values.get("ageRequirement", ""),
+                            "gender": values.get("genderRequirement", ""),
+                            "household": values.get("householdRequirement", ""),
+                            "certificate": values.get("certificateRequirement", ""),
+                            "remarks": remarks,
                         },
                         "registration": source["registration"],
                         "source": {
@@ -356,6 +403,13 @@ def parse_source(source: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dic
                         },
                     }
                 )
+    if not positions:
+        errors.append(
+            {
+                "source": source["examId"],
+                "message": "official position attachments produced zero rows",
+            }
+        )
     return positions, errors
 
 
@@ -421,13 +475,65 @@ def evaluate_position(position: dict[str, Any], profile: dict[str, Any], as_of: 
     else:
         checks.append(decision("politicalStatus", "fail", f"岗位政治面貌要求为：{requirements['politicalStatus']}"))
 
-    fresh_text = compact(requirements["remarks"])
-    if any(marker in fresh_text for marker in ("应届高校毕业生", "应届毕业生", "2026届")):
+    fresh_text = compact(
+        requirements.get("freshGraduate", "") or requirements["remarks"]
+    )
+    if any(marker in fresh_text for marker in ("应届高校毕业生", "应届毕业生", "2026届", "2026应届")):
         checks.append(
             decision(
                 "freshGraduateStatus",
                 "pass" if basic.get("freshGraduateStatus") in (True, "是", "应届") else "fail",
                 "岗位限制应届毕业生，画像为2023年毕业且非应届。",
+            )
+        )
+
+    gender = compact(requirements.get("gender", ""))
+    if not gender:
+        remarks_gender = compact(requirements["remarks"])
+        if any(marker in remarks_gender for marker in ("仅限女性", "限女性", "女性报考")):
+            gender = "女性"
+        elif any(marker in remarks_gender for marker in ("仅限男性", "限男性", "男性报考", "适合男性")):
+            gender = "男性"
+    if gender and not is_unlimited(gender):
+        profile_gender = compact(basic.get("gender"))
+        if "男性" in gender or gender == "男":
+            checks.append(
+                decision(
+                    "gender",
+                    "pass" if profile_gender == "男" else "fail",
+                    f"岗位性别要求为：{gender}",
+                )
+            )
+        elif "女性" in gender or gender == "女":
+            checks.append(
+                decision(
+                    "gender",
+                    "pass" if profile_gender == "女" else "fail",
+                    f"岗位性别要求为：{gender}",
+                )
+            )
+
+    household = compact(requirements.get("household", ""))
+    if household and not is_unlimited(household):
+        profile_household = compact(basic.get("householdRegistration"))
+        profile_origin = compact(basic.get("studentOrigin"))
+        if profile_household == "unknown" or profile_origin == "unknown":
+            checks.append(decision("householdRegistration", "unknown", "岗位限制户籍或生源，画像尚未完整确认。"))
+        elif profile_household in household or profile_origin in household:
+            checks.append(decision("householdRegistration", "pass", "河北户籍或生源满足岗位要求。"))
+        else:
+            checks.append(decision("householdRegistration", "fail", f"岗位户籍或生源要求为：{requirements.get('household', '')}"))
+
+    age_text = compact(requirements.get("age", "") or requirements["remarks"])
+    age = basic.get("age")
+    age_limit_match = re.search(r"(\d+)周岁以下", age_text)
+    if age_limit_match and isinstance(age, int):
+        limit = int(age_limit_match.group(1))
+        checks.append(
+            decision(
+                "age",
+                "pass" if age <= limit else "fail",
+                f"画像年龄{age}岁，岗位要求{limit}周岁以下。",
             )
         )
 
@@ -525,6 +631,11 @@ def build(config: dict[str, Any], as_of: datetime) -> dict[str, Any]:
 
     for source in config["sources"]:
         positions, source_errors = parse_source(source)
+        if not positions:
+            raise ValueError(
+                f"{source['examId']} produced zero normalized positions: "
+                + "; ".join(item["message"] for item in source_errors)
+            )
         all_positions.extend(positions)
         errors.extend(source_errors)
         source_index.append(

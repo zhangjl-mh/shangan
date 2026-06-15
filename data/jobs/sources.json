@@ -1,0 +1,125 @@
+{
+  "schemaVersion": "1.0",
+  "cycle": "2026",
+  "checkedAt": "2026-06-15T00:00:00+08:00",
+  "sources": [
+    {
+      "examId": "national-civil-service",
+      "label": "2026年国考",
+      "cycle": "2026",
+      "region": "全国",
+      "authority": "国家公务员局",
+      "announcementTitle": "中央机关及其直属机构2026年度考试录用公务员公告",
+      "announcementUrl": "http://bm.scs.gov.cn/pp/gkweb/core/web/ui/business/article/articledetail.html?ArticleId=8a81f6d09780e3a20199dd916ecf0122&id=0000000062b7b2b60162bccd55ec0006&eid=0000000062b7b2b60162bccdd5860007",
+      "portalUrl": "http://bm.scs.gov.cn/pp/gkweb/core/web/ui/business/home/gkhome.html",
+      "registration": {
+        "opensAt": "2025-10-15T08:00:00+08:00",
+        "closesAt": "2025-10-24T18:00:00+08:00"
+      },
+      "attachments": [
+        {
+          "id": "national-2026-positions",
+          "kind": "positions",
+          "title": "中央机关及其直属机构2026年度考试录用公务员招考简章",
+          "url": "http://dl.scs.gov.cn/download/8a81f6d19780e4080199e13f881f0153",
+          "path": "data/jobs/sources/national-civil-service/2026/positions.zip",
+          "sha256": "0055e7eb78906e2dcefb8e31963e2fd74baf980aa98893eebb54fd9d7f9176cb"
+        }
+      ],
+      "notes": [
+        "2026专题短地址已跳转至国家公务员局通用入口，保留可访问的归档入口。"
+      ]
+    },
+    {
+      "examId": "beijing-civil-service",
+      "label": "2026年北京市考",
+      "cycle": "2026",
+      "region": "北京",
+      "authority": "北京市公务员局",
+      "announcementTitle": "北京市各级机关2026年度考试录用公务员公告",
+      "announcementUrl": "https://www.beijing.gov.cn/gongkai/rsxx/gwyzk/202511/t20251110_4267508.html",
+      "portalUrl": "https://rsj.beijing.gov.cn/bm/ztzl/gwy/",
+      "registration": {
+        "opensAt": "2025-11-17T09:00:00+08:00",
+        "closesAt": "2025-11-21T18:00:00+08:00"
+      },
+      "attachments": [
+        {
+          "id": "beijing-2026-positions",
+          "kind": "positions",
+          "title": "北京市各级机关2026年度考试录用公务员招考简章",
+          "url": "https://www.beijing.gov.cn/gongkai/rsxx/gwyzk/202511/P020251110416491745191.xlsx",
+          "path": "data/jobs/sources/beijing-civil-service/2026/positions.xlsx",
+          "sha256": "f35a34f0a17bf49c8275cd112692b1a6f5cc3474b56a1def945e11093d313dcd"
+        }
+      ]
+    },
+    {
+      "examId": "tianjin-civil-service",
+      "label": "2026年天津市考",
+      "cycle": "2026",
+      "region": "天津",
+      "authority": "天津市公务员局",
+      "announcementTitle": "天津市2026年度考试录用公务员公告",
+      "announcementUrl": "https://www.tj.gov.cn/zwgk/zfxxgkzl/fdzdgknr/zkly/zk/202511/t20251105_7170794.html",
+      "portalUrl": "https://gklx.hrss.tj.gov.cn/",
+      "registration": {
+        "opensAt": "2025-11-05T08:30:00+08:00",
+        "closesAt": "2025-11-11T18:00:00+08:00"
+      },
+      "attachments": [
+        {
+          "id": "tianjin-2026-positions",
+          "kind": "positions",
+          "title": "天津市2026年度考试录用公务员职位表",
+          "url": "https://www.tj.gov.cn/zwgk/zfxxgkzl/fdzdgknr/zkly/zk/202511/W020251105378392303487.xlsx",
+          "path": "data/jobs/sources/tianjin-civil-service/2026/positions.xlsx",
+          "sha256": "b36eafc091957364e22534491a87e7b3a4dba1c6090fc6c8a8a623e0d545de81"
+        }
+      ]
+    },
+    {
+      "examId": "hebei-civil-service",
+      "label": "2026年河北省考",
+      "cycle": "2026",
+      "region": "河北",
+      "authority": "河北省公务员局",
+      "announcementTitle": "河北省2026年度公务员录用省市县乡四级联考公告",
+      "announcementUrl": "https://jtt.hebei.gov.cn/jtyst/zwgk/jcxxgk/tggs/101769650776087.html",
+      "portalUrl": "https://jtt.hebei.gov.cn/jtyst/zwgk/jcxxgk/tggs/101769650776087.html",
+      "registration": {
+        "opensAt": "2026-02-01T09:00:00+08:00",
+        "closesAt": "2026-02-05T17:00:00+08:00"
+      },
+      "attachments": [
+        {
+          "id": "hebei-2026-positions",
+          "kind": "positions",
+          "title": "招录职位及报考资格条件一览表",
+          "url": "https://jtt.hebei.gov.cn/cms/ewebeditor/uploadfile/2026/02/04/20260204150827140.xlsx",
+          "path": "data/jobs/sources/hebei-civil-service/2026/positions.xlsx",
+          "sha256": "155279e319b84661886d5ba847ed3e2b8b260652b722d64f878ffd192a65c58e"
+        },
+        {
+          "id": "hebei-2026-contacts",
+          "kind": "reference",
+          "title": "各招录单位地址、网站、联系电话一览表",
+          "url": "https://jtt.hebei.gov.cn/cms/ewebeditor/uploadfile/2026/02/04/20260204150838739.xls",
+          "path": "data/jobs/sources/hebei-civil-service/2026/contacts.xls",
+          "sha256": "3173267246bd77d9e72c7f3a68cea01b2970e918135bf91c60f985350daba8bb"
+        }
+      ],
+      "notes": [
+        "职位表来自河北省政府部门发布的完整公告镜像。",
+        "河北省人事考试网报名入口不是 gov.cn 域名，因此不作为附件下载来源。"
+      ]
+    }
+  ],
+  "unconfirmed": [
+    {
+      "sourceId": "hebei-civil-service",
+      "field": "primaryAnnouncementUrl",
+      "reason": "未确认河北省人事考试网首发公告的稳定直链，当前采用政府部门官方镜像。"
+    }
+  ]
+}

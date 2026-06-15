@@ -8,14 +8,55 @@
 
 ## 目录结构
 
-| 目录              | 职责                         | 详细规范                  |
-| ----------------- | ---------------------------- | ------------------------- |
-| `docs/`           | Harness 编排、流程与校验规则 | `docs/README.md`          |
-| `.agents/skills/` | 业务技能路由与执行脚本       | `.agents/skills/SKILL.md` |
-| `schemas/`        | 数据结构契约                 | `schemas/` 各文件         |
-| `data/`           | 正式业务数据                 | `docs/workflow.md`        |
-| `app/`            | 前端页面与组件               | `app/` 各页面 README      |
-| `scripts/`        | 项目级校验与维护脚本         | `docs/checks.md`          |
+├── AGENTS.md                     # 管规则：项目总规范、协作边界、执行流程
+│
+├── docs /                      # *项目文档与需求产物*
+│   ├── README.md                 # Harness 总说明
+│   ├── workflow.md               # 标准执行流程
+│   ├── checks.md                 # 校验规则
+│   └── templates/                # 系统架构说明
+│
+├── .agents/                      # Agent 配置
+│   └── skills/                   # 管能力：业务技能层
+│       ├── SKILL.md              # 技能路由入口
+│       ├── daily-news/           # 每日时政
+│       │   ├── SKILL.md
+│       │   ├── examples.md
+│       │   └── scripts/
+│       ├── study-route/          # 行测 / 申论学习路线
+│       │   ├── SKILL.md
+│       │   ├── examples.md
+│       │   └── scripts/
+│       ├── study-content/        # 知识点、技巧、课程内容整理
+│       │   ├── SKILL.md
+│       │   ├── examples.md
+│       │   └── scripts/
+│       └── job-filter/           # 岗位筛选
+│           ├── SKILL.md
+│           ├── examples.md
+│           └── scripts/
+
+│
+├── schemas/                      # 管格式：数据结构契约
+│   ├── user-profile.schema.json
+│   ├── xingce-route.schema.json
+│   ├── shenlun-route.schema.json
+│   ├── daily-news.schema.json
+│   └── job-filter.schema.json
+│
+├── data/                         # 管内容：正式业务数据
+│   ├── user-profile/             # 用户画像
+│   ├── xingce/                   # 行测数据
+│   ├── shenlun/                  # 申论数据
+│   ├── daily-news/               # 每日时政
+│   └── jobs/                     # 岗位数据
+│
+└── app/                          # 管展示：前端页面和组件
+    ├── pages/
+    ├── components/               # 公共组件
+    ├── services/                 # 数据读取服务
+    ├── hooks/                    # 通用逻辑
+    └── types/                    # 前端类型
 
 ---
 
