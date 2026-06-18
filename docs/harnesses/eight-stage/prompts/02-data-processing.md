@@ -1,6 +1,6 @@
 # 02 数据处理
 
-阶段顺序与完成条件以 `docs/workflow.md` 为准，本文件只补充数据处理动作。
+阶段顺序与完成条件以 `docs/harnesses/eight-stage/workflow.md` 为准，本文件只补充数据处理动作。
 
 读取已确认需求和对应 `.agents/skills/`。
 

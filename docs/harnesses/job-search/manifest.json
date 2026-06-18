@@ -1,0 +1,146 @@
+{
+  "schemaVersion": "1.0",
+  "name": "shangan-job-search-harness",
+  "version": "1.0.0",
+  "description": "Minimal on-demand Harness for job-search collection, download, parsing/filtering, and reporting.",
+  "workingDirectory": ".",
+  "runDirectory": "docs/runs/job-search",
+  "maxRetryRounds": 3,
+  "fallbackPolicy": {
+    "downloadFailure": "use_last_successful_artifacts",
+    "fallbackStatus": "stale_fallback",
+    "requiredArtifacts": [
+      "data/jobs/index.json",
+      "data/jobs/catalog/positions.jsonl"
+    ]
+  },
+  "outputs": {
+    "index": "data/jobs/index.json",
+    "catalog": "data/jobs/catalog/positions.jsonl",
+    "reportName": "job-search-report.json"
+  },
+  "agents": {
+    "collector": {
+      "role": "检索员",
+      "prompt": "docs/harnesses/job-search/prompts/01-collector.md"
+    },
+    "downloader": {
+      "role": "下载员",
+      "prompt": "docs/harnesses/job-search/prompts/02-downloader.md"
+    },
+    "parserFilter": {
+      "role": "解析筛选员",
+      "prompt": "docs/harnesses/job-search/prompts/03-parser-filter.md"
+    },
+    "reporter": {
+      "role": "整理员",
+      "prompt": "docs/harnesses/job-search/prompts/04-reporter.md"
+    }
+  },
+  "subAgents": [
+    {
+      "id": "civil-service-source-finder",
+      "role": "公务员来源检索员",
+      "stageId": "01",
+      "scope": "国考、北京、河北、天津公务员岗位表"
+    },
+    {
+      "id": "institution-source-finder",
+      "role": "事业单位来源检索员",
+      "stageId": "01",
+      "scope": "画像地区事业单位公告与岗位表"
+    },
+    {
+      "id": "military-civilian-source-finder",
+      "role": "军队文职来源检索员",
+      "stageId": "01",
+      "scope": "军队文职全国入口与岗位表"
+    },
+    {
+      "id": "state-enterprise-source-finder",
+      "role": "国央企来源检索员",
+      "stageId": "01",
+      "scope": "国资委、央企、地方国企招聘入口"
+    },
+    {
+      "id": "llm-table-extractor",
+      "role": "模型抽取员",
+      "stageId": "03",
+      "scope": "Python 解析失败的表格片段，只抽取有原文证据的字段"
+    }
+  ],
+  "stages": [
+    {
+      "id": "01",
+      "name": "collect",
+      "agent": "collector",
+      "description": "Discover official job sources, prioritizing user-profile regions.",
+      "command": [],
+      "inputs": [
+        "data/user-profile/profile.json",
+        "data/jobs/sources.json"
+      ],
+      "outputs": [
+        "stage-results/01-collect.json"
+      ]
+    },
+    {
+      "id": "02",
+      "name": "download",
+      "agent": "downloader",
+      "description": "Download official attachments declared by the source manifest.",
+      "command": [
+        "python",
+        ".agents/skills/job-filter/scripts/job_pipeline.py",
+        "download"
+      ],
+      "fallbackOnFailure": true,
+      "inputs": [
+        "data/jobs/sources.json"
+      ],
+      "outputs": [
+        "data/jobs/sources/**",
+        "stage-results/02-download.json"
+      ]
+    },
+    {
+      "id": "03",
+      "name": "parse-filter",
+      "agent": "parserFilter",
+      "description": "Parse attachments and apply profile-based three-state filtering.",
+      "command": [
+        "python",
+        ".agents/skills/job-filter/scripts/job_pipeline.py",
+        "build"
+      ],
+      "inputs": [
+        "data/jobs/sources/**",
+        "data/user-profile/profile.json"
+      ],
+      "outputs": [
+        "data/jobs/index.json",
+        "data/jobs/catalog/positions.jsonl",
+        "stage-results/03-parse-filter.json"
+      ]
+    },
+    {
+      "id": "04",
+      "name": "report",
+      "agent": "reporter",
+      "description": "Validate formal outputs and write the run report.",
+      "command": [
+        "python",
+        ".agents/skills/job-filter/scripts/job_pipeline.py",
+        "validate"
+      ],
+      "inputs": [
+        "data/jobs/index.json",
+        "data/jobs/catalog/positions.jsonl"
+      ],
+      "outputs": [
+        "job-search-report.json",
+        "stage-results/04-report.json"
+      ]
+    }
+  ]
+}

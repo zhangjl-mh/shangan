@@ -1,3 +1,8 @@
+---
+name: eight-stage-checks
+description: 八阶段 Harness 的项目校验命令、Harness 检查和最终状态判定。需要确认通用需求验收标准时使用。
+---
+
 # 校验
 
 ## 必检

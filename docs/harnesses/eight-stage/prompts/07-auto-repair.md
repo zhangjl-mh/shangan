@@ -1,6 +1,6 @@
 # 07 自动修复
 
-修复轮次与回跑规则以 `docs/workflow.md` 为准，检查标准以 `docs/checks.md` 为准。
+修复轮次与回跑规则以 `docs/harnesses/eight-stage/workflow.md` 为准，检查标准以 `docs/harnesses/eight-stage/checks.md` 为准。
 
 根据 03、05、06 的失败证据执行最小修复。
 

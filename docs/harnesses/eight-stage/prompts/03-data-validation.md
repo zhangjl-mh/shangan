@@ -1,6 +1,6 @@
 # 03 数据校验
 
-阶段顺序与完成条件以 `docs/workflow.md` 为准，检查标准以 `docs/checks.md` 为准。
+阶段顺序与完成条件以 `docs/harnesses/eight-stage/workflow.md` 为准，检查标准以 `docs/harnesses/eight-stage/checks.md` 为准。
 
 验证阶段 02 的数据产物。
 

@@ -1,8 +1,8 @@
 # 06 测试
 
-阶段顺序与完成条件以 `docs/workflow.md` 为准。
+阶段顺序与完成条件以 `docs/harnesses/eight-stage/workflow.md` 为准。
 
-按改动范围执行 `docs/checks.md` 中适用命令。
+按改动范围执行 `docs/harnesses/eight-stage/checks.md` 中适用命令。
 
 1. 记录命令、退出码和关键结果。
 2. 不以未运行代替通过；无法运行时说明原因。

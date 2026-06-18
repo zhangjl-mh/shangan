@@ -101,7 +101,7 @@ class HarnessTestCase(unittest.TestCase):
 
     def _copy_contract(self):
         for relative in (
-            "docs/manifest.json",
+            "docs/harnesses/eight-stage/manifest.json",
             "schemas/harness-execution.schema.json",
             "schemas/agent-handoff.schema.json",
         ):
@@ -109,7 +109,7 @@ class HarnessTestCase(unittest.TestCase):
             target = self.root / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(source.read_bytes())
-        manifest = json.loads((self.root / "docs/manifest.json").read_text(encoding="utf-8"))
+        manifest = json.loads((self.root / "docs/harnesses/eight-stage/manifest.json").read_text(encoding="utf-8"))
         for stage in manifest["stages"]:
             prompt = self.root / stage["prompt"]
             prompt.parent.mkdir(parents=True, exist_ok=True)

@@ -201,7 +201,7 @@ class Harness:
         runner_command: Sequence[str] | None = None,
     ) -> None:
         self.root = root.resolve()
-        self.manifest_path = self.root / "docs" / "manifest.json"
+        self.manifest_path = self.root / "docs" / "harnesses" / "eight-stage" / "manifest.json"
         self.manifest = read_json(self.manifest_path)
         configured_root = self.root / self.manifest.get("workingDirectory", ".")
         self.working_directory = configured_root.resolve()

@@ -1,6 +1,6 @@
 # 04 前端调整
 
-阶段顺序与完成条件以 `docs/workflow.md` 为准，本文件只补充前端调整动作。
+阶段顺序与完成条件以 `docs/harnesses/eight-stage/workflow.md` 为准，本文件只补充前端调整动作。
 
 读取需求、已验证数据和页面局部规范。
 

@@ -4,11 +4,11 @@
   "version": "1.0.0",
   "workingDirectory": ".",
   "runDirectory": "docs/runs",
-  "policy": "docs/policies/write-ownership.json",
+  "policy": "docs/harnesses/eight-stage/policies/write-ownership.json",
   "templates": {
-    "requirement": "docs/templates/requirement.md",
-    "handoff": "docs/templates/handoff.md",
-    "acceptance": "docs/templates/acceptance.md"
+    "requirement": "docs/harnesses/eight-stage/templates/requirement.md",
+    "handoff": "docs/harnesses/eight-stage/templates/handoff.md",
+    "acceptance": "docs/harnesses/eight-stage/templates/acceptance.md"
   },
   "execution": {
     "mode": "sequential",
@@ -30,43 +30,43 @@
     {
       "id": "01",
       "name": "requirement-confirmation",
-      "prompt": "docs/prompts/01-requirement-confirmation.md"
+      "prompt": "docs/harnesses/eight-stage/prompts/01-requirement-confirmation.md"
     },
     {
       "id": "02",
       "name": "data-processing",
-      "prompt": "docs/prompts/02-data-processing.md"
+      "prompt": "docs/harnesses/eight-stage/prompts/02-data-processing.md"
     },
     {
       "id": "03",
       "name": "data-validation",
-      "prompt": "docs/prompts/03-data-validation.md"
+      "prompt": "docs/harnesses/eight-stage/prompts/03-data-validation.md"
     },
     {
       "id": "04",
       "name": "frontend-adjustment",
-      "prompt": "docs/prompts/04-frontend-adjustment.md"
+      "prompt": "docs/harnesses/eight-stage/prompts/04-frontend-adjustment.md"
     },
     {
       "id": "05",
       "name": "structure-validation",
-      "prompt": "docs/prompts/05-structure-validation.md"
+      "prompt": "docs/harnesses/eight-stage/prompts/05-structure-validation.md"
     },
     {
       "id": "06",
       "name": "test-execution",
-      "prompt": "docs/prompts/06-test-execution.md"
+      "prompt": "docs/harnesses/eight-stage/prompts/06-test-execution.md"
     },
     {
       "id": "07",
       "name": "auto-repair",
-      "prompt": "docs/prompts/07-auto-repair.md",
+      "prompt": "docs/harnesses/eight-stage/prompts/07-auto-repair.md",
       "maxRounds": 3
     },
     {
       "id": "08",
       "name": "final-acceptance",
-      "prompt": "docs/prompts/08-final-acceptance.md"
+      "prompt": "docs/harnesses/eight-stage/prompts/08-final-acceptance.md"
     }
   ],
   "artifacts": {

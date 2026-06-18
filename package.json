@@ -15,6 +15,7 @@
     "jobs:build": "python .agents/skills/job-filter/scripts/job_pipeline.py build",
     "jobs:validate": "python .agents/skills/job-filter/scripts/job_pipeline.py validate",
     "jobs:all": "python .agents/skills/job-filter/scripts/job_pipeline.py all",
+    "jobs:search": "python scripts/job_search_harness.py all",
     "check": "npm run validate:project && npm run lint && npm run typecheck && npm test && npm run build"
   },
   "dependencies": {

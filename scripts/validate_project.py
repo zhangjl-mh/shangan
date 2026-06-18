@@ -27,7 +27,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCHEMAS_DIR = ROOT / "schemas"
 DATA_DIR = ROOT / "data"
 SKILLS_DIR = ROOT / ".agents" / "skills"
-HARNESS_CONFIG = ROOT / "docs" / "manifest.json"
+HARNESS_CONFIG = ROOT / "docs" / "harnesses" / "eight-stage" / "manifest.json"
 INVALID_JSON = object()
 PRIVATE_COMPONENT_DIRECTORY = "_" + "components"
 
@@ -139,6 +139,12 @@ class ProjectValidator:
             self.error(f"missing skills directory: {relative(SKILLS_DIR)}")
             return
 
+        router_file = SKILLS_DIR / "SKILL.md"
+        if not router_file.is_file():
+            self.error(f"{relative(router_file)} is missing")
+        else:
+            self.validate_skill_frontmatter(router_file)
+
         skill_dirs = sorted(path for path in SKILLS_DIR.iterdir() if path.is_dir())
         if not skill_dirs:
             self.error(f"no business skill directories found in {relative(SKILLS_DIR)}")
@@ -150,25 +156,40 @@ class ProjectValidator:
                 self.error(f"{relative(skill_file)} is missing")
                 continue
 
-            try:
-                frontmatter = parse_frontmatter(skill_file)
-            except ValueError as exc:
-                self.error(f"{relative(skill_file)} has invalid frontmatter: {exc}")
+            frontmatter = self.validate_skill_frontmatter(skill_file)
+            if frontmatter is None:
                 continue
 
             name = frontmatter.get("name")
-            if not isinstance(name, str) or not name.strip():
-                self.error(f"{relative(skill_file)} frontmatter requires a string name")
-            elif name.strip() != skill_dir.name:
+            if isinstance(name, str) and name.strip() != skill_dir.name:
                 self.error(
                     f"{relative(skill_file)} name {name!r} does not match "
                     f"directory {skill_dir.name!r}"
                 )
-            description = frontmatter.get("description")
-            if not isinstance(description, str) or not description.strip():
-                self.error(
-                    f"{relative(skill_file)} frontmatter requires a string description"
-                )
+
+    def validate_skill_frontmatter(self, skill_file: Path) -> dict[str, str] | None:
+        try:
+            frontmatter = parse_frontmatter(skill_file)
+        except ValueError as exc:
+            self.error(f"{relative(skill_file)} has invalid frontmatter: {exc}")
+            return None
+
+        allowed = {"name", "description"}
+        actual = set(frontmatter)
+        if actual != allowed:
+            self.error(
+                f"{relative(skill_file)} frontmatter must contain only name and "
+                f"description, found {sorted(actual)}"
+            )
+        name = frontmatter.get("name")
+        if not isinstance(name, str) or not name.strip():
+            self.error(f"{relative(skill_file)} frontmatter requires a string name")
+        description = frontmatter.get("description")
+        if not isinstance(description, str) or not description.strip():
+            self.error(
+                f"{relative(skill_file)} frontmatter requires a string description"
+            )
+        return frontmatter
 
     def validate_json_data(self) -> None:
         schemas: dict[str, dict[str, Any]] = {}

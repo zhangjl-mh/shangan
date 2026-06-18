@@ -172,8 +172,10 @@ test("frontend filesystem access is read-only and confined to data", async () =>
 });
 
 test("Harness has exactly eight stages and three fix rounds", async () => {
-  const configPath = "docs/manifest.json";
+  const configPath = "docs/harnesses/eight-stage/manifest.json";
   assert.equal(await exists(configPath), true, `missing ${configPath}`);
+  assert.equal(await exists("docs/README.md"), true);
+  assert.equal(await exists("docs/harnesses/eight-stage/README.md"), true);
 
   const config = JSON.parse(await read(configPath));
   const stages = config.stages ?? config.pipeline?.stages;
@@ -202,6 +204,70 @@ test("Harness has exactly eight stages and three fix rounds", async () => {
   }
 });
 
+test("job search Harness is available as an on-demand sibling workflow", async () => {
+  const configPath = "docs/harnesses/job-search/manifest.json";
+  assert.equal(await exists(configPath), true, `missing ${configPath}`);
+  assert.equal(await exists("docs/harnesses/job-search/README.md"), true);
+  assert.equal(await exists("docs/harnesses/job-search/workflow.md"), true);
+  assert.equal(await exists("docs/harnesses/job-search/agents.md"), true);
+  assert.equal(await exists("scripts/job_search_harness.py"), true);
+
+  const config = JSON.parse(await read(configPath));
+  assert.equal(config.name, "shangan-job-search-harness");
+  assert.equal(config.runDirectory, "docs/runs/job-search");
+  assert.equal(config.maxRetryRounds, 3);
+  assert.deepEqual(
+    config.stages.map((stage) => stage.name),
+    ["collect", "download", "parse-filter", "report"],
+  );
+
+  for (const stage of config.stages) {
+    const prompt = config.agents?.[stage.agent]?.prompt;
+    assert.equal(await exists(prompt), true, `missing job-search prompt: ${prompt}`);
+  }
+  assert.ok(
+    config.subAgents.some((agent) => agent.id === "llm-table-extractor"),
+    "job search Harness must define the model extraction sub agent",
+  );
+});
+
+test("loadable docs entries use skill-style frontmatter", async () => {
+  const entries = [
+    "docs/README.md",
+    "docs/harnesses/eight-stage/README.md",
+    "docs/harnesses/job-search/README.md",
+  ];
+  for (const entry of entries) {
+    const contents = await read(entry);
+    assert.match(contents, /^---\nname: [a-z0-9-]+\ndescription: .+\n---/s);
+  }
+});
+
+test("business skills use exact name and description frontmatter", async () => {
+  const skillFiles = [
+    ".agents/skills/SKILL.md",
+    ".agents/skills/daily-news/SKILL.md",
+    ".agents/skills/job-filter/SKILL.md",
+    ".agents/skills/study-content/SKILL.md",
+    ".agents/skills/study-route/SKILL.md",
+  ];
+
+  for (const skillFile of skillFiles) {
+    const contents = await read(skillFile);
+    assert.match(
+      contents,
+      /^---\nname: [a-z0-9-]+\ndescription: .+\n---\n/s,
+      `${skillFile} must start with name/description frontmatter`,
+    );
+    const frontmatter = contents.split("---\n")[1].trim().split(/\r?\n/);
+    assert.deepEqual(
+      frontmatter.map((line) => line.split(":", 1)[0]),
+      ["name", "description"],
+      `${skillFile} frontmatter must only contain name and description`,
+    );
+  }
+});
+
 test("package scripts expose validation, tests, scans, and full checks", async () => {
   const packageJson = JSON.parse(await read("package.json"));
   const scripts = packageJson.scripts ?? {};
@@ -216,6 +282,10 @@ test("package scripts expose validation, tests, scans, and full checks", async (
   assert.equal(
     scripts["jobs:all"],
     "python .agents/skills/job-filter/scripts/job_pipeline.py all",
+  );
+  assert.equal(
+    scripts["jobs:search"],
+    "python scripts/job_search_harness.py all",
   );
 
   for (const command of [

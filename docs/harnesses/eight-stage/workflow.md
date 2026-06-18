@@ -1,6 +1,14 @@
+---
+name: eight-stage-workflow
+description: 八阶段 Harness 的阶段顺序、失败回路和最终状态规则。需要了解通用 Harness 执行流程时使用。
+---
+
 # 工作流
 
-本文件是八阶段流程的权威说明。机器入口见 `docs/manifest.json`，阶段动作见 `docs/prompts/`，检查命令见 `docs/checks.md`。
+本文件是八阶段流程的权威说明。机器入口见
+`docs/harnesses/eight-stage/manifest.json`，阶段动作见
+`docs/harnesses/eight-stage/prompts/`，检查命令见
+`docs/harnesses/eight-stage/checks.md`。
 
 | 阶段 | 目标 | 写入 |
 | --- | --- | --- |

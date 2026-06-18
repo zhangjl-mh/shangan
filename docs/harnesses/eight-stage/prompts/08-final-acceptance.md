@@ -1,8 +1,8 @@
 # 08 最终验收
 
-完成状态以 `docs/workflow.md` 和 `docs/checks.md` 为准。
+完成状态以 `docs/harnesses/eight-stage/workflow.md` 和 `docs/harnesses/eight-stage/checks.md` 为准。
 
-使用 `docs/templates/acceptance.md` 汇总需求、交接和检查证据。
+使用 `docs/harnesses/eight-stage/templates/acceptance.md` 汇总需求、交接和检查证据。
 
 1. 逐项判断验收标准，证据必须可定位。
 2. 验证执行记录、交接和验收 JSON 符合对应 Schema。

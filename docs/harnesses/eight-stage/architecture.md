@@ -1,9 +1,15 @@
+---
+name: eight-stage-architecture
+description: 八阶段 Harness 的项目分层、职责边界和正式数据流向。需要判断写入边界或架构责任时使用。
+---
+
 # 架构
 
 ```text
 AGENTS.md / docs        规则与说明
         ↓
-docs/manifest.json      8 阶段编排入口
+docs/harnesses/eight-stage/manifest.json
+                        8 阶段编排入口
         ↓
 .agents/skills         业务执行规则
         ↓

@@ -16,10 +16,9 @@ Next.js 应用负责读取本地数据并展示。
 
 | 内容 | 权威文件 |
 | --- | --- |
-| Harness 机器配置 | `docs/manifest.json` |
-| 执行流程 | `docs/workflow.md` |
-| 校验规则 | `docs/checks.md` |
-| 架构与职责边界 | `docs/architecture.md` |
+| Harness 路由 | `docs/README.md` |
+| 八阶段 Harness | `docs/harnesses/eight-stage/README.md` |
+| 岗位检索 Harness | `docs/harnesses/job-search/README.md` |
 | 业务 Skill 路由 | `.agents/skills/SKILL.md` |
 | 前端规范 | `app/README.md` |
 | 数据结构 | `schemas/*.schema.json` |
@@ -32,15 +31,24 @@ Next.js 应用负责读取本地数据并展示。
 ├── AGENTS.md                         # 项目总规范、协作边界与执行流程
 ├── README.md                         # 项目简介与常用命令
 │
-├── docs/                             # Harness 编排、流程与校验规则
-│   ├── README.md                     # Harness 使用说明
-│   ├── manifest.json                 # 八阶段机器配置入口
-│   ├── architecture.md               # 项目分层与职责边界
-│   ├── workflow.md                   # 八阶段标准流程
-│   ├── checks.md                     # 项目校验规则与命令
-│   ├── prompts/                      # 各阶段执行提示词
-│   ├── policies/                     # 写入所有权等执行策略
-│   ├── templates/                    # 需求、交接与验收模板
+├── docs/                             # Harness 路由与运行记录
+│   ├── README.md                     # 按需加载 Harness 的路由说明
+│   ├── harnesses/                    # 不同 Harness 各自独立目录
+│   │   ├── eight-stage/              # 通用八阶段 Harness
+│   │   │   ├── README.md
+│   │   │   ├── manifest.json
+│   │   │   ├── architecture.md
+│   │   │   ├── workflow.md
+│   │   │   ├── checks.md
+│   │   │   ├── prompts/
+│   │   │   ├── policies/
+│   │   │   └── templates/
+│   │   └── job-search/               # 岗位检索专用 Harness
+│   │       ├── README.md
+│   │       ├── manifest.json
+│   │       ├── workflow.md
+│   │       ├── agents.md
+│   │       └── prompts/
 │   └── runs/                         # Harness 运行记录，不属于正式数据
 │
 ├── .agents/
@@ -111,7 +119,8 @@ Next.js 应用负责读取本地数据并展示。
 
 ## Agent 流水线
 
-所有正式需求按 `docs/manifest.json` 定义的八阶段执行：
+普通正式需求按 `docs/harnesses/eight-stage/manifest.json` 定义的八阶段执行。
+岗位检索需求可按需加载 `docs/harnesses/job-search/manifest.json`：
 
 ```text
 01 需求确认
