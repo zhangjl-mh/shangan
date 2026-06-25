@@ -1,6 +1,6 @@
 {
   "schemaVersion": "3.0",
-  "generatedAt": "2026-06-17T08:53:12+08:00",
+  "generatedAt": "2026-06-24T16:21:57+08:00",
   "cycle": "2026",
   "profileSnapshot": {
     "sha256": "8e74e09dcf22318822c1b39e32cf6cfe9cfca2f17b2c8cfdb5eb042ddc7d467e",
@@ -25,7 +25,12 @@
   "catalog": {
     "path": "data/jobs/catalog/positions.jsonl",
     "rowCount": 29954,
-    "sha256": "cdef95da580fee34db179cfccec4c5bda560c8030aee6d91004577ead40f6cfe"
+    "sha256": "cf75c931a288cef57af5b2b08831fa1ca1adee6d6602bf2822811262134ae197"
+  },
+  "eligibleCatalog": {
+    "path": "data/jobs/catalog/eligible.jsonl",
+    "rowCount": 548,
+    "sha256": "feeb218f5593cc6dac917b7a33212d773f856e1491cc1fe65a33fa0a3d2539ec"
   },
   "sources": [
     {
@@ -110,9 +115,9 @@
   ],
   "stats": {
     "total": 29954,
-    "eligible": 868,
-    "needsConfirmation": 743,
-    "ineligible": 28343,
+    "eligible": 548,
+    "needsConfirmation": 701,
+    "ineligible": 28705,
     "active": 0,
     "historical": 29954
   },

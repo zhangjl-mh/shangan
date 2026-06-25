@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   const result = await queryJobs({
     exam: params.get("exam") ?? undefined,
     region: params.get("region") ?? undefined,
-    eligibility: (params.get("eligibility") as JobEligibility | "default" | "all" | null) ?? "default",
+    eligibility: (params.get("eligibility") as JobEligibility | "default" | "all" | null) ?? "eligible",
     timing: (params.get("timing") as "active" | "historical" | "all" | null) ?? "all",
     keyword: params.get("q") ?? undefined,
     page: integer(params.get("page"), 1),

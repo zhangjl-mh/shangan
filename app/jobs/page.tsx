@@ -44,7 +44,7 @@ export default async function JobsPage({
     region: value(params, "region"),
     eligibility:
       (value(params, "eligibility") as JobEligibility | "default" | "all") ??
-      "default",
+      "eligible",
     timing:
       (value(params, "timing") as "active" | "historical" | "all") ?? "all",
     keyword: value(params, "q"),
@@ -93,11 +93,11 @@ export default async function JobsPage({
           <FilterSelect
             name="eligibility"
             label="资格"
-            current={value(params, "eligibility") ?? "default"}
+            current={value(params, "eligibility") ?? "eligible"}
           >
-            <option value="default">符合与待确认</option>
             <option value="eligible">仅资格符合</option>
             <option value="needs_confirmation">仅待确认</option>
+            <option value="default">符合与待确认</option>
             <option value="ineligible">仅不符合</option>
             <option value="all">全部资格结果</option>
           </FilterSelect>

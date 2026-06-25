@@ -287,15 +287,18 @@ export interface JobPosition {
   };
 }
 
+export interface JobIndexCatalog {
+  path: string;
+  rowCount: number;
+  sha256: string;
+}
+
 export interface JobIndex {
   schemaVersion: "3.0";
   generatedAt: string;
   cycle: string;
-  catalog: {
-    path: string;
-    rowCount: number;
-    sha256: string;
-  };
+  catalog: JobIndexCatalog;
+  eligibleCatalog: JobIndexCatalog;
   sources: Array<{
     examId: string;
     label: string;

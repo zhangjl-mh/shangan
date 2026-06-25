@@ -137,6 +137,84 @@ class JobPipelineTests(unittest.TestCase):
         self.assertEqual(result["eligibility"], "eligible")
         self.assertEqual(result["timingStatus"], "historical")
 
+    def test_build_writes_eligible_catalog(self):
+        rows = [
+            ["说明"],
+            ["招录机关", "职位名称", "职位代码", "工作地点", "专业要求", "学历要求", "学位要求", "政治面貌"],
+            ["测试单位", "技术岗位", "1001", "河北省石家庄市", "计算机类", "本科及以上", "学士及以上", "不限"],
+            ["测试单位", "法务岗位", "1002", "河北省石家庄市", "法学类", "本科及以上", "学士及以上", "不限"],
+        ]
+        profile = {
+            "updatedAt": "2026-06-15T00:00:00+08:00",
+            **self.profile,
+            "preferences": {
+                "acceptCampusRecruitment": "unknown",
+                "acceptGrassroots": "unknown",
+                "acceptRelocation": "unknown",
+                "acceptSocialRecruitment": "unknown",
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            attachment = root / "data" / "jobs" / "sources" / "test" / "2026" / "jobs.xlsx"
+            attachment.parent.mkdir(parents=True, exist_ok=True)
+            attachment.write_bytes(xlsx_bytes(rows))
+            profile_path = root / "data" / "user-profile" / "profile.json"
+            profile_path.parent.mkdir(parents=True, exist_ok=True)
+            profile_path.write_text(
+                json.dumps(profile, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            catalog_path = root / "data" / "jobs" / "catalog" / "positions.jsonl"
+            eligible_path = root / "data" / "jobs" / "catalog" / "eligible.jsonl"
+            index_path = root / "data" / "jobs" / "index.json"
+            config = {
+                "cycle": "2026",
+                "sources": [
+                    {
+                        "examId": "test-civil-service",
+                        "label": "测试公务员",
+                        "cycle": "2026",
+                        "region": "河北",
+                        "portalUrl": "https://www.gov.cn/",
+                        "registration": {
+                            "opensAt": "2026-01-01T00:00:00+08:00",
+                            "closesAt": "2026-01-31T00:00:00+08:00",
+                        },
+                        "attachments": [
+                            {
+                                "id": "test-positions",
+                                "kind": "positions",
+                                "url": "https://www.gov.cn/jobs.xlsx",
+                                "path": "data/jobs/sources/test/2026/jobs.xlsx",
+                            }
+                        ],
+                    }
+                ],
+            }
+
+            with mock.patch.object(pipeline, "ROOT", root):
+                with mock.patch.object(pipeline, "PROFILE_PATH", profile_path):
+                    with mock.patch.object(pipeline, "CATALOG_PATH", catalog_path):
+                        with mock.patch.object(pipeline, "ELIGIBLE_CATALOG_PATH", eligible_path):
+                            with mock.patch.object(pipeline, "INDEX_PATH", index_path):
+                                index = pipeline.build(
+                                    config,
+                                    datetime(2026, 1, 15, tzinfo=timezone.utc),
+                                )
+
+            self.assertEqual(index["stats"]["total"], 2)
+            self.assertEqual(index["stats"]["eligible"], 1)
+            self.assertEqual(index["eligibleCatalog"]["rowCount"], 1)
+            rows = [
+                json.loads(line)
+                for line in eligible_path.read_text(encoding="utf-8").splitlines()
+                if line
+            ]
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]["title"], "技术岗位")
+            self.assertEqual(rows[0]["eligibility"], "eligible")
+
     def test_unknown_requirement_is_not_treated_as_eligible(self):
         result = pipeline.evaluate_position(
             self.position(grassrootsYears="二年"),
@@ -168,6 +246,26 @@ class JobPipelineTests(unittest.TestCase):
         self.assertTrue(
             any("性别要求" in reason for reason in result["exclusionReasons"])
         )
+
+    def test_standalone_gender_marker_in_remarks_is_excluded(self):
+        result = pipeline.evaluate_position(
+            self.position(remarks="女性。"),
+            self.profile,
+            datetime(2025, 10, 20, tzinfo=timezone.utc),
+        )
+        self.assertEqual(result["eligibility"], "ineligible")
+        self.assertTrue(
+            any("性别要求" in reason for reason in result["exclusionReasons"])
+        )
+
+    def test_service_project_marker_in_remarks_needs_confirmation(self):
+        result = pipeline.evaluate_position(
+            self.position(remarks="服务基层项目人员、退役大学生士兵。"),
+            self.profile,
+            datetime(2025, 10, 20, tzinfo=timezone.utc),
+        )
+        self.assertEqual(result["eligibility"], "needs_confirmation")
+        self.assertIn("serviceProject", result["confirmationFields"])
 
     def test_non_official_download_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "non-official"):

@@ -28,6 +28,7 @@ JOBS_DIR = ROOT / "data" / "jobs"
 SOURCES_CONFIG = JOBS_DIR / "sources.json"
 PROFILE_PATH = ROOT / "data" / "user-profile" / "profile.json"
 CATALOG_PATH = JOBS_DIR / "catalog" / "positions.jsonl"
+ELIGIBLE_CATALOG_PATH = JOBS_DIR / "catalog" / "eligible.jsonl"
 INDEX_PATH = JOBS_DIR / "index.json"
 SCHEMA_PATH = ROOT / "schemas" / "job-filter.schema.json"
 USER_AGENT = "shangan-job-pipeline/3.0"
@@ -86,6 +87,13 @@ def write_json(path: Path, value: Any) -> None:
         json.dumps(value, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
+
+
+def write_jsonl(path: Path, values: Iterable[dict[str, Any]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="\n") as output:
+        for value in values:
+            output.write(json.dumps(value, ensure_ascii=False, separators=(",", ":")) + "\n")
 
 
 def compact(value: Any) -> str:
@@ -490,9 +498,14 @@ def evaluate_position(position: dict[str, Any], profile: dict[str, Any], as_of: 
     gender = compact(requirements.get("gender", ""))
     if not gender:
         remarks_gender = compact(requirements["remarks"])
-        if any(marker in remarks_gender for marker in ("仅限女性", "限女性", "女性报考")):
+        has_gender_ratio = "男女比例" in remarks_gender
+        if not has_gender_ratio and any(
+            marker in remarks_gender for marker in ("仅限女性", "限女性", "女性报考", "女性")
+        ):
             gender = "女性"
-        elif any(marker in remarks_gender for marker in ("仅限男性", "限男性", "男性报考", "适合男性")):
+        elif not has_gender_ratio and any(
+            marker in remarks_gender for marker in ("仅限男性", "限男性", "男性报考", "适合男性", "男性")
+        ):
             gender = "男性"
     if gender and not is_unlimited(gender):
         profile_gender = compact(basic.get("gender"))
@@ -551,6 +564,18 @@ def evaluate_position(position: dict[str, Any], profile: dict[str, Any], as_of: 
         )
 
     service = compact(requirements["serviceProject"])
+    service_markers = (
+        "服务基层项目",
+        "退役士兵",
+        "退役大学生士兵",
+        "大学生退役士兵",
+        "三支一扶",
+        "西部计划",
+    )
+    if is_unlimited(service) and any(
+        marker in compact(requirements["remarks"]) for marker in service_markers
+    ):
+        service = compact(requirements["remarks"])
     if not is_unlimited(service):
         value = experience.get("veteranOrServiceProgram", "unknown")
         checks.append(
@@ -662,10 +687,11 @@ def build(config: dict[str, Any], as_of: datetime) -> dict[str, Any]:
         )
     ]
 
-    CATALOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with CATALOG_PATH.open("w", encoding="utf-8", newline="\n") as output:
-        for position in evaluated:
-            output.write(json.dumps(position, ensure_ascii=False, separators=(",", ":")) + "\n")
+    eligible_positions = [
+        position for position in evaluated if position["eligibility"] == "eligible"
+    ]
+    write_jsonl(CATALOG_PATH, evaluated)
+    write_jsonl(ELIGIBLE_CATALOG_PATH, eligible_positions)
 
     eligibility = Counter(item["eligibility"] for item in evaluated)
     timing = Counter(item["timingStatus"] for item in evaluated)
@@ -688,6 +714,11 @@ def build(config: dict[str, Any], as_of: datetime) -> dict[str, Any]:
             "path": CATALOG_PATH.relative_to(ROOT).as_posix(),
             "rowCount": len(evaluated),
             "sha256": sha256_file(CATALOG_PATH),
+        },
+        "eligibleCatalog": {
+            "path": ELIGIBLE_CATALOG_PATH.relative_to(ROOT).as_posix(),
+            "rowCount": len(eligible_positions),
+            "sha256": sha256_file(ELIGIBLE_CATALOG_PATH),
         },
         "sources": source_index,
         "stats": {
@@ -715,7 +746,20 @@ def validate_index(index: dict[str, Any] | None = None) -> None:
             "job index validation failed: "
             + "; ".join(f"{list(error.path)}: {error.message}" for error in failures[:20])
         )
-    catalog = ROOT / instance["catalog"]["path"]
+    validate_catalog_artifact(instance["catalog"])
+    validate_catalog_artifact(
+        instance["eligibleCatalog"],
+        expected_count=instance["stats"]["eligible"],
+        expected_eligibility="eligible",
+    )
+
+
+def validate_catalog_artifact(
+    artifact: dict[str, Any],
+    expected_count: int | None = None,
+    expected_eligibility: str | None = None,
+) -> None:
+    catalog = ROOT / artifact["path"]
     if not catalog.is_file():
         raise FileNotFoundError(f"missing catalog: {catalog}")
     rows = 0
@@ -737,12 +781,25 @@ def validate_index(index: dict[str, Any] | None = None) -> None:
             missing = required - value.keys()
             if missing:
                 raise ValueError(f"catalog line {line_number} missing: {sorted(missing)}")
+            if (
+                expected_eligibility is not None
+                and value["eligibility"] != expected_eligibility
+            ):
+                raise ValueError(
+                    f"catalog line {line_number} has unexpected eligibility: "
+                    f"{value['eligibility']}"
+                )
             rows += 1
-    if rows != instance["catalog"]["rowCount"]:
+    row_count = expected_count if expected_count is not None else artifact["rowCount"]
+    if rows != row_count:
         raise ValueError(
-            f"catalog row mismatch: index={instance['catalog']['rowCount']}, actual={rows}"
+            f"catalog row mismatch: index={row_count}, actual={rows}"
         )
-    if sha256_file(catalog) != instance["catalog"]["sha256"]:
+    if rows != artifact["rowCount"]:
+        raise ValueError(
+            f"catalog metadata row mismatch: index={artifact['rowCount']}, actual={rows}"
+        )
+    if sha256_file(catalog) != artifact["sha256"]:
         raise ValueError("catalog sha256 mismatch")
 
 

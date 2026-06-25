@@ -388,6 +388,16 @@ class ProjectValidator:
         )
         if not catalog_path.is_file():
             self.error(f"missing normalized job catalog: {relative(catalog_path)}")
+        eligible_catalog = index.get("eligibleCatalog")
+        eligible_catalog_path = (
+            ROOT / eligible_catalog.get("path", "")
+            if isinstance(eligible_catalog, dict)
+            else ROOT / "__missing_eligible_catalog__"
+        )
+        if not eligible_catalog_path.is_file():
+            self.error(
+                f"missing eligible job catalog: {relative(eligible_catalog_path)}"
+            )
 
     def check_duplicate(
         self,

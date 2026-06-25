@@ -11,12 +11,14 @@
     "fallbackStatus": "stale_fallback",
     "requiredArtifacts": [
       "data/jobs/index.json",
-      "data/jobs/catalog/positions.jsonl"
+      "data/jobs/catalog/positions.jsonl",
+      "data/jobs/catalog/eligible.jsonl"
     ]
   },
   "outputs": {
     "index": "data/jobs/index.json",
     "catalog": "data/jobs/catalog/positions.jsonl",
+    "eligibleCatalog": "data/jobs/catalog/eligible.jsonl",
     "reportName": "job-search-report.json"
   },
   "agents": {
@@ -120,6 +122,7 @@
       "outputs": [
         "data/jobs/index.json",
         "data/jobs/catalog/positions.jsonl",
+        "data/jobs/catalog/eligible.jsonl",
         "stage-results/03-parse-filter.json"
       ]
     },
@@ -135,7 +138,8 @@
       ],
       "inputs": [
         "data/jobs/index.json",
-        "data/jobs/catalog/positions.jsonl"
+        "data/jobs/catalog/positions.jsonl",
+        "data/jobs/catalog/eligible.jsonl"
       ],
       "outputs": [
         "job-search-report.json",

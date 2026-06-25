@@ -9,6 +9,7 @@
     "cycle",
     "profileSnapshot",
     "catalog",
+    "eligibleCatalog",
     "sources",
     "stats"
   ],
@@ -31,6 +32,16 @@
       "additionalProperties": false
     },
     "catalog": {
+      "type": "object",
+      "required": ["path", "rowCount", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "rowCount": { "type": "integer", "minimum": 0 },
+        "sha256": { "type": "string", "minLength": 64 }
+      },
+      "additionalProperties": false
+    },
+    "eligibleCatalog": {
       "type": "object",
       "required": ["path", "rowCount", "sha256"],
       "properties": {

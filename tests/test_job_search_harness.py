@@ -64,10 +64,12 @@ class JobSearchHarnessTests(unittest.TestCase):
     def create_fallback_artifacts(self):
         index = self.root / "data" / "jobs" / "index.json"
         catalog = self.root / "data" / "jobs" / "catalog" / "positions.jsonl"
+        eligible = self.root / "data" / "jobs" / "catalog" / "eligible.jsonl"
         index.parent.mkdir(parents=True, exist_ok=True)
         catalog.parent.mkdir(parents=True, exist_ok=True)
         index.write_text("{}\n", encoding="utf-8")
         catalog.write_text("{}\n", encoding="utf-8")
+        eligible.write_text("{}\n", encoding="utf-8")
 
     def test_four_stage_flow_writes_report_and_collects_sub_agent_outputs(self):
         runner = FakeRunner(

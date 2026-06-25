@@ -4,55 +4,87 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import type {
   JobIndex,
+  JobIndexCatalog,
   JobPosition,
   JobQuery,
   JobQueryResult,
 } from "@/app/types/content";
 import { jobsDirectory } from "@/app/services/storage-paths";
 
-let catalogPromise: Promise<{
-  index: JobIndex | null;
-  positions: JobPosition[];
-}> | null = null;
-let catalogMtimeMs = -1;
+let indexPromise: Promise<JobIndex | null> | null = null;
+let allCatalogPromise: Promise<JobPosition[]> | null = null;
+let eligibleCatalogPromise: Promise<JobPosition[]> | null = null;
+let indexMtimeMs = -1;
 
 const regionOptions = ["北京", "天津", "河北", "雄安新区", "石家庄"];
+const allCatalogPath = "data/jobs/catalog/positions.jsonl";
+const eligibleCatalogPath = "data/jobs/catalog/eligible.jsonl";
 
-async function loadCatalog() {
+async function loadIndex() {
   const indexPath = path.join(jobsDirectory, "index.json");
-  let indexMtimeMs: number;
+  let nextIndexMtimeMs: number;
   try {
-    indexMtimeMs = (await stat(indexPath)).mtimeMs;
+    nextIndexMtimeMs = (await stat(indexPath)).mtimeMs;
   } catch {
-    return { index: null, positions: [] };
+    return null;
   }
-  if (!catalogPromise || indexMtimeMs !== catalogMtimeMs) {
-    catalogMtimeMs = indexMtimeMs;
-    catalogPromise = (async () => {
+  if (!indexPromise || nextIndexMtimeMs !== indexMtimeMs) {
+    indexMtimeMs = nextIndexMtimeMs;
+    allCatalogPromise = null;
+    eligibleCatalogPromise = null;
+    indexPromise = (async () => {
       try {
-        const index = JSON.parse(
-          await readFile(indexPath, "utf8"),
-        ) as JobIndex;
-        if (index.catalog.path !== "data/jobs/catalog/positions.jsonl") {
-          throw new Error("Unexpected job catalog path");
-        }
-        const catalogPath = path.join(jobsDirectory, "catalog", "positions.jsonl");
-        const contents = await readFile(catalogPath, "utf8");
-        const positions = contents
-          .split(/\r?\n/)
-          .filter(Boolean)
-          .map((line) => JSON.parse(line) as JobPosition);
-        return { index, positions };
+        return JSON.parse(await readFile(indexPath, "utf8")) as JobIndex;
       } catch {
-        return { index: null, positions: [] };
+        return null;
       }
     })();
   }
-  return catalogPromise;
+  return indexPromise;
+}
+
+async function readCatalog(
+  artifact: JobIndexCatalog | undefined,
+  expectedPath: string,
+) {
+  if (!artifact || artifact.path !== expectedPath) {
+    throw new Error("Unexpected job catalog path");
+  }
+  const catalogPath = path.join(
+    jobsDirectory,
+    ...artifact.path.replace(/^data\/jobs\//, "").split("/"),
+  );
+  const contents = await readFile(catalogPath, "utf8");
+  return contents
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as JobPosition);
+}
+
+async function loadPositions(
+  index: JobIndex | null,
+  useEligibleCatalog: boolean,
+) {
+  if (!index) {
+    return [];
+  }
+  if (useEligibleCatalog) {
+    eligibleCatalogPromise ??= readCatalog(
+      index.eligibleCatalog,
+      eligibleCatalogPath,
+    ).catch(() => readCatalog(index.catalog, allCatalogPath).then((positions) => (
+      positions.filter((position) => position.eligibility === "eligible")
+    )));
+    return eligibleCatalogPromise;
+  }
+  allCatalogPromise ??= readCatalog(index.catalog, allCatalogPath).catch(() => []);
+  return allCatalogPromise;
 }
 
 export async function queryJobs(query: JobQuery = {}): Promise<JobQueryResult> {
-  const { index, positions } = await loadCatalog();
+  const index = await loadIndex();
+  const eligibility = query.eligibility ?? "eligible";
+  const positions = await loadPositions(index, eligibility === "eligible");
   const keyword = query.keyword?.trim().toLocaleLowerCase("zh-CN") ?? "";
   const pageSize = Math.min(Math.max(query.pageSize ?? 20, 1), 100);
   const page = Math.max(query.page ?? 1, 1);
@@ -69,15 +101,15 @@ export async function queryJobs(query: JobQuery = {}): Promise<JobQueryResult> {
       }
     }
     if (
-      query.eligibility &&
-      query.eligibility !== "all" &&
-      query.eligibility !== "default" &&
-      position.eligibility !== query.eligibility
+      eligibility &&
+      eligibility !== "all" &&
+      eligibility !== "default" &&
+      position.eligibility !== eligibility
     ) {
       return false;
     }
     if (
-      (!query.eligibility || query.eligibility === "default") &&
+      eligibility === "default" &&
       position.eligibility === "ineligible"
     ) {
       return false;
@@ -104,8 +136,10 @@ export async function queryJobs(query: JobQuery = {}): Promise<JobQueryResult> {
 
   const pageCount = Math.max(Math.ceil(filtered.length / pageSize), 1);
   const normalizedPage = Math.min(page, pageCount);
-  const start = (normalizedPage - 1) * pageSize;
-  const exams = Array.from(
+  const exams = index?.sources.map((source) => ({
+    id: source.examId,
+    label: source.label,
+  })) ?? Array.from(
     new Map(
       positions.map((position) => [
         position.examId,
@@ -114,7 +148,7 @@ export async function queryJobs(query: JobQuery = {}): Promise<JobQueryResult> {
     ).values(),
   );
   return {
-    items: filtered.slice(start, start + pageSize),
+    items: filtered.slice(startIndex(normalizedPage, pageSize), normalizedPage * pageSize),
     total: filtered.length,
     page: normalizedPage,
     pageSize,
@@ -125,7 +159,13 @@ export async function queryJobs(query: JobQuery = {}): Promise<JobQueryResult> {
   };
 }
 
+function startIndex(page: number, pageSize: number) {
+  return (page - 1) * pageSize;
+}
+
 export function resetJobCatalogCacheForTests() {
-  catalogPromise = null;
-  catalogMtimeMs = -1;
+  indexPromise = null;
+  allCatalogPromise = null;
+  eligibleCatalogPromise = null;
+  indexMtimeMs = -1;
 }
