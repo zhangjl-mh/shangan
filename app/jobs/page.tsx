@@ -3,13 +3,21 @@ import { BriefcaseBusiness, ExternalLink, Search } from "lucide-react";
 import { Card } from "@/app/components/ui/card";
 import { EmptyState } from "@/app/components/layout/empty-state";
 import { queryJobs } from "@/app/services/jobs";
-import type { JobEligibility } from "@/app/types/content";
+import type {
+  JobApplicationStatus,
+  JobBatchStatus,
+  JobCategory,
+  JobEligibility,
+} from "@/app/types/content";
 
 export const dynamic = "force-dynamic";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-function value(params: Record<string, string | string[] | undefined>, key: string) {
+function value(
+  params: Record<string, string | string[] | undefined>,
+  key: string,
+) {
   const item = params[key];
   return Array.isArray(item) ? item[0] : item;
 }
@@ -30,7 +38,20 @@ function pageHref(
 const eligibilityLabels: Record<JobEligibility, string> = {
   eligible: "资格符合",
   needs_confirmation: "待确认",
-  ineligible: "不符合",
+};
+
+const categoryLabels: Record<JobCategory, string> = {
+  civil_service: "公务员",
+  institution: "事业单位",
+  military_civilian: "军队文职",
+  state_owned_enterprise: "国央企",
+};
+
+const applicationLabels: Record<JobApplicationStatus, string> = {
+  upcoming: "报名未开始",
+  open: "报名中",
+  closed: "报名已结束",
+  unknown: "报名时间待确认",
 };
 
 export default async function JobsPage({
@@ -42,11 +63,15 @@ export default async function JobsPage({
   const result = await queryJobs({
     exam: value(params, "exam"),
     region: value(params, "region"),
+    category:
+      (value(params, "category") as JobCategory | "all") ?? "all",
     eligibility:
-      (value(params, "eligibility") as JobEligibility | "default" | "all") ??
-      "eligible",
-    timing:
-      (value(params, "timing") as "active" | "historical" | "all") ?? "all",
+      (value(params, "eligibility") as JobEligibility) ?? "eligible",
+    batch: (value(params, "batch") as JobBatchStatus | "all") ?? "all",
+    application:
+      (value(params, "application") as
+        | JobApplicationStatus
+        | "all") ?? "all",
     keyword: value(params, "q"),
     page: Number(value(params, "page") ?? 1),
     pageSize: 20,
@@ -55,17 +80,17 @@ export default async function JobsPage({
   return (
     <main className="mx-auto max-w-[1450px] space-y-5 px-5 py-8 lg:px-10">
       <section>
-        <p className="muted-copy text-sm">官方附件归档、统一解析、保守筛选</p>
+        <p className="muted-copy text-sm">官方附件归档、严格资格判断、批次可追溯</p>
         <h1 className="ink-title mt-2 flex items-center gap-3 text-3xl">
           <BriefcaseBusiness /> 岗位筛选
         </h1>
         <p className="muted-copy mt-3">
-          资格判断与报名时效分开显示。未知条件不会自动算作符合。
+          默认仅展示确认符合岗位。未知条件进入待确认，上届岗位会明确标注。
         </p>
       </section>
 
       <Card className="p-5">
-        <form className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <form className="grid gap-3 md:grid-cols-2 xl:grid-cols-8">
           <label className="xl:col-span-2">
             <span className="muted-copy mb-1 block text-sm">关键词</span>
             <span className="flex items-center gap-2 rounded-lg border bg-white/70 px-3">
@@ -78,8 +103,18 @@ export default async function JobsPage({
               />
             </span>
           </label>
-          <FilterSelect name="exam" label="考试" current={value(params, "exam")}>
-            <option value="all">全部考试</option>
+          <FilterSelect
+            name="category"
+            label="类别"
+            current={value(params, "category") ?? "all"}
+          >
+            <option value="all">全部类别</option>
+            {Object.entries(categoryLabels).map(([id, label]) => (
+              <option key={id} value={id}>{label}</option>
+            ))}
+          </FilterSelect>
+          <FilterSelect name="exam" label="来源" current={value(params, "exam")}>
+            <option value="all">全部来源</option>
             {result.exams.map((exam) => (
               <option key={exam.id} value={exam.id}>{exam.label}</option>
             ))}
@@ -95,18 +130,30 @@ export default async function JobsPage({
             label="资格"
             current={value(params, "eligibility") ?? "eligible"}
           >
-            <option value="eligible">仅资格符合</option>
-            <option value="needs_confirmation">仅待确认</option>
-            <option value="default">符合与待确认</option>
-            <option value="ineligible">仅不符合</option>
-            <option value="all">全部资格结果</option>
+            <option value="eligible">确认符合</option>
+            <option value="needs_confirmation">待确认</option>
           </FilterSelect>
-          <FilterSelect name="timing" label="时效" current={value(params, "timing") ?? "all"}>
-            <option value="all">全部时效</option>
-            <option value="active">报名中</option>
-            <option value="historical">历史参考</option>
+          <FilterSelect
+            name="batch"
+            label="批次"
+            current={value(params, "batch") ?? "all"}
+          >
+            <option value="all">全部批次</option>
+            <option value="current">当前批次</option>
+            <option value="previous_reference">上届参考</option>
           </FilterSelect>
-          <button className="label-sans h-10 rounded-lg bg-deep-green px-5 text-white md:col-span-2 xl:col-span-6 xl:justify-self-end">
+          <FilterSelect
+            name="application"
+            label="报名"
+            current={value(params, "application") ?? "all"}
+          >
+            <option value="all">全部状态</option>
+            <option value="open">报名中</option>
+            <option value="upcoming">报名未开始</option>
+            <option value="closed">报名已结束</option>
+            <option value="unknown">时间待确认</option>
+          </FilterSelect>
+          <button className="label-sans h-10 rounded-lg bg-deep-green px-5 text-white md:col-span-2 xl:col-span-8 xl:justify-self-end">
             应用筛选
           </button>
         </form>
@@ -114,11 +161,11 @@ export default async function JobsPage({
 
       {result.index ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <Metric label="目录岗位" value={result.index.stats.total} />
+          <Metric label="已处理岗位" value={result.index.stats.processed} />
           <Metric label="资格符合" value={result.index.stats.eligible} />
           <Metric label="待确认" value={result.index.stats.needsConfirmation} />
-          <Metric label="不符合" value={result.index.stats.ineligible} />
-          <Metric label="当前报名中" value={result.index.stats.active} />
+          <Metric label="当前批次" value={result.index.stats.currentCampaigns} />
+          <Metric label="上届参考" value={result.index.stats.referenceCampaigns} />
         </div>
       ) : null}
 
@@ -132,10 +179,16 @@ export default async function JobsPage({
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge>{job.examLabel}</Badge>
-                    <Badge tone={job.eligibility}>{eligibilityLabels[job.eligibility]}</Badge>
-                    <Badge tone={job.timingStatus}>
-                      {job.timingStatus === "active" ? "报名中" : "历史参考"}
+                    <Badge>{categoryLabels[job.category]}</Badge>
+                    <Badge>{job.sourceLabel}</Badge>
+                    <Badge tone={job.eligibility}>
+                      {eligibilityLabels[job.eligibility]}
+                    </Badge>
+                    <Badge tone={job.batchStatus}>
+                      {job.batchStatus === "current" ? "当前批次" : "上届参考"}
+                    </Badge>
+                    <Badge tone={job.applicationStatus}>
+                      {applicationLabels[job.applicationStatus]}
                     </Badge>
                   </div>
                   <h2 className="mt-3 text-xl font-semibold">{job.title}</h2>
@@ -143,7 +196,8 @@ export default async function JobsPage({
                     {job.organization}{job.department ? ` · ${job.department}` : ""}
                   </p>
                   <p className="muted-copy mt-1 text-sm">
-                    {job.region || "地区未标注"} · 职位代码 {job.positionCode} · 招录 {job.recruitCount || "未标注"} 人
+                    {job.region || "地区未标注"} · 职位代码 {job.positionCode} ·
+                    招录 {job.recruitCount || "未标注"} 人
                   </p>
                 </div>
                 <a
@@ -156,20 +210,47 @@ export default async function JobsPage({
                 </a>
               </div>
               <details className="mt-4 border-t pt-4">
-                <summary className="cursor-pointer font-semibold">查看条件与判断依据</summary>
+                <summary className="cursor-pointer font-semibold">
+                  查看条件与判断依据
+                </summary>
                 <div className="muted-copy mt-3 grid gap-3 text-sm md:grid-cols-2">
                   <Requirement label="专业" value={job.requirements.major} />
-                  <Requirement label="学历/学位" value={[job.requirements.education, job.requirements.degree].filter(Boolean).join("；")} />
-                  <Requirement label="政治面貌" value={job.requirements.politicalStatus} />
-                  <Requirement label="基层/项目经历" value={[job.requirements.grassrootsYears, job.requirements.serviceProject].filter(Boolean).join("；")} />
+                  <Requirement
+                    label="学历/学位"
+                    value={[
+                      job.requirements.education,
+                      job.requirements.degree,
+                    ].filter(Boolean).join("；")}
+                  />
+                  <Requirement
+                    label="政治面貌"
+                    value={job.requirements.politicalStatus}
+                  />
+                  <Requirement
+                    label="基层/项目经历"
+                    value={[
+                      job.requirements.grassrootsYears,
+                      job.requirements.serviceProject,
+                    ].filter(Boolean).join("；")}
+                  />
+                  <Requirement
+                    label="其他限制"
+                    value={[
+                      job.requirements.freshGraduate,
+                      job.requirements.age,
+                      job.requirements.gender,
+                      job.requirements.household,
+                      job.requirements.certificate,
+                    ].filter(Boolean).join("；")}
+                    wide
+                  />
                   <Requirement label="备注" value={job.requirements.remarks} wide />
                   <Requirement
                     label="判断"
                     value={
-                      job.exclusionReasons.join("；") ||
-                      (job.confirmationFields.length
+                      job.confirmationFields.length
                         ? `待确认：${job.confirmationFields.join("、")}`
-                        : job.matchReasons.join("；"))
+                        : job.matchReasons.join("；")
                     }
                     wide
                   />
@@ -178,8 +259,12 @@ export default async function JobsPage({
             </Card>
           ))}
           <div className="flex items-center justify-between pt-2">
-            {result.page > 1 ? <Link href={pageHref(params, result.page - 1)}>上一页</Link> : <span />}
-            {result.page < result.pageCount ? <Link href={pageHref(params, result.page + 1)}>下一页</Link> : <span />}
+            {result.page > 1 ? (
+              <Link href={pageHref(params, result.page - 1)}>上一页</Link>
+            ) : <span />}
+            {result.page < result.pageCount ? (
+              <Link href={pageHref(params, result.page + 1)}>下一页</Link>
+            ) : <span />}
           </div>
         </section>
       ) : (
@@ -187,8 +272,8 @@ export default async function JobsPage({
           title="没有找到符合当前筛选的岗位"
           description={
             result.index
-              ? "可放宽地区、资格或时效条件后重新筛选。"
-              : "岗位官方附件尚未完成下载与构建。"
+              ? "可切换资格、地区、类别或批次后重新筛选。"
+              : "岗位数据尚未通过4.0校验，请先完成岗位数据构建。"
           }
         />
       )}
@@ -210,7 +295,11 @@ function FilterSelect({
   return (
     <label>
       <span className="muted-copy mb-1 block text-sm">{label}</span>
-      <select name={name} defaultValue={current} className="h-10 w-full rounded-lg border bg-white/70 px-3">
+      <select
+        name={name}
+        defaultValue={current}
+        className="h-10 w-full rounded-lg border bg-white/70 px-3"
+      >
         {children}
       </select>
     </label>
@@ -218,24 +307,41 @@ function FilterSelect({
 }
 
 function Metric({ label, value }: { label: string; value: number }) {
-  return <Card className="p-4"><p className="muted-copy text-sm">{label}</p><p className="mt-1 text-2xl font-semibold">{value}</p></Card>;
+  return (
+    <Card className="p-4">
+      <p className="muted-copy text-sm">{label}</p>
+      <p className="mt-1 text-2xl font-semibold">{value}</p>
+    </Card>
+  );
 }
+
+type BadgeTone =
+  | JobEligibility
+  | JobBatchStatus
+  | JobApplicationStatus;
 
 function Badge({
   children,
   tone,
 }: {
   children: React.ReactNode;
-  tone?: JobEligibility | "active" | "historical";
+  tone?: BadgeTone;
 }) {
-  const colors = tone === "eligible" || tone === "active"
-    ? "bg-[#e2ece5] text-[#356249]"
-    : tone === "needs_confirmation"
-      ? "bg-[#f4ead7] text-[#8a652d]"
-      : tone === "ineligible"
-        ? "bg-[#f4e1dc] text-[#934d41]"
-        : "bg-[#e7e8e5] text-[#626963]";
-  return <span className={`label-sans rounded-full px-2.5 py-1 text-xs ${colors}`}>{children}</span>;
+  const colors =
+    tone === "eligible" || tone === "open" || tone === "current"
+      ? "bg-[#e2ece5] text-[#356249]"
+      : tone === "needs_confirmation" ||
+          tone === "upcoming" ||
+          tone === "unknown"
+        ? "bg-[#f4ead7] text-[#8a652d]"
+        : tone === "previous_reference"
+          ? "bg-[#e7e8e5] text-[#626963]"
+          : "bg-[#f4e1dc] text-[#934d41]";
+  return (
+    <span className={`label-sans rounded-full px-2.5 py-1 text-xs ${colors}`}>
+      {children}
+    </span>
+  );
 }
 
 function Requirement({
@@ -247,5 +353,10 @@ function Requirement({
   value: string;
   wide?: boolean;
 }) {
-  return <p className={wide ? "md:col-span-2" : ""}><strong className="text-foreground">{label}：</strong>{value || "未标注"}</p>;
+  return (
+    <p className={wide ? "md:col-span-2" : ""}>
+      <strong className="text-foreground">{label}：</strong>
+      {value || "未标注"}
+    </p>
+  );
 }

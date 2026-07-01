@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shangan.local/schemas/job-source-registry.schema.json",
+  "title": "Official Job Source Registry",
+  "type": "object",
+  "required": ["schemaVersion", "updatedAt", "requiredCategories", "sourceFamilies"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "requiredCategories": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "civil_service",
+          "institution",
+          "military_civilian",
+          "state_owned_enterprise"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "sourceFamilies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "sourceId",
+          "category",
+          "label",
+          "authority",
+          "recruitmentMode",
+          "regions",
+          "discoveryUrls",
+          "allowedHosts"
+        ],
+        "properties": {
+          "sourceId": { "type": "string", "minLength": 1 },
+          "category": {
+            "enum": [
+              "civil_service",
+              "institution",
+              "military_civilian",
+              "state_owned_enterprise"
+            ]
+          },
+          "label": { "type": "string", "minLength": 1 },
+          "authority": { "type": "string", "minLength": 1 },
+          "recruitmentMode": { "enum": ["exam", "rolling"] },
+          "regions": {
+            "type": "array",
+            "items": { "type": "string" },
+            "uniqueItems": true
+          },
+          "discoveryUrls": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "format": "uri" }
+          },
+          "allowedHosts": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 },
+            "uniqueItems": true
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

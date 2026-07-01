@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import io
 import json
+import os
 import re
 import shutil
 import sys
@@ -26,12 +27,17 @@ from jsonschema import Draft202012Validator, FormatChecker
 ROOT = Path(__file__).resolve().parents[4]
 JOBS_DIR = ROOT / "data" / "jobs"
 SOURCES_CONFIG = JOBS_DIR / "sources.json"
+SOURCE_REGISTRY_PATH = JOBS_DIR / "source-registry.json"
 PROFILE_PATH = ROOT / "data" / "user-profile" / "profile.json"
-CATALOG_PATH = JOBS_DIR / "catalog" / "positions.jsonl"
+OLD_CATALOG_PATH = JOBS_DIR / "catalog" / "positions.jsonl"
 ELIGIBLE_CATALOG_PATH = JOBS_DIR / "catalog" / "eligible.jsonl"
+NEEDS_CONFIRMATION_CATALOG_PATH = JOBS_DIR / "catalog" / "needs-confirmation.jsonl"
 INDEX_PATH = JOBS_DIR / "index.json"
 SCHEMA_PATH = ROOT / "schemas" / "job-filter.schema.json"
-USER_AGENT = "shangan-job-pipeline/3.0"
+POSITION_SCHEMA_PATH = ROOT / "schemas" / "job-position.schema.json"
+SOURCES_SCHEMA_PATH = ROOT / "schemas" / "job-sources.schema.json"
+SOURCE_REGISTRY_SCHEMA_PATH = ROOT / "schemas" / "job-source-registry.schema.json"
+USER_AGENT = "shangan-job-pipeline/4.0"
 
 XLSX_NS = {
     "main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
@@ -63,13 +69,39 @@ COLUMN_ALIASES: dict[str, tuple[str, ...]] = {
 }
 
 REQUIRED_COLUMNS = ("organization", "title", "positionCode")
-ALLOWED_OFFICIAL_SUFFIXES = (
-    ".gov.cn",
-    ".scs.gov.cn",
-    ".beijing.gov.cn",
-    ".tj.gov.cn",
-    ".hebei.gov.cn",
-    ".hebgwyks.gov.cn",
+REQUIRED_CATEGORIES = (
+    "civil_service",
+    "institution",
+    "military_civilian",
+    "state_owned_enterprise",
+)
+REQUIREMENT_COLUMN_FIELDS = {
+    "major": "majorRequirement",
+    "education": "educationRequirement",
+    "degree": "degreeRequirement",
+    "politicalStatus": "politicalRequirement",
+    "grassrootsYears": "grassrootsRequirement",
+    "serviceProject": "serviceProjectRequirement",
+    "freshGraduate": "freshGraduateRequirement",
+    "age": "ageRequirement",
+    "gender": "genderRequirement",
+    "household": "householdRequirement",
+    "certificate": "certificateRequirement",
+    "remarks": "remarks",
+}
+REQUIREMENT_KEYS = (
+    "major",
+    "education",
+    "degree",
+    "politicalStatus",
+    "grassrootsYears",
+    "serviceProject",
+    "freshGraduate",
+    "age",
+    "gender",
+    "household",
+    "certificate",
+    "remarks",
 )
 
 
@@ -124,18 +156,32 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def official_url(url: str) -> bool:
+def sha256_jsonl(path: Path) -> str:
+    text = path.read_text(encoding="utf-8")
+    canonical = "\n".join(text.splitlines())
+    if canonical:
+        canonical += "\n"
+    return sha256_bytes(canonical.encode("utf-8"))
+
+
+def official_url(url: str, allowed_hosts: Iterable[str]) -> bool:
     parsed = urllib.parse.urlsplit(url)
     host = (parsed.hostname or "").lower()
+    normalized_hosts = tuple(str(value).strip().lower() for value in allowed_hosts)
     return parsed.scheme in {"http", "https"} and any(
-        host == suffix.lstrip(".") or host.endswith(suffix)
-        for suffix in ALLOWED_OFFICIAL_SUFFIXES
+        host == allowed or host.endswith(f".{allowed}")
+        for allowed in normalized_hosts
     )
 
 
-def download_attachment(attachment: dict[str, Any], force: bool = False) -> dict[str, Any]:
+def download_attachment(
+    attachment: dict[str, Any],
+    allowed_hosts: Iterable[str] | None = None,
+    force: bool = False,
+) -> dict[str, Any]:
     url = attachment["url"]
-    if not official_url(url):
+    hosts = tuple(allowed_hosts or ())
+    if not hosts or not official_url(url, hosts):
         raise ValueError(f"non-official attachment URL rejected: {url}")
 
     destination = ROOT / attachment["path"]
@@ -293,11 +339,40 @@ def find_header(rows: list[list[str]]) -> tuple[int, dict[str, int]] | None:
     return best
 
 
-def stable_id(exam_id: str, cycle: str, organization: str, code: str, title: str) -> str:
+def stable_id(source_id: str, cycle: str, organization: str, code: str, title: str) -> str:
     digest = sha256_bytes(
-        "|".join((exam_id, cycle, organization, code, title)).encode("utf-8")
+        "|".join((source_id, cycle, organization, code, title)).encode("utf-8")
     )[:20]
-    return f"{exam_id}-{cycle}-{digest}"
+    return f"{source_id}-{cycle}-{digest}"
+
+
+def explicit_unlimited(value: Any) -> bool:
+    text = compact(value)
+    return bool(text) and (
+        text in {"无", "不限", "无限制", "无要求", "不限制", "否"}
+        or any(marker in text for marker in ("专业不限", "学历不限", "学位不限"))
+    )
+
+
+def requirement_state(
+    field: str,
+    value: Any,
+    mapping: dict[str, int],
+    source: dict[str, Any],
+) -> str:
+    text = display(value)
+    if explicit_unlimited(text):
+        return "unrestricted"
+    if text:
+        return "specified"
+    aliases = {REQUIREMENT_COLUMN_FIELDS[field]}
+    if field in {"education", "degree"}:
+        aliases.add("educationDegreeRequirement")
+    column_present = bool(aliases.intersection(mapping))
+    blank_unrestricted = field in source.get("blankMeansUnrestricted", [])
+    if column_present and blank_unrestricted:
+        return "unrestricted"
+    return "missing"
 
 
 def parse_source(source: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
@@ -368,43 +443,60 @@ def parse_source(source: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dic
                     )
                     if value and not is_unlimited(value)
                 )
+                requirements = {
+                    "major": values.get("majorRequirement", ""),
+                    "education": education,
+                    "degree": degree,
+                    "politicalStatus": values.get("politicalRequirement", ""),
+                    "grassrootsYears": grassroots,
+                    "serviceProject": values.get("serviceProjectRequirement", ""),
+                    "freshGraduate": fresh_graduate,
+                    "age": values.get("ageRequirement", ""),
+                    "gender": values.get("genderRequirement", ""),
+                    "household": values.get("householdRequirement", ""),
+                    "certificate": values.get("certificateRequirement", ""),
+                    "remarks": remarks,
+                }
+                states = {
+                    field: requirement_state(field, value, mapping, source)
+                    for field, value in requirements.items()
+                }
+                if "应届" in compact(values.get("grassrootsRequirement", "")):
+                    states["freshGraduate"] = "specified"
+                    states["grassrootsYears"] = (
+                        "unrestricted"
+                        if "grassrootsYears" in source.get("blankMeansUnrestricted", [])
+                        else "missing"
+                    )
                 positions.append(
                     {
                         "id": stable_id(
-                            source["examId"],
+                            source["sourceId"],
                             source["cycle"],
                             values["organization"],
                             code,
                             values["title"],
                         ),
-                        "examId": source["examId"],
-                        "examLabel": source["label"],
+                        "sourceId": source["sourceId"],
+                        "sourceLabel": source["label"],
+                        "category": source["category"],
                         "cycle": source["cycle"],
+                        "batchStatus": source["selectionMode"],
+                        "examAt": source.get("examAt"),
                         "organization": values["organization"],
                         "department": values.get("department", ""),
                         "title": values["title"],
                         "positionCode": code,
                         "region": values.get("region", source.get("region", "")),
                         "recruitCount": integer_or_zero(values.get("recruitCount")),
-                        "requirements": {
-                            "major": values.get("majorRequirement", ""),
-                            "education": education,
-                            "degree": degree,
-                            "politicalStatus": values.get("politicalRequirement", ""),
-                            "grassrootsYears": grassroots,
-                            "serviceProject": values.get("serviceProjectRequirement", ""),
-                            "freshGraduate": fresh_graduate,
-                            "age": values.get("ageRequirement", ""),
-                            "gender": values.get("genderRequirement", ""),
-                            "household": values.get("householdRequirement", ""),
-                            "certificate": values.get("certificateRequirement", ""),
-                            "remarks": remarks,
-                        },
+                        "requirements": requirements,
+                        "requirementStates": states,
                         "registration": source["registration"],
                         "source": {
                             "attachmentId": attachment["id"],
                             "url": attachment["url"],
                             "portalUrl": source["portalUrl"],
+                            "evidenceUrl": source["evidenceUrl"],
                             "member": member,
                             "sheet": sheet,
                             "row": row_number,
@@ -414,7 +506,7 @@ def parse_source(source: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dic
     if not positions:
         errors.append(
             {
-                "source": source["examId"],
+                "source": source["sourceId"],
                 "message": "official position attachments produced zero rows",
             }
         )
@@ -427,61 +519,308 @@ def integer_or_zero(value: Any) -> int:
 
 
 def is_unlimited(value: str) -> bool:
-    text = compact(value)
-    return not text or any(marker in text for marker in ("不限", "无要求", "不限制"))
+    return explicit_unlimited(value)
 
 
 def decision(field: str, result: str, reason: str) -> dict[str, str]:
     return {"field": field, "result": result, "reason": reason}
 
 
-def evaluate_position(position: dict[str, Any], profile: dict[str, Any], as_of: datetime) -> dict[str, Any]:
+def requirement_gate(
+    position: dict[str, Any],
+    field: str,
+    label: str,
+) -> dict[str, str] | None:
+    state = position["requirementStates"].get(field, "unparsed")
+    if state in {"missing", "unparsed"}:
+        return decision(field, "unknown", f"{label}缺少可核验的官方字段。")
+    if state == "unrestricted":
+        return decision(field, "pass", f"岗位{label}不限。")
+    return None
+
+
+def education_rank(value: Any) -> int | None:
+    text = compact(value)
+    if not text or text == "unknown":
+        return None
+    for marker, rank in (
+        ("博士", 6),
+        ("硕士", 5),
+        ("研究生", 5),
+        ("本科", 4),
+        ("学士", 4),
+        ("大专", 3),
+        ("专科", 3),
+        ("中专", 2),
+        ("高中", 1),
+    ):
+        if marker in text:
+            return rank
+    return None
+
+
+def evaluate_education(
+    position: dict[str, Any],
+    profile: dict[str, Any],
+) -> dict[str, str]:
+    gated = requirement_gate(position, "education", "学历")
+    if gated is not None:
+        return gated
+    raw = compact(position["requirements"]["education"])
+    profile_raw = profile["basic"].get("education")
+    profile_rank = education_rank(profile_raw)
+    if profile_rank is None:
+        return decision("education", "unknown", "画像学历尚未确认。")
+
+    minimums = (
+        (("博士",), 6),
+        (("硕士研究生及以上", "研究生及以上", "硕士及以上"), 5),
+        (("本科及以上", "大学本科及以上"), 4),
+        (("大专及以上", "专科及以上"), 3),
+        (("中专及以上",), 2),
+    )
+    for markers, minimum in minimums:
+        if any(marker in raw for marker in markers):
+            return decision(
+                "education",
+                "pass" if profile_rank >= minimum else "fail",
+                f"画像学历为{profile_raw}，岗位学历要求为：{position['requirements']['education']}",
+            )
+
+    exact_markers = (
+        ("仅限硕士研究生", 5),
+        ("仅限研究生", 5),
+        ("仅限本科", 4),
+        ("本科", 4),
+        ("大专", 3),
+        ("专科", 3),
+    )
+    for marker, required in exact_markers:
+        if marker in raw:
+            return decision(
+                "education",
+                "pass" if profile_rank == required else "fail",
+                f"画像学历为{profile_raw}，岗位学历要求为：{position['requirements']['education']}",
+            )
+    return decision(
+        "education",
+        "unknown",
+        f"无法可靠解析岗位学历口径：{position['requirements']['education']}",
+    )
+
+
+def evaluate_degree(
+    position: dict[str, Any],
+    profile: dict[str, Any],
+) -> dict[str, str]:
+    gated = requirement_gate(position, "degree", "学位")
+    if gated is not None:
+        return gated
+    raw = compact(position["requirements"]["degree"])
+    profile_degree = compact(profile["basic"].get("degree"))
+    if not profile_degree or profile_degree == "unknown":
+        return decision("degree", "unknown", "画像学位尚未确认。")
+    if any(
+        marker in raw
+        for marker in (
+            "与最高学历相对应的学位",
+            "与学历相对应的学位",
+            "取得相应学位",
+            "相应学位",
+        )
+    ):
+        return decision("degree", "pass", f"{profile_degree}满足相应学位要求。")
+
+    profile_rank = education_rank(profile_degree)
+    requirement_rank = education_rank(raw)
+    if profile_rank is None or requirement_rank is None:
+        return decision(
+            "degree",
+            "unknown",
+            f"无法可靠解析岗位学位口径：{position['requirements']['degree']}",
+        )
+    is_minimum = "及以上" in raw or "以上学位" in raw
+    passed = profile_rank >= requirement_rank if is_minimum else profile_rank == requirement_rank
+    return decision(
+        "degree",
+        "pass" if passed else "fail",
+        f"画像学位为{profile_degree}，岗位学位要求为：{position['requirements']['degree']}",
+    )
+
+
+def select_major_branch(raw: str, education: Any) -> tuple[str, bool]:
+    text = display(raw)
+    if "本科" not in text or "研究生" not in text:
+        return text, True
+    profile_rank = education_rank(education)
+    if profile_rank is None:
+        return text, False
+    bachelor = re.search(
+        r"本科\s*[:：]\s*(.*?)(?=研究生\s*[:：])",
+        text,
+        flags=re.DOTALL,
+    )
+    graduate = re.search(r"研究生\s*[:：]\s*(.*)$", text, flags=re.DOTALL)
+    selected = graduate if profile_rank >= 5 else bachelor
+    return (selected.group(1).strip(), True) if selected else (text, False)
+
+
+def evaluate_major(
+    position: dict[str, Any],
+    profile: dict[str, Any],
+) -> dict[str, str]:
+    gated = requirement_gate(position, "major", "专业")
+    if gated is not None:
+        return gated
+    requirements = position["requirements"]
+    branch, parsed = select_major_branch(
+        requirements["major"],
+        profile["basic"].get("education"),
+    )
+    if not parsed:
+        return decision("major", "unknown", "岗位专业按学历分段，但画像学历无法用于选段。")
+    text = compact(branch)
+    profile_major = compact(profile["basic"].get("major"))
+    major_code = compact(profile["basic"].get("majorCode"))
+    if not profile_major or profile_major == "unknown":
+        return decision("major", "unknown", "画像专业尚未确认。")
+    if any(
+        marker in text
+        for marker in (
+            f"不含{profile_major}",
+            f"不包括{profile_major}",
+            f"除{profile_major}",
+        )
+    ):
+        return decision(
+            "major",
+            "fail",
+            f"岗位专业明确排除{profile_major}。",
+        )
+    exact_name = profile_major in text
+    exact_code = bool(
+        major_code
+        and re.search(rf"(?<!\d){re.escape(major_code)}(?!\d)", text)
+    )
+    parent_code = major_code[:4] if len(major_code) >= 4 else ""
+    parent_match = bool(
+        parent_code
+        and re.search(rf"(?<!\d){re.escape(parent_code)}(?!\d)", text)
+    )
+    known_parent_name = major_code.startswith("0809") and "计算机类" in text
+    if exact_name or exact_code or parent_match or known_parent_name:
+        return decision(
+            "major",
+            "pass",
+            f"{profile_major}（{major_code or '无专业代码'}）匹配岗位专业要求。",
+        )
+    if any(marker in text for marker in ("相关专业", "相近专业", "等专业")):
+        return decision(
+            "major",
+            "unknown",
+            f"岗位专业表述存在开放或歧义口径：{branch}",
+        )
+    return decision("major", "fail", f"岗位专业要求为：{branch}")
+
+
+def parse_years(value: Any) -> float | None:
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return float(value)
+    text = compact(value)
+    if not text or text == "unknown":
+        return None
+    match = re.search(r"(\d+(?:\.\d+)?)年", text)
+    if match:
+        return float(match.group(1))
+    chinese = {"一年": 1.0, "二年": 2.0, "两年": 2.0, "三年": 3.0, "四年": 4.0, "五年": 5.0}
+    for marker, years in chinese.items():
+        if marker in text:
+            return years
+    return None
+
+
+def profile_truth(value: Any) -> bool | None:
+    if value is True:
+        return True
+    if value is False:
+        return False
+    text = compact(value).casefold()
+    if not text or text == "unknown":
+        return None
+    if text in {"是", "有", "符合", "yes", "true", "应届"}:
+        return True
+    if text in {"否", "无", "不符合", "no", "false", "非应届"}:
+        return False
+    return True
+
+
+def application_status(registration: dict[str, Any], as_of: datetime) -> str:
+    opens_value = registration.get("opensAt")
+    closes_value = registration.get("closesAt")
+    if not opens_value or not closes_value:
+        return "unknown"
+    opens_at = datetime.fromisoformat(opens_value)
+    closes_at = datetime.fromisoformat(closes_value)
+    if opens_at.tzinfo is None:
+        opens_at = opens_at.replace(tzinfo=timezone.utc)
+    if closes_at.tzinfo is None:
+        closes_at = closes_at.replace(tzinfo=timezone.utc)
+    current = as_of.astimezone(opens_at.tzinfo)
+    if current < opens_at:
+        return "upcoming"
+    if current <= closes_at:
+        return "open"
+    return "closed"
+
+
+def evaluate_position(
+    position: dict[str, Any],
+    profile: dict[str, Any],
+    as_of: datetime,
+) -> dict[str, Any]:
     basic = profile["basic"]
     experience = profile["experience"]
     qualifications = profile["qualifications"]
     requirements = position["requirements"]
-    checks: list[dict[str, str]] = []
-
-    education = compact(requirements["education"])
-    if is_unlimited(education) or "本科" in education or "大专及以上" in education or "专科及以上" in education:
-        checks.append(decision("education", "pass", "本科学历满足岗位学历口径。"))
-    elif any(marker in education for marker in ("硕士", "研究生", "博士")):
-        checks.append(decision("education", "fail", f"岗位学历要求为：{requirements['education']}"))
-    else:
-        checks.append(decision("education", "unknown", f"无法自动判断学历口径：{requirements['education']}"))
-
-    degree = compact(requirements["degree"])
-    profile_degree = compact(basic.get("degree"))
-    if is_unlimited(degree):
-        checks.append(decision("degree", "pass", "岗位未限制学位。"))
-    elif profile_degree and ("学士" in degree or "相应学位" in degree or profile_degree in degree):
-        checks.append(decision("degree", "pass", "学士学位满足岗位要求。"))
-    elif profile_degree == "unknown":
-        checks.append(decision("degree", "unknown", "画像尚未确认学位。"))
-    else:
-        checks.append(decision("degree", "fail", f"岗位学位要求为：{requirements['degree']}"))
-
-    major = compact(requirements["major"])
-    major_code = compact(basic.get("majorCode"))
-    profile_major = compact(basic.get("major"))
-    computer_markers = ("计算机", "0809", "软件工程", "网络工程", "信息安全")
-    if is_unlimited(major):
-        checks.append(decision("major", "pass", "岗位专业不限。"))
-    elif profile_major in major or (major_code and major_code in major) or any(marker in major for marker in computer_markers):
-        checks.append(decision("major", "pass", "计算机科学与技术符合岗位专业表述。"))
-    else:
-        checks.append(decision("major", "fail", f"岗位专业要求为：{requirements['major']}"))
+    checks: list[dict[str, str]] = [
+        evaluate_education(position, profile),
+        evaluate_degree(position, profile),
+        evaluate_major(position, profile),
+    ]
 
     political = compact(requirements["politicalStatus"])
     profile_political = compact(basic.get("politicalStatus"))
-    if is_unlimited(political):
-        checks.append(decision("politicalStatus", "pass", "岗位政治面貌不限。"))
-    elif "党员" in political and "党员" in profile_political:
-        checks.append(decision("politicalStatus", "pass", "中共党员身份满足岗位要求。"))
-    elif profile_political == "unknown":
-        checks.append(decision("politicalStatus", "unknown", "画像尚未确认政治面貌。"))
+    political_gate = requirement_gate(position, "politicalStatus", "政治面貌")
+    if political_gate is not None:
+        checks.append(political_gate)
+    elif not profile_political or profile_political == "unknown":
+        checks.append(decision("politicalStatus", "unknown", "画像政治面貌尚未确认。"))
+    elif "非中共党员" in political:
+        checks.append(
+            decision(
+                "politicalStatus",
+                "fail" if "中共党员" in profile_political else "pass",
+                f"画像政治面貌为{basic.get('politicalStatus')}，岗位要求非中共党员。",
+            )
+        )
+    elif "中共党员" in political or "党员" in political:
+        checks.append(
+            decision(
+                "politicalStatus",
+                "pass" if "中共党员" in profile_political else "fail",
+                f"画像政治面貌为{basic.get('politicalStatus')}，岗位要求为{requirements['politicalStatus']}。",
+            )
+        )
+    elif profile_political in political:
+        checks.append(decision("politicalStatus", "pass", "画像政治面貌满足岗位要求。"))
     else:
-        checks.append(decision("politicalStatus", "fail", f"岗位政治面貌要求为：{requirements['politicalStatus']}"))
+        checks.append(
+            decision(
+                "politicalStatus",
+                "fail",
+                f"岗位政治面貌要求为：{requirements['politicalStatus']}",
+            )
+        )
 
     fresh_text = compact(
         requirements.get("freshGraduate", "") or requirements["remarks"]
@@ -490,8 +829,14 @@ def evaluate_position(position: dict[str, Any], profile: dict[str, Any], as_of: 
         checks.append(
             decision(
                 "freshGraduateStatus",
-                "pass" if basic.get("freshGraduateStatus") in (True, "是", "应届") else "fail",
-                "岗位限制应届毕业生，画像为2023年毕业且非应届。",
+                (
+                    "unknown"
+                    if profile_truth(basic.get("freshGraduateStatus")) is None
+                    else "pass"
+                    if profile_truth(basic.get("freshGraduateStatus"))
+                    else "fail"
+                ),
+                f"岗位限制应届毕业生，画像毕业年份为{basic.get('graduationYear', '未填写')}。",
             )
         )
 
@@ -500,11 +845,11 @@ def evaluate_position(position: dict[str, Any], profile: dict[str, Any], as_of: 
         remarks_gender = compact(requirements["remarks"])
         has_gender_ratio = "男女比例" in remarks_gender
         if not has_gender_ratio and any(
-            marker in remarks_gender for marker in ("仅限女性", "限女性", "女性报考", "女性")
+            marker in remarks_gender for marker in ("仅限女性", "限女性", "女性报考")
         ):
             gender = "女性"
         elif not has_gender_ratio and any(
-            marker in remarks_gender for marker in ("仅限男性", "限男性", "男性报考", "适合男性", "男性")
+            marker in remarks_gender for marker in ("仅限男性", "限男性", "男性报考", "适合男性")
         ):
             gender = "男性"
     if gender and not is_unlimited(gender):
@@ -530,18 +875,23 @@ def evaluate_position(position: dict[str, Any], profile: dict[str, Any], as_of: 
     if household and not is_unlimited(household):
         profile_household = compact(basic.get("householdRegistration"))
         profile_origin = compact(basic.get("studentOrigin"))
-        if profile_household == "unknown" or profile_origin == "unknown":
+        known_values = {
+            value
+            for value in (profile_household, profile_origin)
+            if value and value != "unknown"
+        }
+        if any(value in household for value in known_values):
+            checks.append(decision("householdRegistration", "pass", "画像户籍或生源满足岗位要求。"))
+        elif len(known_values) < 2:
             checks.append(decision("householdRegistration", "unknown", "岗位限制户籍或生源，画像尚未完整确认。"))
-        elif profile_household in household or profile_origin in household:
-            checks.append(decision("householdRegistration", "pass", "河北户籍或生源满足岗位要求。"))
         else:
             checks.append(decision("householdRegistration", "fail", f"岗位户籍或生源要求为：{requirements.get('household', '')}"))
 
     age_text = compact(requirements.get("age", "") or requirements["remarks"])
     age = basic.get("age")
-    age_limit_match = re.search(r"(\d+)周岁以下", age_text)
+    age_limit_match = re.search(r"(\d+)周岁(?:及)?以下|不超过(\d+)周岁", age_text)
     if age_limit_match and isinstance(age, int):
-        limit = int(age_limit_match.group(1))
+        limit = int(age_limit_match.group(1) or age_limit_match.group(2))
         checks.append(
             decision(
                 "age",
@@ -551,15 +901,30 @@ def evaluate_position(position: dict[str, Any], profile: dict[str, Any], as_of: 
         )
 
     grassroots = compact(requirements["grassrootsYears"])
-    if not is_unlimited(grassroots) and not grassroots.startswith("0"):
+    grassroots_state = position["requirementStates"].get(
+        "grassrootsYears",
+        "unparsed",
+    )
+    if (
+        grassroots_state == "specified"
+        and not is_unlimited(grassroots)
+        and not grassroots.startswith("0")
+    ):
         value = experience.get("grassrootsYears", "unknown")
+        required_years = parse_years(grassroots)
+        profile_years = parse_years(value)
+        result = (
+            "unknown"
+            if value == "unknown" or required_years is None or profile_years is None
+            else "pass"
+            if profile_years >= required_years
+            else "fail"
+        )
         checks.append(
             decision(
                 "grassrootsYears",
-                "unknown" if value == "unknown" else "pass",
-                "岗位要求基层工作经历，画像尚需人工核对。"
-                if value == "unknown"
-                else "画像已填写基层工作经历，仍需对照原文。",
+                result,
+                f"岗位基层经历要求为{requirements['grassrootsYears']}，画像为{value}。",
             )
         )
 
@@ -572,65 +937,110 @@ def evaluate_position(position: dict[str, Any], profile: dict[str, Any], as_of: 
         "三支一扶",
         "西部计划",
     )
-    if is_unlimited(service) and any(
+    service_state = position["requirementStates"].get(
+        "serviceProject",
+        "unparsed",
+    )
+    if service_state != "specified" and any(
         marker in compact(requirements["remarks"]) for marker in service_markers
     ):
         service = compact(requirements["remarks"])
-    if not is_unlimited(service):
+        service_state = "specified"
+    if service_state == "specified" and not is_unlimited(service):
         value = experience.get("veteranOrServiceProgram", "unknown")
+        truth = profile_truth(value)
         checks.append(
             decision(
                 "serviceProject",
-                "unknown" if value == "unknown" else "pass",
-                "岗位要求服务基层项目经历，画像尚需人工核对。"
-                if value == "unknown"
-                else "画像已填写服务项目经历，仍需对照原文。",
+                "unknown" if truth is None else "pass" if truth else "fail",
+                f"岗位要求服务基层项目经历，画像填写为{value}。",
             )
         )
 
-    unknown_markers = {
-        "english": ("英语四级", "英语六级", "大学英语", "CET"),
-        "professional": ("资格证", "职业资格", "法律职业资格"),
-        "workYears": ("工作经历", "工作经验", "从事相关工作"),
-    }
-    for field, markers in unknown_markers.items():
-        if any(marker.casefold() in requirements["remarks"].casefold() for marker in markers):
-            group = qualifications if field != "workYears" else experience
-            value = group.get(field, "unknown")
-            if value == "unknown":
-                checks.append(decision(field, "unknown", f"备注涉及{field}，画像尚未填写。"))
+    remarks = requirements["remarks"]
+    if any(marker.casefold() in remarks.casefold() for marker in ("英语四级", "英语六级", "大学英语", "CET")):
+        value = qualifications.get("english", "unknown")
+        if value == "unknown":
+            checks.append(decision("english", "unknown", "岗位限制英语等级，画像尚未填写。"))
+        else:
+            required_six = any(marker in remarks for marker in ("六级", "CET6", "CET-6"))
+            profile_text = compact(value).upper()
+            passed = (
+                any(marker in profile_text for marker in ("六级", "CET6", "CET-6"))
+                if required_six
+                else any(marker in profile_text for marker in ("四级", "六级", "CET4", "CET6", "CET-4", "CET-6"))
+            )
+            checks.append(decision("english", "pass" if passed else "fail", f"岗位英语要求为：{remarks}"))
+
+    certificate_text = compact(requirements.get("certificate", "") or remarks)
+    if any(marker in certificate_text for marker in ("资格证", "职业资格", "法律职业资格")):
+        value = qualifications.get("professional", "unknown")
+        truth = profile_truth(value)
+        checks.append(
+            decision(
+                "professional",
+                "unknown" if truth is None else "pass" if truth else "fail",
+                f"岗位资格证要求为：{requirements.get('certificate') or remarks}",
+            )
+        )
+
+    if any(marker in remarks for marker in ("工作经历", "工作经验", "从事相关工作")):
+        value = experience.get("workYears", "unknown")
+        required_years = parse_years(remarks)
+        profile_years = parse_years(value)
+        checks.append(
+            decision(
+                "workYears",
+                "unknown"
+                if required_years is None or profile_years is None
+                else "pass"
+                if profile_years >= required_years
+                else "fail",
+                f"岗位工作经历要求为：{remarks}；画像为{value}。",
+            )
+        )
 
     failures = [item for item in checks if item["result"] == "fail"]
     unknowns = [item for item in checks if item["result"] == "unknown"]
     eligibility = "ineligible" if failures else "needs_confirmation" if unknowns else "eligible"
-    closes_at = datetime.fromisoformat(position["registration"]["closesAt"])
-    opens_at = datetime.fromisoformat(position["registration"]["opensAt"])
-    if closes_at.tzinfo is None:
-        closes_at = closes_at.replace(tzinfo=timezone.utc)
-    if opens_at.tzinfo is None:
-        opens_at = opens_at.replace(tzinfo=timezone.utc)
-    status = "active" if opens_at <= as_of.astimezone(opens_at.tzinfo) <= closes_at else "historical"
 
     return {
         **position,
         "eligibility": eligibility,
-        "timingStatus": status,
+        "applicationStatus": application_status(position["registration"], as_of),
         "matchReasons": [item["reason"] for item in checks if item["result"] == "pass"],
-        "confirmationFields": [item["field"] for item in unknowns],
+        "confirmationFields": sorted({item["field"] for item in unknowns}),
         "exclusionReasons": [item["reason"] for item in failures],
         "decisions": checks,
     }
 
 
+def validate_schema(instance: Any, schema_path: Path, label: str) -> None:
+    schema = read_json(schema_path)
+    validator = Draft202012Validator(schema, format_checker=FormatChecker())
+    failures = sorted(validator.iter_errors(instance), key=lambda item: list(item.path))
+    if failures:
+        raise ValueError(
+            f"{label} validation failed: "
+            + "; ".join(f"{list(error.path)}: {error.message}" for error in failures[:20])
+        )
+
+
 def load_sources() -> dict[str, Any]:
     config = read_json(SOURCES_CONFIG)
-    if config.get("cycle") != "2026":
-        raise ValueError("first release requires sources.json cycle 2026")
+    validate_schema(config, SOURCES_SCHEMA_PATH, "job sources")
     for source in config.get("sources", []):
-        if not official_url(source["portalUrl"]):
+        allowed_hosts = source["allowedHosts"]
+        for field in ("portalUrl", "announcementUrl", "evidenceUrl"):
+            if not official_url(source[field], allowed_hosts):
+                raise ValueError(
+                    f"non-official {field} URL rejected for {source['sourceId']}: "
+                    f"{source[field]}"
+                )
+        if not official_url(source["portalUrl"], allowed_hosts):
             raise ValueError(f"non-official portal URL rejected: {source['portalUrl']}")
         for attachment in source.get("attachments", []):
-            if not official_url(attachment["url"]):
+            if not official_url(attachment["url"], allowed_hosts):
                 raise ValueError(f"non-official attachment URL rejected: {attachment['url']}")
             path = (ROOT / attachment["path"]).resolve()
             source_root = (JOBS_DIR / "sources").resolve()
@@ -639,35 +1049,172 @@ def load_sources() -> dict[str, Any]:
     return config
 
 
+def optional_datetime(value: Any) -> datetime | None:
+    if not value:
+        return None
+    parsed = datetime.fromisoformat(str(value))
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+def select_campaigns(config: dict[str, Any], as_of: datetime) -> dict[str, Any]:
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for source in config["sources"]:
+        grouped.setdefault(source["sourceId"], []).append(source)
+
+    selected: list[dict[str, Any]] = []
+    for source_id, campaigns in grouped.items():
+        recruitment_mode = campaigns[0]["recruitmentMode"]
+        current: list[tuple[datetime, dict[str, Any]]] = []
+        previous: list[tuple[datetime, dict[str, Any]]] = []
+        for campaign in campaigns:
+            if recruitment_mode == "exam":
+                boundary = optional_datetime(campaign.get("examAt"))
+            else:
+                boundary = optional_datetime(campaign["registration"].get("closesAt"))
+            if boundary is None:
+                previous.append((datetime.min.replace(tzinfo=timezone.utc), campaign))
+                continue
+            normalized_as_of = as_of.astimezone(boundary.tzinfo or timezone.utc)
+            target = current if boundary >= normalized_as_of else previous
+            target.append((boundary, campaign))
+        if current:
+            _, chosen = min(current, key=lambda item: item[0])
+            mode = "current"
+        elif previous:
+            _, chosen = max(previous, key=lambda item: item[0])
+            mode = "previous_reference"
+        else:
+            raise ValueError(f"source family has no campaigns: {source_id}")
+        selected.append({**chosen, "selectionMode": mode})
+    return {**config, "sources": sorted(selected, key=lambda item: item["sourceId"])}
+
+
 def download_all(config: dict[str, Any], force: bool = False) -> list[dict[str, Any]]:
     downloaded: list[dict[str, Any]] = []
     for source in config["sources"]:
         for attachment in source["attachments"]:
-            downloaded.append(download_attachment(attachment, force=force))
+            downloaded.append(
+                download_attachment(
+                    attachment,
+                    allowed_hosts=source["allowedHosts"],
+                    force=force,
+                )
+            )
     return downloaded
 
 
-def build(config: dict[str, Any], as_of: datetime) -> dict[str, Any]:
+def harness_run_directory() -> Path | None:
+    value = os.environ.get("JOB_SEARCH_RUN_DIR")
+    return Path(value).resolve() if value else None
+
+
+def parse_for_harness(config: dict[str, Any]) -> dict[str, Any]:
+    normalized: list[dict[str, Any]] = []
+    fragments: list[dict[str, Any]] = []
+    source_counts: dict[str, int] = {}
+    for source in config["sources"]:
+        positions, errors = parse_source(source)
+        normalized.extend(positions)
+        source_counts[source["sourceId"]] = len(positions)
+        fragments.extend(
+            {
+                **error,
+                "sourceId": source["sourceId"],
+                "evidenceUrl": source["evidenceUrl"],
+            }
+            for error in errors
+        )
+    run_directory = harness_run_directory()
+    if run_directory is not None:
+        run_directory.mkdir(parents=True, exist_ok=True)
+        write_jsonl(run_directory / "parsed-positions.jsonl", normalized)
+        write_json(run_directory / "extraction-fragments.json", fragments)
+    return {
+        "status": "completed",
+        "summary": (
+            f"parsed {len(normalized)} positions with "
+            f"{len(fragments)} extraction fragments"
+        ),
+        "positions": len(normalized),
+        "fragments": len(fragments),
+        "sourceCounts": source_counts,
+        "artifacts": [
+            "parsed-positions.jsonl",
+            "extraction-fragments.json",
+        ],
+        "issues": [item["message"] for item in fragments],
+    }
+
+
+def load_agent_extracted_positions() -> list[dict[str, Any]]:
+    run_directory = harness_run_directory()
+    if run_directory is None:
+        return []
+    submission = run_directory / "stage-results" / "04-submitted.json"
+    if not submission.is_file():
+        return []
+    payload = read_json(submission)
+    positions = payload.get("normalizedPositions", [])
+    if not isinstance(positions, list):
+        raise ValueError("agent normalizedPositions must be an array")
+    required = {
+        "id",
+        "sourceId",
+        "sourceLabel",
+        "category",
+        "cycle",
+        "batchStatus",
+        "organization",
+        "title",
+        "positionCode",
+        "requirements",
+        "requirementStates",
+        "registration",
+        "source",
+    }
+    for index, position in enumerate(positions):
+        if not isinstance(position, dict) or required - position.keys():
+            raise ValueError(
+                f"agent normalized position {index} lacks required evidence fields"
+            )
+    return positions
+
+
+def build(
+    config: dict[str, Any],
+    as_of: datetime,
+    allow_large_delta: bool = False,
+) -> dict[str, Any]:
     profile = read_json(PROFILE_PATH)
     profile_bytes = json.dumps(profile, ensure_ascii=False, sort_keys=True).encode("utf-8")
     all_positions: list[dict[str, Any]] = []
     errors: list[dict[str, str]] = []
     source_index: list[dict[str, Any]] = []
+    extracted_by_source: dict[str, list[dict[str, Any]]] = {}
+    for position in load_agent_extracted_positions():
+        extracted_by_source.setdefault(position["sourceId"], []).append(position)
 
     for source in config["sources"]:
         positions, source_errors = parse_source(source)
+        positions.extend(extracted_by_source.get(source["sourceId"], []))
         if not positions:
             raise ValueError(
-                f"{source['examId']} produced zero normalized positions: "
+                f"{source['sourceId']} produced zero normalized positions: "
                 + "; ".join(item["message"] for item in source_errors)
             )
         all_positions.extend(positions)
         errors.extend(source_errors)
         source_index.append(
             {
-                "examId": source["examId"],
+                "sourceId": source["sourceId"],
                 "label": source["label"],
+                "category": source["category"],
+                "cycle": source["cycle"],
+                "selectionMode": source["selectionMode"],
+                "examAt": source.get("examAt"),
                 "portalUrl": source["portalUrl"],
+                "evidenceUrl": source["evidenceUrl"],
+                "allowedHosts": source["allowedHosts"],
                 "registration": source["registration"],
                 "attachments": [
                     artifact_metadata(attachment, ROOT / attachment["path"])
@@ -683,75 +1230,181 @@ def build(config: dict[str, Any], as_of: datetime) -> dict[str, Any]:
         evaluate_position(position, profile, as_of)
         for position in sorted(
             unique.values(),
-            key=lambda item: (item["examId"], item["organization"], item["positionCode"]),
+            key=lambda item: (item["sourceId"], item["organization"], item["positionCode"]),
         )
     ]
 
     eligible_positions = [
         position for position in evaluated if position["eligibility"] == "eligible"
     ]
-    write_jsonl(CATALOG_PATH, evaluated)
-    write_jsonl(ELIGIBLE_CATALOG_PATH, eligible_positions)
-
+    needs_confirmation_positions = [
+        position
+        for position in evaluated
+        if position["eligibility"] == "needs_confirmation"
+    ]
     eligibility = Counter(item["eligibility"] for item in evaluated)
-    timing = Counter(item["timingStatus"] for item in evaluated)
+    application = Counter(item["applicationStatus"] for item in evaluated)
     unknown_fields = sorted(
         key
         for group in ("basic", "experience", "qualifications", "preferences")
         for key, value in profile.get(group, {}).items()
         if value == "unknown"
     )
+    registry = (
+        read_json(SOURCE_REGISTRY_PATH)
+        if SOURCE_REGISTRY_PATH.is_file()
+        else {
+            "requiredCategories": list(REQUIRED_CATEGORIES),
+            "sourceFamilies": [],
+        }
+    )
+    if SOURCE_REGISTRY_PATH.is_file():
+        validate_schema(
+            registry,
+            SOURCE_REGISTRY_SCHEMA_PATH,
+            "job source registry",
+        )
+    required_categories = registry.get("requiredCategories", list(REQUIRED_CATEGORIES))
+    registered_categories = sorted(
+        {item["category"] for item in registry.get("sourceFamilies", [])}
+    )
+    catalog_categories = sorted({item["category"] for item in evaluated})
+    eligible_next = ELIGIBLE_CATALOG_PATH.with_suffix(".jsonl.next")
+    confirmation_next = NEEDS_CONFIRMATION_CATALOG_PATH.with_suffix(".jsonl.next")
+    index_next = INDEX_PATH.with_suffix(".json.next")
+    write_jsonl(eligible_next, eligible_positions)
+    write_jsonl(confirmation_next, needs_confirmation_positions)
+
     index = {
-        "schemaVersion": "3.0",
+        "schemaVersion": "4.0",
         "generatedAt": now_iso(),
-        "cycle": config["cycle"],
+        "asOf": as_of.astimezone().isoformat(timespec="seconds"),
         "profileSnapshot": {
             "sha256": sha256_bytes(profile_bytes),
             "updatedAt": profile["updatedAt"],
             "unknownFields": unknown_fields,
         },
-        "catalog": {
-            "path": CATALOG_PATH.relative_to(ROOT).as_posix(),
-            "rowCount": len(evaluated),
-            "sha256": sha256_file(CATALOG_PATH),
-        },
         "eligibleCatalog": {
             "path": ELIGIBLE_CATALOG_PATH.relative_to(ROOT).as_posix(),
             "rowCount": len(eligible_positions),
-            "sha256": sha256_file(ELIGIBLE_CATALOG_PATH),
+            "sha256": sha256_jsonl(eligible_next),
+        },
+        "needsConfirmationCatalog": {
+            "path": NEEDS_CONFIRMATION_CATALOG_PATH.relative_to(ROOT).as_posix(),
+            "rowCount": len(needs_confirmation_positions),
+            "sha256": sha256_jsonl(confirmation_next),
         },
         "sources": source_index,
         "stats": {
-            "total": len(evaluated),
+            "processed": len(evaluated),
             "eligible": eligibility["eligible"],
             "needsConfirmation": eligibility["needs_confirmation"],
-            "ineligible": eligibility["ineligible"],
-            "active": timing["active"],
-            "historical": timing["historical"],
+            "excluded": eligibility["ineligible"],
+            "currentCampaigns": sum(
+                item["selectionMode"] == "current" for item in source_index
+            ),
+            "referenceCampaigns": sum(
+                item["selectionMode"] == "previous_reference"
+                for item in source_index
+            ),
+            "application": {
+                "upcoming": application["upcoming"],
+                "open": application["open"],
+                "closed": application["closed"],
+                "unknown": application["unknown"],
+            },
+        },
+        "coverage": {
+            "requiredCategories": required_categories,
+            "registeredCategories": registered_categories,
+            "catalogCategories": catalog_categories,
+            "missingCatalogCategories": sorted(
+                set(required_categories) - set(catalog_categories)
+            ),
         },
         "errors": errors,
     }
-    write_json(INDEX_PATH, index)
-    validate_index(index)
+    try:
+        validate_schema(index, SCHEMA_PATH, "job index")
+        validate_catalog_path(
+            eligible_next,
+            expected_count=index["stats"]["eligible"],
+            expected_eligibility="eligible",
+            expected_sha256=index["eligibleCatalog"]["sha256"],
+        )
+        validate_catalog_path(
+            confirmation_next,
+            expected_count=index["stats"]["needsConfirmation"],
+            expected_eligibility="needs_confirmation",
+            expected_sha256=index["needsConfirmationCatalog"]["sha256"],
+        )
+        enforce_release_guard(index, allow_large_delta=allow_large_delta)
+        write_json(index_next, index)
+        eligible_next.replace(ELIGIBLE_CATALOG_PATH)
+        confirmation_next.replace(NEEDS_CONFIRMATION_CATALOG_PATH)
+        index_next.replace(INDEX_PATH)
+        OLD_CATALOG_PATH.unlink(missing_ok=True)
+    finally:
+        eligible_next.unlink(missing_ok=True)
+        confirmation_next.unlink(missing_ok=True)
+        index_next.unlink(missing_ok=True)
     return index
+
+
+def enforce_release_guard(
+    next_index: dict[str, Any],
+    allow_large_delta: bool = False,
+) -> None:
+    processed = next_index["stats"]["processed"]
+    eligible = next_index["stats"]["eligible"]
+    if processed > 0 and eligible == 0 and not allow_large_delta:
+        raise ValueError(
+            "release guard rejected an empty eligible catalog; "
+            "use --allow-large-delta only after manual review"
+        )
+    if not INDEX_PATH.is_file() or allow_large_delta:
+        return
+    previous = read_json(INDEX_PATH)
+    previous_eligible = int(previous.get("stats", {}).get("eligible", 0))
+    if previous_eligible > 0 and eligible < previous_eligible * 0.5:
+        raise ValueError(
+            "release guard rejected eligible count drop: "
+            f"previous={previous_eligible}, next={eligible}"
+        )
+    previous_categories = set(
+        previous.get("coverage", {}).get("catalogCategories", [])
+    )
+    next_categories = set(next_index["coverage"]["catalogCategories"])
+    missing = previous_categories - next_categories
+    if missing:
+        raise ValueError(
+            f"release guard rejected lost catalog categories: {sorted(missing)}"
+        )
 
 
 def validate_index(index: dict[str, Any] | None = None) -> None:
     instance = index if index is not None else read_json(INDEX_PATH)
-    schema = read_json(SCHEMA_PATH)
-    validator = Draft202012Validator(schema, format_checker=FormatChecker())
-    failures = sorted(validator.iter_errors(instance), key=lambda item: list(item.path))
-    if failures:
-        raise ValueError(
-            "job index validation failed: "
-            + "; ".join(f"{list(error.path)}: {error.message}" for error in failures[:20])
-        )
-    validate_catalog_artifact(instance["catalog"])
+    validate_schema(instance, SCHEMA_PATH, "job index")
     validate_catalog_artifact(
         instance["eligibleCatalog"],
         expected_count=instance["stats"]["eligible"],
         expected_eligibility="eligible",
     )
+    validate_catalog_artifact(
+        instance["needsConfirmationCatalog"],
+        expected_count=instance["stats"]["needsConfirmation"],
+        expected_eligibility="needs_confirmation",
+    )
+    published = (
+        instance["stats"]["eligible"]
+        + instance["stats"]["needsConfirmation"]
+        + instance["stats"]["excluded"]
+    )
+    if published != instance["stats"]["processed"]:
+        raise ValueError(
+            "job stats mismatch: "
+            f"processed={instance['stats']['processed']}, decisions={published}"
+        )
 
 
 def validate_catalog_artifact(
@@ -762,25 +1415,36 @@ def validate_catalog_artifact(
     catalog = ROOT / artifact["path"]
     if not catalog.is_file():
         raise FileNotFoundError(f"missing catalog: {catalog}")
+    validate_catalog_path(
+        catalog,
+        expected_count=(
+            expected_count if expected_count is not None else artifact["rowCount"]
+        ),
+        expected_eligibility=expected_eligibility,
+        expected_sha256=artifact["sha256"],
+    )
+
+
+def validate_catalog_path(
+    catalog: Path,
+    expected_count: int,
+    expected_eligibility: str | None,
+    expected_sha256: str,
+) -> None:
     rows = 0
     with catalog.open("r", encoding="utf-8") as handle:
         for line_number, line in enumerate(handle, start=1):
             if not line.strip():
                 continue
             value = json.loads(line)
-            required = {
-                "id",
-                "examId",
-                "organization",
-                "title",
-                "positionCode",
-                "eligibility",
-                "timingStatus",
-                "source",
-            }
-            missing = required - value.keys()
-            if missing:
-                raise ValueError(f"catalog line {line_number} missing: {sorted(missing)}")
+            try:
+                validate_schema(
+                    value,
+                    POSITION_SCHEMA_PATH,
+                    f"catalog line {line_number}",
+                )
+            except ValueError as exc:
+                raise ValueError(str(exc)) from exc
             if (
                 expected_eligibility is not None
                 and value["eligibility"] != expected_eligibility
@@ -790,16 +1454,11 @@ def validate_catalog_artifact(
                     f"{value['eligibility']}"
                 )
             rows += 1
-    row_count = expected_count if expected_count is not None else artifact["rowCount"]
-    if rows != row_count:
+    if rows != expected_count:
         raise ValueError(
-            f"catalog row mismatch: index={row_count}, actual={rows}"
+            f"catalog row mismatch: index={expected_count}, actual={rows}"
         )
-    if rows != artifact["rowCount"]:
-        raise ValueError(
-            f"catalog metadata row mismatch: index={artifact['rowCount']}, actual={rows}"
-        )
-    if sha256_file(catalog) != artifact["sha256"]:
+    if sha256_jsonl(catalog) != expected_sha256:
         raise ValueError("catalog sha256 mismatch")
 
 
@@ -812,17 +1471,29 @@ def parse_as_of(value: str | None) -> datetime:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("download", "build", "all", "validate"))
+    parser.add_argument(
+        "command",
+        choices=("download", "parse", "filter", "build", "all", "validate"),
+    )
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--as-of", default="")
+    parser.add_argument("--allow-large-delta", action="store_true")
     args = parser.parse_args()
-    config = load_sources()
+    as_of = parse_as_of(args.as_of)
+    config = select_campaigns(load_sources(), as_of)
 
     if args.command in {"download", "all"}:
         metadata = download_all(config, force=args.force)
         print(json.dumps({"downloaded": len(metadata), "artifacts": metadata}, ensure_ascii=False))
-    if args.command in {"build", "all"}:
-        index = build(config, parse_as_of(args.as_of))
+    if args.command == "parse":
+        result = parse_for_harness(config)
+        print(json.dumps(result, ensure_ascii=False))
+    if args.command in {"filter", "build", "all"}:
+        index = build(
+            config,
+            as_of,
+            allow_large_delta=args.allow_large_delta,
+        )
         print(json.dumps({"stats": index["stats"], "errors": len(index["errors"])}, ensure_ascii=False))
     if args.command == "validate":
         validate_index()

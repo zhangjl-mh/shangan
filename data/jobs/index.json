@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "3.0",
-  "generatedAt": "2026-06-24T16:21:57+08:00",
-  "cycle": "2026",
+  "schemaVersion": "4.0",
+  "generatedAt": "2026-07-01T10:31:24+08:00",
+  "asOf": "2026-07-01T00:00:00+08:00",
   "profileSnapshot": {
     "sha256": "8e74e09dcf22318822c1b39e32cf6cfe9cfca2f17b2c8cfdb5eb042ddc7d467e",
     "updatedAt": "2026-06-15T00:00:00+08:00",
@@ -22,39 +22,29 @@
       "workYears"
     ]
   },
-  "catalog": {
-    "path": "data/jobs/catalog/positions.jsonl",
-    "rowCount": 29954,
-    "sha256": "cf75c931a288cef57af5b2b08831fa1ca1adee6d6602bf2822811262134ae197"
-  },
   "eligibleCatalog": {
     "path": "data/jobs/catalog/eligible.jsonl",
-    "rowCount": 548,
-    "sha256": "feeb218f5593cc6dac917b7a33212d773f856e1491cc1fe65a33fa0a3d2539ec"
+    "rowCount": 737,
+    "sha256": "ac456b04300b59f29a9a94190027bd268d9be1ae45ade87538e8ced0a07a98f6"
+  },
+  "needsConfirmationCatalog": {
+    "path": "data/jobs/catalog/needs-confirmation.jsonl",
+    "rowCount": 2374,
+    "sha256": "f0f8e26defd3bffb35a061b6f8201c8460ab8b23268ef4383c0af9f2055d5756"
   },
   "sources": [
     {
-      "examId": "national-civil-service",
-      "label": "2026年国考",
-      "portalUrl": "http://bm.scs.gov.cn/pp/gkweb/core/web/ui/business/home/gkhome.html",
-      "registration": {
-        "opensAt": "2025-10-15T08:00:00+08:00",
-        "closesAt": "2025-10-24T18:00:00+08:00"
-      },
-      "attachments": [
-        {
-          "id": "national-2026-positions",
-          "url": "http://dl.scs.gov.cn/download/8a81f6d19780e4080199e13f881f0153",
-          "path": "data/jobs/sources/national-civil-service/2026/positions.zip",
-          "sha256": "0055e7eb78906e2dcefb8e31963e2fd74baf980aa98893eebb54fd9d7f9176cb",
-          "size": 1860532
-        }
-      ]
-    },
-    {
-      "examId": "beijing-civil-service",
+      "sourceId": "beijing-civil-service",
       "label": "2026年北京市考",
+      "category": "civil_service",
+      "cycle": "2026",
+      "selectionMode": "previous_reference",
+      "examAt": "2025-12-07T09:00:00+08:00",
       "portalUrl": "https://rsj.beijing.gov.cn/bm/ztzl/gwy/",
+      "evidenceUrl": "https://www.beijing.gov.cn/gongkai/rsxx/gwyzk/202511/t20251110_4267508.html",
+      "allowedHosts": [
+        "beijing.gov.cn"
+      ],
       "registration": {
         "opensAt": "2025-11-17T09:00:00+08:00",
         "closesAt": "2025-11-21T18:00:00+08:00"
@@ -70,27 +60,17 @@
       ]
     },
     {
-      "examId": "tianjin-civil-service",
-      "label": "2026年天津市考",
-      "portalUrl": "https://gklx.hrss.tj.gov.cn/",
-      "registration": {
-        "opensAt": "2025-11-05T08:30:00+08:00",
-        "closesAt": "2025-11-11T18:00:00+08:00"
-      },
-      "attachments": [
-        {
-          "id": "tianjin-2026-positions",
-          "url": "https://www.tj.gov.cn/zwgk/zfxxgkzl/fdzdgknr/zkly/zk/202511/W020251105378392303487.xlsx",
-          "path": "data/jobs/sources/tianjin-civil-service/2026/positions.xlsx",
-          "sha256": "b36eafc091957364e22534491a87e7b3a4dba1c6090fc6c8a8a623e0d545de81",
-          "size": 208094
-        }
-      ]
-    },
-    {
-      "examId": "hebei-civil-service",
+      "sourceId": "hebei-civil-service",
       "label": "2026年河北省考",
+      "category": "civil_service",
+      "cycle": "2026",
+      "selectionMode": "previous_reference",
+      "examAt": "2026-03-15T09:00:00+08:00",
       "portalUrl": "https://jtt.hebei.gov.cn/jtyst/zwgk/jcxxgk/tggs/101769650776087.html",
+      "evidenceUrl": "https://whly.hebei.gov.cn/c/2026-02-02/584115.html",
+      "allowedHosts": [
+        "hebei.gov.cn"
+      ],
       "registration": {
         "opensAt": "2026-02-01T09:00:00+08:00",
         "closesAt": "2026-02-05T17:00:00+08:00"
@@ -111,15 +91,95 @@
           "size": 29696
         }
       ]
+    },
+    {
+      "sourceId": "national-civil-service",
+      "label": "2026年国考",
+      "category": "civil_service",
+      "cycle": "2026",
+      "selectionMode": "previous_reference",
+      "examAt": "2025-11-30T09:00:00+08:00",
+      "portalUrl": "http://bm.scs.gov.cn/pp/gkweb/core/web/ui/business/home/gkhome.html",
+      "evidenceUrl": "http://bm.scs.gov.cn/pp/gkweb/core/web/ui/business/article/articledetail.html?ArticleId=8a81f6d09780e3a20199dd916ecf0122&id=0000000062b7b2b60162bccd55ec0006&eid=0000000062b7b2b60162bccdd5860007",
+      "allowedHosts": [
+        "scs.gov.cn"
+      ],
+      "registration": {
+        "opensAt": "2025-10-15T08:00:00+08:00",
+        "closesAt": "2025-10-24T18:00:00+08:00"
+      },
+      "attachments": [
+        {
+          "id": "national-2026-positions",
+          "url": "http://dl.scs.gov.cn/download/8a81f6d19780e4080199e13f881f0153",
+          "path": "data/jobs/sources/national-civil-service/2026/positions.zip",
+          "sha256": "0055e7eb78906e2dcefb8e31963e2fd74baf980aa98893eebb54fd9d7f9176cb",
+          "size": 1860532
+        }
+      ]
+    },
+    {
+      "sourceId": "tianjin-civil-service",
+      "label": "2026年天津市考",
+      "category": "civil_service",
+      "cycle": "2026",
+      "selectionMode": "previous_reference",
+      "examAt": "2025-12-07T09:00:00+08:00",
+      "portalUrl": "https://gklx.hrss.tj.gov.cn/",
+      "evidenceUrl": "https://www.tj.gov.cn/zwgk/zfxxgkzl/fdzdgknr/zkly/zk/202511/t20251105_7170794.html",
+      "allowedHosts": [
+        "tj.gov.cn"
+      ],
+      "registration": {
+        "opensAt": "2025-11-05T08:30:00+08:00",
+        "closesAt": "2025-11-11T18:00:00+08:00"
+      },
+      "attachments": [
+        {
+          "id": "tianjin-2026-positions",
+          "url": "https://www.tj.gov.cn/zwgk/zfxxgkzl/fdzdgknr/zkly/zk/202511/W020251105378392303487.xlsx",
+          "path": "data/jobs/sources/tianjin-civil-service/2026/positions.xlsx",
+          "sha256": "b36eafc091957364e22534491a87e7b3a4dba1c6090fc6c8a8a623e0d545de81",
+          "size": 208094
+        }
+      ]
     }
   ],
   "stats": {
-    "total": 29954,
-    "eligible": 548,
-    "needsConfirmation": 701,
-    "ineligible": 28705,
-    "active": 0,
-    "historical": 29954
+    "processed": 29954,
+    "eligible": 737,
+    "needsConfirmation": 2374,
+    "excluded": 26843,
+    "currentCampaigns": 0,
+    "referenceCampaigns": 4,
+    "application": {
+      "upcoming": 0,
+      "open": 0,
+      "closed": 29954,
+      "unknown": 0
+    }
+  },
+  "coverage": {
+    "requiredCategories": [
+      "civil_service",
+      "institution",
+      "military_civilian",
+      "state_owned_enterprise"
+    ],
+    "registeredCategories": [
+      "civil_service",
+      "institution",
+      "military_civilian",
+      "state_owned_enterprise"
+    ],
+    "catalogCategories": [
+      "civil_service"
+    ],
+    "missingCatalogCategories": [
+      "institution",
+      "military_civilian",
+      "state_owned_enterprise"
+    ]
   },
   "errors": []
 }

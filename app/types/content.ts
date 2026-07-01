@@ -243,16 +243,37 @@ export interface DailyNews {
   }>;
 }
 
-export type JobEligibility =
-  | "eligible"
-  | "needs_confirmation"
-  | "ineligible";
+export type JobEligibility = "eligible" | "needs_confirmation";
+
+export type JobCategory =
+  | "civil_service"
+  | "institution"
+  | "military_civilian"
+  | "state_owned_enterprise";
+
+export type JobBatchStatus = "current" | "previous_reference";
+
+export type JobApplicationStatus =
+  | "upcoming"
+  | "open"
+  | "closed"
+  | "unknown";
+
+export type JobRequirementState =
+  | "specified"
+  | "unrestricted"
+  | "missing"
+  | "unparsed";
 
 export interface JobPosition {
   id: string;
-  examId: string;
-  examLabel: string;
+  sourceId: string;
+  sourceLabel: string;
+  category: JobCategory;
   cycle: string;
+  batchStatus: JobBatchStatus;
+  applicationStatus: JobApplicationStatus;
+  examAt?: string | null;
   title: string;
   organization: string;
   department: string;
@@ -266,21 +287,32 @@ export interface JobPosition {
     politicalStatus: string;
     grassrootsYears: string;
     serviceProject: string;
+    freshGraduate: string;
+    age: string;
+    gender: string;
+    household: string;
+    certificate: string;
     remarks: string;
   };
+  requirementStates: Record<string, JobRequirementState>;
   eligibility: JobEligibility;
-  timingStatus: "active" | "historical";
   matchReasons: string[];
   confirmationFields: string[];
   exclusionReasons: string[];
+  decisions: Array<{
+    field: string;
+    result: "pass" | "fail" | "unknown";
+    reason: string;
+  }>;
   registration: {
-    opensAt: string;
-    closesAt: string;
+    opensAt: string | null;
+    closesAt: string | null;
   };
   source: {
     attachmentId: string;
     url: string;
     portalUrl: string;
+    evidenceUrl: string;
     member: string;
     sheet: string;
     row: number;
@@ -294,31 +326,44 @@ export interface JobIndexCatalog {
 }
 
 export interface JobIndex {
-  schemaVersion: "3.0";
+  schemaVersion: "4.0";
   generatedAt: string;
-  cycle: string;
-  catalog: JobIndexCatalog;
+  asOf: string;
   eligibleCatalog: JobIndexCatalog;
+  needsConfirmationCatalog: JobIndexCatalog;
   sources: Array<{
-    examId: string;
+    sourceId: string;
     label: string;
+    category: JobCategory;
+    cycle: string;
+    selectionMode: JobBatchStatus;
+    examAt: string | null;
     portalUrl: string;
   }>;
   stats: {
-    total: number;
+    processed: number;
     eligible: number;
     needsConfirmation: number;
-    ineligible: number;
-    active: number;
-    historical: number;
+    excluded: number;
+    currentCampaigns: number;
+    referenceCampaigns: number;
+    application: Record<JobApplicationStatus, number>;
+  };
+  coverage: {
+    requiredCategories: JobCategory[];
+    registeredCategories: JobCategory[];
+    catalogCategories: JobCategory[];
+    missingCatalogCategories: JobCategory[];
   };
 }
 
 export interface JobQuery {
   exam?: string;
   region?: string;
-  eligibility?: JobEligibility | "default" | "all";
-  timing?: "active" | "historical" | "all";
+  category?: JobCategory | "all";
+  eligibility?: JobEligibility;
+  batch?: JobBatchStatus | "all";
+  application?: JobApplicationStatus | "all";
   keyword?: string;
   page?: number;
   pageSize?: number;

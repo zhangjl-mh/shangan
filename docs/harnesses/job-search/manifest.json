@@ -1,8 +1,8 @@
 {
   "schemaVersion": "1.0",
   "name": "shangan-job-search-harness",
-  "version": "1.0.0",
-  "description": "Minimal on-demand Harness for job-search collection, download, parsing/filtering, and reporting.",
+  "version": "2.0.0",
+  "description": "Artifact-gated job source collection, download, deterministic parsing, evidence extraction, filtering, and release validation.",
   "workingDirectory": ".",
   "runDirectory": "docs/runs/job-search",
   "maxRetryRounds": 3,
@@ -11,14 +11,14 @@
     "fallbackStatus": "stale_fallback",
     "requiredArtifacts": [
       "data/jobs/index.json",
-      "data/jobs/catalog/positions.jsonl",
-      "data/jobs/catalog/eligible.jsonl"
+      "data/jobs/catalog/eligible.jsonl",
+      "data/jobs/catalog/needs-confirmation.jsonl"
     ]
   },
   "outputs": {
     "index": "data/jobs/index.json",
-    "catalog": "data/jobs/catalog/positions.jsonl",
     "eligibleCatalog": "data/jobs/catalog/eligible.jsonl",
+    "needsConfirmationCatalog": "data/jobs/catalog/needs-confirmation.jsonl",
     "reportName": "job-search-report.json"
   },
   "agents": {
@@ -30,13 +30,21 @@
       "role": "下载员",
       "prompt": "docs/harnesses/job-search/prompts/02-downloader.md"
     },
-    "parserFilter": {
-      "role": "解析筛选员",
-      "prompt": "docs/harnesses/job-search/prompts/03-parser-filter.md"
+    "parser": {
+      "role": "解析员",
+      "prompt": "docs/harnesses/job-search/prompts/03-parser.md"
+    },
+    "extractor": {
+      "role": "证据抽取员",
+      "prompt": "docs/harnesses/job-search/prompts/04-extractor.md"
+    },
+    "filter": {
+      "role": "资格筛选员",
+      "prompt": "docs/harnesses/job-search/prompts/05-filter.md"
     },
     "reporter": {
       "role": "整理员",
-      "prompt": "docs/harnesses/job-search/prompts/04-reporter.md"
+      "prompt": "docs/harnesses/job-search/prompts/06-reporter.md"
     }
   },
   "subAgents": [
@@ -62,13 +70,13 @@
       "id": "state-enterprise-source-finder",
       "role": "国央企来源检索员",
       "stageId": "01",
-      "scope": "国资委、央企、地方国企招聘入口"
+      "scope": "国资委、央企和画像地区国企招聘入口"
     },
     {
       "id": "llm-table-extractor",
       "role": "模型抽取员",
-      "stageId": "03",
-      "scope": "Python 解析失败的表格片段，只抽取有原文证据的字段"
+      "stageId": "04",
+      "scope": "只处理确定性解析器输出的失败片段，并返回原文坐标"
     }
   ],
   "stages": [
@@ -76,21 +84,24 @@
       "id": "01",
       "name": "collect",
       "agent": "collector",
-      "description": "Discover official job sources, prioritizing user-profile regions.",
+      "executionMode": "agent",
+      "description": "Discover official campaigns and submit evidence-backed candidates.",
       "command": [],
       "inputs": [
         "data/user-profile/profile.json",
+        "data/jobs/source-registry.json",
         "data/jobs/sources.json"
       ],
       "outputs": [
-        "stage-results/01-collect.json"
+        "stage-results/01-submitted.json"
       ]
     },
     {
       "id": "02",
       "name": "download",
       "agent": "downloader",
-      "description": "Download official attachments declared by the source manifest.",
+      "executionMode": "command",
+      "description": "Download selected official attachments.",
       "command": [
         "python",
         ".agents/skills/job-filter/scripts/job_pipeline.py",
@@ -101,35 +112,70 @@
         "data/jobs/sources.json"
       ],
       "outputs": [
-        "data/jobs/sources/**",
-        "stage-results/02-download.json"
+        "data/jobs/sources/**"
       ]
     },
     {
       "id": "03",
-      "name": "parse-filter",
-      "agent": "parserFilter",
-      "description": "Parse attachments and apply profile-based three-state filtering.",
+      "name": "parse",
+      "agent": "parser",
+      "executionMode": "command",
+      "description": "Deterministically normalize official attachments and emit extraction fragments.",
       "command": [
         "python",
         ".agents/skills/job-filter/scripts/job_pipeline.py",
-        "build"
+        "parse"
       ],
       "inputs": [
-        "data/jobs/sources/**",
-        "data/user-profile/profile.json"
+        "data/jobs/sources/**"
       ],
       "outputs": [
-        "data/jobs/index.json",
-        "data/jobs/catalog/positions.jsonl",
-        "data/jobs/catalog/eligible.jsonl",
-        "stage-results/03-parse-filter.json"
+        "parsed-positions.jsonl",
+        "extraction-fragments.json"
       ]
     },
     {
       "id": "04",
+      "name": "extract",
+      "agent": "extractor",
+      "executionMode": "conditional_agent",
+      "conditionArtifact": "extraction-fragments.json",
+      "description": "Resolve parser failures from original evidence only.",
+      "command": [],
+      "inputs": [
+        "extraction-fragments.json"
+      ],
+      "outputs": [
+        "stage-results/04-submitted.json"
+      ]
+    },
+    {
+      "id": "05",
+      "name": "filter",
+      "agent": "filter",
+      "executionMode": "command",
+      "description": "Apply strict profile decisions and prepare guarded formal outputs.",
+      "command": [
+        "python",
+        ".agents/skills/job-filter/scripts/job_pipeline.py",
+        "filter"
+      ],
+      "inputs": [
+        "data/user-profile/profile.json",
+        "parsed-positions.jsonl",
+        "stage-results/04-submitted.json"
+      ],
+      "outputs": [
+        "data/jobs/index.json",
+        "data/jobs/catalog/eligible.jsonl",
+        "data/jobs/catalog/needs-confirmation.jsonl"
+      ]
+    },
+    {
+      "id": "06",
       "name": "report",
       "agent": "reporter",
+      "executionMode": "command",
       "description": "Validate formal outputs and write the run report.",
       "command": [
         "python",
@@ -138,12 +184,11 @@
       ],
       "inputs": [
         "data/jobs/index.json",
-        "data/jobs/catalog/positions.jsonl",
-        "data/jobs/catalog/eligible.jsonl"
+        "data/jobs/catalog/eligible.jsonl",
+        "data/jobs/catalog/needs-confirmation.jsonl"
       ],
       "outputs": [
-        "job-search-report.json",
-        "stage-results/04-report.json"
+        "job-search-report.json"
       ]
     }
   ]

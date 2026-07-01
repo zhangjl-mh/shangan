@@ -6,70 +6,73 @@
   "required": [
     "schemaVersion",
     "generatedAt",
-    "cycle",
+    "asOf",
     "profileSnapshot",
-    "catalog",
     "eligibleCatalog",
+    "needsConfirmationCatalog",
     "sources",
-    "stats"
+    "stats",
+    "coverage",
+    "errors"
   ],
   "properties": {
-    "schemaVersion": { "const": "3.0" },
+    "schemaVersion": { "const": "4.0" },
     "generatedAt": { "type": "string", "format": "date-time" },
-    "cycle": { "type": "string", "minLength": 1 },
+    "asOf": { "type": "string", "format": "date-time" },
     "profileSnapshot": {
       "type": "object",
       "required": ["sha256", "updatedAt", "unknownFields"],
       "properties": {
-        "sha256": { "type": "string", "minLength": 64 },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
         "updatedAt": { "type": "string", "format": "date-time" },
         "unknownFields": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": { "type": "string", "minLength": 1 },
           "uniqueItems": true
         }
       },
       "additionalProperties": false
     },
-    "catalog": {
-      "type": "object",
-      "required": ["path", "rowCount", "sha256"],
-      "properties": {
-        "path": { "type": "string", "minLength": 1 },
-        "rowCount": { "type": "integer", "minimum": 0 },
-        "sha256": { "type": "string", "minLength": 64 }
-      },
-      "additionalProperties": false
-    },
-    "eligibleCatalog": {
-      "type": "object",
-      "required": ["path", "rowCount", "sha256"],
-      "properties": {
-        "path": { "type": "string", "minLength": 1 },
-        "rowCount": { "type": "integer", "minimum": 0 },
-        "sha256": { "type": "string", "minLength": 64 }
-      },
-      "additionalProperties": false
-    },
+    "eligibleCatalog": { "$ref": "#/$defs/catalogArtifact" },
+    "needsConfirmationCatalog": { "$ref": "#/$defs/catalogArtifact" },
     "sources": {
       "type": "array",
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["examId", "label", "portalUrl", "registration", "attachments"],
+        "required": [
+          "sourceId",
+          "label",
+          "category",
+          "cycle",
+          "selectionMode",
+          "portalUrl",
+          "evidenceUrl",
+          "allowedHosts",
+          "registration",
+          "attachments"
+        ],
         "properties": {
-          "examId": { "type": "string", "minLength": 1 },
+          "sourceId": { "type": "string", "minLength": 1 },
           "label": { "type": "string", "minLength": 1 },
-          "portalUrl": { "type": "string", "format": "uri" },
-          "registration": {
-            "type": "object",
-            "required": ["opensAt", "closesAt"],
-            "properties": {
-              "opensAt": { "type": "string", "format": "date-time" },
-              "closesAt": { "type": "string", "format": "date-time" }
-            },
-            "additionalProperties": false
+          "category": { "$ref": "#/$defs/jobCategory" },
+          "cycle": { "type": "string", "minLength": 1 },
+          "selectionMode": {
+            "enum": ["current", "previous_reference"]
           },
+          "examAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "portalUrl": { "type": "string", "format": "uri" },
+          "evidenceUrl": { "type": "string", "format": "uri" },
+          "allowedHosts": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 },
+            "uniqueItems": true
+          },
+          "registration": { "$ref": "#/$defs/registration" },
           "attachments": {
             "type": "array",
             "minItems": 1,
@@ -77,10 +80,10 @@
               "type": "object",
               "required": ["id", "url", "path", "sha256", "size"],
               "properties": {
-                "id": { "type": "string" },
+                "id": { "type": "string", "minLength": 1 },
                 "url": { "type": "string", "format": "uri" },
-                "path": { "type": "string" },
-                "sha256": { "type": "string", "minLength": 64 },
+                "path": { "type": "string", "minLength": 1 },
+                "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
                 "size": { "type": "integer", "minimum": 1 }
               },
               "additionalProperties": false
@@ -92,14 +95,65 @@
     },
     "stats": {
       "type": "object",
-      "required": ["total", "eligible", "needsConfirmation", "ineligible", "active", "historical"],
+      "required": [
+        "processed",
+        "eligible",
+        "needsConfirmation",
+        "excluded",
+        "currentCampaigns",
+        "referenceCampaigns",
+        "application"
+      ],
       "properties": {
-        "total": { "type": "integer", "minimum": 0 },
+        "processed": { "type": "integer", "minimum": 0 },
         "eligible": { "type": "integer", "minimum": 0 },
         "needsConfirmation": { "type": "integer", "minimum": 0 },
-        "ineligible": { "type": "integer", "minimum": 0 },
-        "active": { "type": "integer", "minimum": 0 },
-        "historical": { "type": "integer", "minimum": 0 }
+        "excluded": { "type": "integer", "minimum": 0 },
+        "currentCampaigns": { "type": "integer", "minimum": 0 },
+        "referenceCampaigns": { "type": "integer", "minimum": 0 },
+        "application": {
+          "type": "object",
+          "required": ["upcoming", "open", "closed", "unknown"],
+          "properties": {
+            "upcoming": { "type": "integer", "minimum": 0 },
+            "open": { "type": "integer", "minimum": 0 },
+            "closed": { "type": "integer", "minimum": 0 },
+            "unknown": { "type": "integer", "minimum": 0 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "coverage": {
+      "type": "object",
+      "required": [
+        "requiredCategories",
+        "registeredCategories",
+        "catalogCategories",
+        "missingCatalogCategories"
+      ],
+      "properties": {
+        "requiredCategories": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/jobCategory" },
+          "uniqueItems": true
+        },
+        "registeredCategories": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/jobCategory" },
+          "uniqueItems": true
+        },
+        "catalogCategories": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/jobCategory" },
+          "uniqueItems": true
+        },
+        "missingCatalogCategories": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/jobCategory" },
+          "uniqueItems": true
+        }
       },
       "additionalProperties": false
     },
@@ -114,6 +168,41 @@
         },
         "additionalProperties": false
       }
+    }
+  },
+  "$defs": {
+    "catalogArtifact": {
+      "type": "object",
+      "required": ["path", "rowCount", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "rowCount": { "type": "integer", "minimum": 0 },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "additionalProperties": false
+    },
+    "jobCategory": {
+      "enum": [
+        "civil_service",
+        "institution",
+        "military_civilian",
+        "state_owned_enterprise"
+      ]
+    },
+    "registration": {
+      "type": "object",
+      "required": ["opensAt", "closesAt"],
+      "properties": {
+        "opensAt": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "closesAt": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

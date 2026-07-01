@@ -18,9 +18,11 @@ description: 处理岗位检索、下载、解析筛选和整理输出。用户�
 
 ```text
 python scripts/job_search_harness.py all
+python scripts/job_search_harness.py submit <run-id> <stage-id> <result-json>
 python scripts/job_search_harness.py status <run-id>
 python scripts/job_search_harness.py resume <run-id>
 python scripts/job_search_harness.py validate <run-id>
 ```
 
 运行记录写入 `docs/runs/job-search/<run-id>/`，正式岗位数据仍写入 `data/jobs/**`。
+Agent 阶段没有结构化提交时会暂停，不会被空命令标记为成功。

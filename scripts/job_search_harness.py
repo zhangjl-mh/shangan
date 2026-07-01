@@ -74,10 +74,10 @@ def command_runner(stage: dict[str, Any], environment: dict[str, str], root: Pat
     command = list(stage.get("command") or [])
     if not command:
         return StageResult(
-            0,
+            2,
             payload={
-                "status": "completed",
-                "summary": "No command configured; prompt-guided stage recorded.",
+                "status": "has_bugs",
+                "summary": "Stage has no command and is not configured as an agent gate.",
             },
         )
 
@@ -188,6 +188,8 @@ class JobSearchHarness:
             self.save_execution(execution)
             if execution["status"] in TERMINAL_STATUSES:
                 break
+            if outcome == "paused":
+                break
             if outcome == "retry":
                 continue
             if outcome == "failed":
@@ -216,7 +218,49 @@ class JobSearchHarness:
             "JOB_SEARCH_STAGE_ID": stage["id"],
             "JOB_SEARCH_STAGE_NAME": stage["name"],
         }
-        result = self.runner(stage, environment, self.root)
+        execution_mode = stage.get("executionMode", "command")
+        if execution_mode in {"agent", "conditional_agent"}:
+            if (
+                execution_mode == "conditional_agent"
+                and not self.agent_condition_required(execution, stage)
+            ):
+                result = StageResult(
+                    0,
+                    payload={
+                        "status": "completed",
+                        "summary": "Agent extraction skipped; deterministic parser produced no fragments.",
+                        "artifacts": [],
+                        "subAgentOutputs": [],
+                        "issues": [],
+                    },
+                )
+            else:
+                submission = self.submission_path(execution, stage["id"])
+                if not submission.is_file():
+                    execution["status"] = "paused"
+                    execution["pauseReason"] = "agent_artifact_required"
+                    execution["steps"].append(
+                        {
+                            "stageId": stage["id"],
+                            "name": stage["name"],
+                            "agent": stage.get("agent", ""),
+                            "attempt": attempt,
+                            "status": "paused",
+                            "startedAt": started_at,
+                            "finishedAt": utc_now(),
+                            "exitCode": None,
+                            "summary": "Waiting for validated agent submission.",
+                            "artifacts": [
+                                normalize_path(
+                                    str(prompt_path.relative_to(run_directory))
+                                )
+                            ],
+                        }
+                    )
+                    return "paused"
+                result = StageResult(0, payload=read_json(submission))
+        else:
+            result = self.runner(stage, environment, self.root)
         payload = result.payload or {}
         if result.exit_code == 0 and not payload:
             payload = {
@@ -303,6 +347,64 @@ class JobSearchHarness:
             self.finish(execution, "awaiting_review")
             return "completed"
         return "completed"
+
+    def submission_path(
+        self,
+        execution: dict[str, Any],
+        stage_id: str,
+    ) -> Path:
+        return (
+            self.execution_directory(execution["executionId"])
+            / "stage-results"
+            / f"{stage_id}-submitted.json"
+        )
+
+    def agent_condition_required(
+        self,
+        execution: dict[str, Any],
+        stage: dict[str, Any],
+    ) -> bool:
+        condition_artifact = stage.get("conditionArtifact")
+        if not condition_artifact:
+            return True
+        path = self.execution_directory(execution["executionId"]) / condition_artifact
+        if not path.is_file():
+            return True
+        value = json.loads(path.read_text(encoding="utf-8"))
+        return bool(value)
+
+    def submit(
+        self,
+        execution_id: str,
+        stage_id: str,
+        result_path: Path,
+    ) -> dict[str, Any]:
+        execution = self.load_execution(execution_id)
+        if execution.get("currentStage") != stage_id:
+            raise ValueError(
+                f"stage {stage_id} is not current; current={execution.get('currentStage')}"
+            )
+        stage = self.stage_by_id.get(stage_id)
+        if not stage or stage.get("executionMode") not in {
+            "agent",
+            "conditional_agent",
+        }:
+            raise ValueError(f"stage {stage_id} does not accept agent submissions")
+        payload = read_json(result_path.resolve())
+        required = {"status", "summary", "artifacts", "subAgentOutputs", "issues"}
+        missing = required - payload.keys()
+        if missing:
+            raise ValueError(f"agent submission missing fields: {sorted(missing)}")
+        if payload["status"] not in {"completed", "awaiting_review", "has_bugs"}:
+            raise ValueError(f"invalid agent submission status: {payload['status']}")
+        for key in ("artifacts", "subAgentOutputs", "issues"):
+            if not isinstance(payload[key], list):
+                raise ValueError(f"agent submission {key} must be an array")
+        write_json(self.submission_path(execution, stage_id), payload)
+        execution["status"] = "paused"
+        execution["pauseReason"] = "agent_submission_ready"
+        self.save_execution(execution)
+        return execution
 
     def write_prompt(self, execution: dict[str, Any], stage: dict[str, Any], attempt: int) -> Path:
         run_directory = self.execution_directory(execution["executionId"])
@@ -409,6 +511,7 @@ class JobSearchHarness:
             "executionId": execution["executionId"],
             "status": execution["status"],
             "currentStage": execution.get("currentStage"),
+            "pauseReason": execution.get("pauseReason"),
             "completedSteps": len(execution.get("steps", [])),
             "fallbacks": len(execution.get("fallbacks", [])),
             "updatedAt": execution["updatedAt"],
@@ -433,6 +536,10 @@ def build_parser() -> argparse.ArgumentParser:
     for name in ("run", "resume", "status", "validate"):
         command_parser = subparsers.add_parser(name)
         command_parser.add_argument("execution_id")
+    submit_parser = subparsers.add_parser("submit")
+    submit_parser.add_argument("execution_id")
+    submit_parser.add_argument("stage_id")
+    submit_parser.add_argument("result_path")
     return parser
 
 
@@ -455,6 +562,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps(harness.status(args.execution_id), ensure_ascii=False))
             return 0 if result["status"] in {"all_passed", "awaiting_review"} else 1
         if args.command == "status":
+            print(json.dumps(harness.status(args.execution_id), ensure_ascii=False))
+            return 0
+        if args.command == "submit":
+            harness.submit(
+                args.execution_id,
+                args.stage_id,
+                Path(args.result_path),
+            )
             print(json.dumps(harness.status(args.execution_id), ensure_ascii=False))
             return 0
         errors = harness.validate(args.execution_id)

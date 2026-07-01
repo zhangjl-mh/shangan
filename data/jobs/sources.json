@@ -1,21 +1,41 @@
 {
-  "schemaVersion": "1.0",
-  "cycle": "2026",
-  "checkedAt": "2026-06-15T00:00:00+08:00",
+  "schemaVersion": "2.0",
+  "asOf": "2026-06-30T00:00:00+08:00",
   "sources": [
     {
-      "examId": "national-civil-service",
+      "sourceId": "national-civil-service",
       "label": "2026年国考",
+      "category": "civil_service",
       "cycle": "2026",
+      "selectionMode": "previous_reference",
+      "recruitmentMode": "exam",
+      "examAt": "2025-11-30T09:00:00+08:00",
       "region": "全国",
       "authority": "国家公务员局",
       "announcementTitle": "中央机关及其直属机构2026年度考试录用公务员公告",
       "announcementUrl": "http://bm.scs.gov.cn/pp/gkweb/core/web/ui/business/article/articledetail.html?ArticleId=8a81f6d09780e3a20199dd916ecf0122&id=0000000062b7b2b60162bccd55ec0006&eid=0000000062b7b2b60162bccdd5860007",
       "portalUrl": "http://bm.scs.gov.cn/pp/gkweb/core/web/ui/business/home/gkhome.html",
+      "evidenceUrl": "http://bm.scs.gov.cn/pp/gkweb/core/web/ui/business/article/articledetail.html?ArticleId=8a81f6d09780e3a20199dd916ecf0122&id=0000000062b7b2b60162bccd55ec0006&eid=0000000062b7b2b60162bccdd5860007",
+      "allowedHosts": [
+        "scs.gov.cn"
+      ],
       "registration": {
         "opensAt": "2025-10-15T08:00:00+08:00",
         "closesAt": "2025-10-24T18:00:00+08:00"
       },
+      "blankMeansUnrestricted": [
+        "major",
+        "degree",
+        "politicalStatus",
+        "grassrootsYears",
+        "serviceProject",
+        "freshGraduate",
+        "age",
+        "gender",
+        "household",
+        "certificate",
+        "remarks"
+      ],
       "attachments": [
         {
           "id": "national-2026-positions",
@@ -27,22 +47,43 @@
         }
       ],
       "notes": [
-        "2026专题短地址已跳转至国家公务员局通用入口，保留可访问的归档入口。"
+        "截至2026-06-30尚未发布下一年度岗位表，本批次按上届参考使用。"
       ]
     },
     {
-      "examId": "beijing-civil-service",
+      "sourceId": "beijing-civil-service",
       "label": "2026年北京市考",
+      "category": "civil_service",
       "cycle": "2026",
+      "selectionMode": "previous_reference",
+      "recruitmentMode": "exam",
+      "examAt": "2025-12-07T09:00:00+08:00",
       "region": "北京",
       "authority": "北京市公务员局",
       "announcementTitle": "北京市各级机关2026年度考试录用公务员公告",
       "announcementUrl": "https://www.beijing.gov.cn/gongkai/rsxx/gwyzk/202511/t20251110_4267508.html",
       "portalUrl": "https://rsj.beijing.gov.cn/bm/ztzl/gwy/",
+      "evidenceUrl": "https://www.beijing.gov.cn/gongkai/rsxx/gwyzk/202511/t20251110_4267508.html",
+      "allowedHosts": [
+        "beijing.gov.cn"
+      ],
       "registration": {
         "opensAt": "2025-11-17T09:00:00+08:00",
         "closesAt": "2025-11-21T18:00:00+08:00"
       },
+      "blankMeansUnrestricted": [
+        "major",
+        "degree",
+        "politicalStatus",
+        "grassrootsYears",
+        "serviceProject",
+        "freshGraduate",
+        "age",
+        "gender",
+        "household",
+        "certificate",
+        "remarks"
+      ],
       "attachments": [
         {
           "id": "beijing-2026-positions",
@@ -52,21 +93,45 @@
           "path": "data/jobs/sources/beijing-civil-service/2026/positions.xlsx",
           "sha256": "f35a34f0a17bf49c8275cd112692b1a6f5cc3474b56a1def945e11093d313dcd"
         }
+      ],
+      "notes": [
+        "公共科目考试时间为2025-12-07，本批次按上届参考使用。"
       ]
     },
     {
-      "examId": "tianjin-civil-service",
+      "sourceId": "tianjin-civil-service",
       "label": "2026年天津市考",
+      "category": "civil_service",
       "cycle": "2026",
+      "selectionMode": "previous_reference",
+      "recruitmentMode": "exam",
+      "examAt": "2025-12-07T09:00:00+08:00",
       "region": "天津",
       "authority": "天津市公务员局",
       "announcementTitle": "天津市2026年度考试录用公务员公告",
       "announcementUrl": "https://www.tj.gov.cn/zwgk/zfxxgkzl/fdzdgknr/zkly/zk/202511/t20251105_7170794.html",
       "portalUrl": "https://gklx.hrss.tj.gov.cn/",
+      "evidenceUrl": "https://www.tj.gov.cn/zwgk/zfxxgkzl/fdzdgknr/zkly/zk/202511/t20251105_7170794.html",
+      "allowedHosts": [
+        "tj.gov.cn"
+      ],
       "registration": {
         "opensAt": "2025-11-05T08:30:00+08:00",
         "closesAt": "2025-11-11T18:00:00+08:00"
       },
+      "blankMeansUnrestricted": [
+        "major",
+        "degree",
+        "politicalStatus",
+        "grassrootsYears",
+        "serviceProject",
+        "freshGraduate",
+        "age",
+        "gender",
+        "household",
+        "certificate",
+        "remarks"
+      ],
       "attachments": [
         {
           "id": "tianjin-2026-positions",
@@ -76,21 +141,45 @@
           "path": "data/jobs/sources/tianjin-civil-service/2026/positions.xlsx",
           "sha256": "b36eafc091957364e22534491a87e7b3a4dba1c6090fc6c8a8a623e0d545de81"
         }
+      ],
+      "notes": [
+        "公共科目考试时间为2025-12-07，本批次按上届参考使用。"
       ]
     },
     {
-      "examId": "hebei-civil-service",
+      "sourceId": "hebei-civil-service",
       "label": "2026年河北省考",
+      "category": "civil_service",
       "cycle": "2026",
+      "selectionMode": "previous_reference",
+      "recruitmentMode": "exam",
+      "examAt": "2026-03-15T09:00:00+08:00",
       "region": "河北",
       "authority": "河北省公务员局",
       "announcementTitle": "河北省2026年度公务员录用省市县乡四级联考公告",
       "announcementUrl": "https://jtt.hebei.gov.cn/jtyst/zwgk/jcxxgk/tggs/101769650776087.html",
       "portalUrl": "https://jtt.hebei.gov.cn/jtyst/zwgk/jcxxgk/tggs/101769650776087.html",
+      "evidenceUrl": "https://whly.hebei.gov.cn/c/2026-02-02/584115.html",
+      "allowedHosts": [
+        "hebei.gov.cn"
+      ],
       "registration": {
         "opensAt": "2026-02-01T09:00:00+08:00",
         "closesAt": "2026-02-05T17:00:00+08:00"
       },
+      "blankMeansUnrestricted": [
+        "major",
+        "degree",
+        "politicalStatus",
+        "grassrootsYears",
+        "serviceProject",
+        "freshGraduate",
+        "age",
+        "gender",
+        "household",
+        "certificate",
+        "remarks"
+      ],
       "attachments": [
         {
           "id": "hebei-2026-positions",
@@ -110,8 +199,7 @@
         }
       ],
       "notes": [
-        "职位表来自河北省政府部门发布的完整公告镜像。",
-        "河北省人事考试网报名入口不是 gov.cn 域名，因此不作为附件下载来源。"
+        "笔试时间为2026-03-14至03-15，本批次按上届参考使用。"
       ]
     }
   ],

@@ -2,3 +2,5 @@ data/jobs/sources/**/*.xls filter=lfs diff=lfs merge=lfs -text
 data/jobs/sources/**/*.xlsx filter=lfs diff=lfs merge=lfs -text
 data/jobs/sources/**/*.zip filter=lfs diff=lfs merge=lfs -text
 data/jobs/sources/**/*.pdf filter=lfs diff=lfs merge=lfs -text
+data/jobs/catalog/*.jsonl text eol=lf
+data/jobs/*.json text eol=lf

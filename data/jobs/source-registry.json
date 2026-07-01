@@ -1,0 +1,239 @@
+{
+  "schemaVersion": "1.0",
+  "updatedAt": "2026-06-30T00:00:00+08:00",
+  "requiredCategories": [
+    "civil_service",
+    "institution",
+    "military_civilian",
+    "state_owned_enterprise"
+  ],
+  "sourceFamilies": [
+    {
+      "sourceId": "national-civil-service",
+      "category": "civil_service",
+      "label": "国家公务员考试",
+      "authority": "国家公务员局",
+      "recruitmentMode": "exam",
+      "regions": [
+        "全国"
+      ],
+      "discoveryUrls": [
+        "http://bm.scs.gov.cn/pp/gkweb/core/web/ui/business/home/gkhome.html"
+      ],
+      "allowedHosts": [
+        "scs.gov.cn"
+      ]
+    },
+    {
+      "sourceId": "beijing-civil-service",
+      "category": "civil_service",
+      "label": "北京市公务员考试",
+      "authority": "北京市公务员局",
+      "recruitmentMode": "exam",
+      "regions": [
+        "北京"
+      ],
+      "discoveryUrls": [
+        "https://www.beijing.gov.cn/gongkai/rsxx/gwyzk/"
+      ],
+      "allowedHosts": [
+        "beijing.gov.cn"
+      ]
+    },
+    {
+      "sourceId": "tianjin-civil-service",
+      "category": "civil_service",
+      "label": "天津市公务员考试",
+      "authority": "天津市公务员局",
+      "recruitmentMode": "exam",
+      "regions": [
+        "天津"
+      ],
+      "discoveryUrls": [
+        "https://www.tj.gov.cn/zwgk/zfxxgkzl/fdzdgknr/zkly/zk/"
+      ],
+      "allowedHosts": [
+        "tj.gov.cn"
+      ]
+    },
+    {
+      "sourceId": "hebei-civil-service",
+      "category": "civil_service",
+      "label": "河北省公务员考试",
+      "authority": "河北省公务员局",
+      "recruitmentMode": "exam",
+      "regions": [
+        "河北",
+        "雄安",
+        "石家庄"
+      ],
+      "discoveryUrls": [
+        "https://www.hebei.gov.cn/"
+      ],
+      "allowedHosts": [
+        "hebei.gov.cn"
+      ]
+    },
+    {
+      "sourceId": "central-institutions",
+      "category": "institution",
+      "label": "中央和国家机关所属事业单位公开招聘",
+      "authority": "人力资源和社会保障部",
+      "recruitmentMode": "rolling",
+      "regions": [
+        "全国"
+      ],
+      "discoveryUrls": [
+        "https://job.mohrss.gov.cn/sydw/"
+      ],
+      "allowedHosts": [
+        "mohrss.gov.cn"
+      ]
+    },
+    {
+      "sourceId": "beijing-institutions",
+      "category": "institution",
+      "label": "北京市事业单位公开招聘",
+      "authority": "北京市人力资源和社会保障局",
+      "recruitmentMode": "rolling",
+      "regions": [
+        "北京"
+      ],
+      "discoveryUrls": [
+        "https://rsj.beijing.gov.cn/xxgk/gkzp/"
+      ],
+      "allowedHosts": [
+        "beijing.gov.cn"
+      ]
+    },
+    {
+      "sourceId": "tianjin-institutions",
+      "category": "institution",
+      "label": "天津市事业单位公开招聘",
+      "authority": "天津市人力资源和社会保障局",
+      "recruitmentMode": "rolling",
+      "regions": [
+        "天津"
+      ],
+      "discoveryUrls": [
+        "https://hrss.tj.gov.cn/ztzl/ztzl1/sydwgkzp/"
+      ],
+      "allowedHosts": [
+        "tj.gov.cn"
+      ]
+    },
+    {
+      "sourceId": "xiongan-talent",
+      "category": "institution",
+      "label": "雄安新区人才招聘",
+      "authority": "中国雄安官网",
+      "recruitmentMode": "rolling",
+      "regions": [
+        "雄安"
+      ],
+      "discoveryUrls": [
+        "https://www.xiongan.gov.cn/xaxw/rczp.html"
+      ],
+      "allowedHosts": [
+        "xiongan.gov.cn"
+      ]
+    },
+    {
+      "sourceId": "military-civilian",
+      "category": "military_civilian",
+      "label": "军队文职人员公开招考",
+      "authority": "中央军委政治工作部",
+      "recruitmentMode": "exam",
+      "regions": [
+        "全国"
+      ],
+      "discoveryUrls": [
+        "https://81rc.81.cn/wzry/gzdt/index.html"
+      ],
+      "allowedHosts": [
+        "81.cn",
+        "81rc.mil.cn"
+      ]
+    },
+    {
+      "sourceId": "central-state-owned-enterprises",
+      "category": "state_owned_enterprise",
+      "label": "中央企业招聘",
+      "authority": "国务院国有资产监督管理委员会",
+      "recruitmentMode": "rolling",
+      "regions": [
+        "全国"
+      ],
+      "discoveryUrls": [
+        "https://www.sasac.gov.cn/n2588035/n2588325/n2588350/index.html"
+      ],
+      "allowedHosts": [
+        "sasac.gov.cn"
+      ]
+    },
+    {
+      "sourceId": "beijing-state-owned-enterprises",
+      "category": "state_owned_enterprise",
+      "label": "北京市管国企招聘",
+      "authority": "北京市人民政府国有资产监督管理委员会",
+      "recruitmentMode": "rolling",
+      "regions": [
+        "北京"
+      ],
+      "discoveryUrls": [
+        "https://gzw.beijing.gov.cn/yggq/gqzp/"
+      ],
+      "allowedHosts": [
+        "beijing.gov.cn"
+      ]
+    },
+    {
+      "sourceId": "tianjin-state-owned-enterprises",
+      "category": "state_owned_enterprise",
+      "label": "天津市管国企招聘",
+      "authority": "天津市人民政府国有资产监督管理委员会",
+      "recruitmentMode": "rolling",
+      "regions": [
+        "天津"
+      ],
+      "discoveryUrls": [
+        "https://sasac.tj.gov.cn/"
+      ],
+      "allowedHosts": [
+        "tj.gov.cn"
+      ]
+    },
+    {
+      "sourceId": "xiongan-state-owned-enterprises",
+      "category": "state_owned_enterprise",
+      "label": "雄安新区国企招聘",
+      "authority": "中国雄安官网",
+      "recruitmentMode": "rolling",
+      "regions": [
+        "雄安"
+      ],
+      "discoveryUrls": [
+        "https://www.xiongan.gov.cn/xaxw/rczp.html"
+      ],
+      "allowedHosts": [
+        "xiongan.gov.cn"
+      ]
+    },
+    {
+      "sourceId": "shijiazhuang-state-owned-enterprises",
+      "category": "state_owned_enterprise",
+      "label": "石家庄市属国企招聘",
+      "authority": "石家庄市人民政府国有资产监督管理委员会",
+      "recruitmentMode": "rolling",
+      "regions": [
+        "石家庄"
+      ],
+      "discoveryUrls": [
+        "https://gzw.sjz.gov.cn/"
+      ],
+      "allowedHosts": [
+        "sjz.gov.cn"
+      ]
+    }
+  ]
+}

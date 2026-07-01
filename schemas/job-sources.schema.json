@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shangan.local/schemas/job-sources.schema.json",
+  "title": "Selected Official Job Campaigns",
+  "type": "object",
+  "required": ["schemaVersion", "asOf", "sources", "unconfirmed"],
+  "properties": {
+    "schemaVersion": { "const": "2.0" },
+    "asOf": { "type": "string", "format": "date-time" },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "sourceId",
+          "label",
+          "category",
+          "cycle",
+          "selectionMode",
+          "recruitmentMode",
+          "authority",
+          "announcementTitle",
+          "announcementUrl",
+          "portalUrl",
+          "evidenceUrl",
+          "allowedHosts",
+          "registration",
+          "attachments"
+        ],
+        "properties": {
+          "sourceId": { "type": "string", "minLength": 1 },
+          "label": { "type": "string", "minLength": 1 },
+          "category": {
+            "enum": [
+              "civil_service",
+              "institution",
+              "military_civilian",
+              "state_owned_enterprise"
+            ]
+          },
+          "cycle": { "type": "string", "minLength": 1 },
+          "selectionMode": { "enum": ["current", "previous_reference"] },
+          "recruitmentMode": { "enum": ["exam", "rolling"] },
+          "examAt": { "type": ["string", "null"], "format": "date-time" },
+          "region": { "type": "string" },
+          "authority": { "type": "string", "minLength": 1 },
+          "announcementTitle": { "type": "string", "minLength": 1 },
+          "announcementUrl": { "type": "string", "format": "uri" },
+          "portalUrl": { "type": "string", "format": "uri" },
+          "evidenceUrl": { "type": "string", "format": "uri" },
+          "allowedHosts": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 },
+            "uniqueItems": true
+          },
+          "registration": {
+            "type": "object",
+            "required": ["opensAt", "closesAt"],
+            "properties": {
+              "opensAt": { "type": ["string", "null"], "format": "date-time" },
+              "closesAt": { "type": ["string", "null"], "format": "date-time" }
+            },
+            "additionalProperties": false
+          },
+          "blankMeansUnrestricted": {
+            "type": "array",
+            "items": { "type": "string" },
+            "uniqueItems": true
+          },
+          "attachments": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["id", "kind", "title", "url", "path"],
+              "properties": {
+                "id": { "type": "string", "minLength": 1 },
+                "kind": { "enum": ["positions", "reference"] },
+                "title": { "type": "string", "minLength": 1 },
+                "url": { "type": "string", "format": "uri" },
+                "path": { "type": "string", "minLength": 1 },
+                "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "notes": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "unconfirmed": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["sourceId", "field", "reason"],
+        "properties": {
+          "sourceId": { "type": "string" },
+          "field": { "type": "string" },
+          "reason": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

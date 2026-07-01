@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shangan.local/schemas/job-position.schema.json",
+  "title": "Filtered Job Position",
+  "type": "object",
+  "required": [
+    "id",
+    "sourceId",
+    "sourceLabel",
+    "category",
+    "cycle",
+    "batchStatus",
+    "applicationStatus",
+    "organization",
+    "department",
+    "title",
+    "positionCode",
+    "region",
+    "recruitCount",
+    "requirements",
+    "requirementStates",
+    "eligibility",
+    "matchReasons",
+    "confirmationFields",
+    "exclusionReasons",
+    "decisions",
+    "registration",
+    "source"
+  ],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "sourceId": { "type": "string", "minLength": 1 },
+    "sourceLabel": { "type": "string", "minLength": 1 },
+    "category": {
+      "enum": [
+        "civil_service",
+        "institution",
+        "military_civilian",
+        "state_owned_enterprise"
+      ]
+    },
+    "cycle": { "type": "string", "minLength": 1 },
+    "batchStatus": { "enum": ["current", "previous_reference"] },
+    "applicationStatus": { "enum": ["upcoming", "open", "closed", "unknown"] },
+    "examAt": { "type": ["string", "null"], "format": "date-time" },
+    "organization": { "type": "string", "minLength": 1 },
+    "department": { "type": "string" },
+    "title": { "type": "string", "minLength": 1 },
+    "positionCode": { "type": "string", "minLength": 1 },
+    "region": { "type": "string" },
+    "recruitCount": { "type": "integer", "minimum": 0 },
+    "requirements": { "$ref": "#/$defs/requirements" },
+    "requirementStates": { "$ref": "#/$defs/requirementStates" },
+    "eligibility": { "enum": ["eligible", "needs_confirmation"] },
+    "matchReasons": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "confirmationFields": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "exclusionReasons": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["field", "result", "reason"],
+        "properties": {
+          "field": { "type": "string" },
+          "result": { "enum": ["pass", "fail", "unknown"] },
+          "reason": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "registration": {
+      "type": "object",
+      "required": ["opensAt", "closesAt"],
+      "properties": {
+        "opensAt": { "type": ["string", "null"], "format": "date-time" },
+        "closesAt": { "type": ["string", "null"], "format": "date-time" }
+      },
+      "additionalProperties": false
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "attachmentId",
+        "url",
+        "portalUrl",
+        "evidenceUrl",
+        "member",
+        "sheet",
+        "row"
+      ],
+      "properties": {
+        "attachmentId": { "type": "string" },
+        "url": { "type": "string", "format": "uri" },
+        "portalUrl": { "type": "string", "format": "uri" },
+        "evidenceUrl": { "type": "string", "format": "uri" },
+        "member": { "type": "string" },
+        "sheet": { "type": "string" },
+        "row": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "requirements": {
+      "type": "object",
+      "required": [
+        "major",
+        "education",
+        "degree",
+        "politicalStatus",
+        "grassrootsYears",
+        "serviceProject",
+        "freshGraduate",
+        "age",
+        "gender",
+        "household",
+        "certificate",
+        "remarks"
+      ],
+      "properties": {
+        "major": { "type": "string" },
+        "education": { "type": "string" },
+        "degree": { "type": "string" },
+        "politicalStatus": { "type": "string" },
+        "grassrootsYears": { "type": "string" },
+        "serviceProject": { "type": "string" },
+        "freshGraduate": { "type": "string" },
+        "age": { "type": "string" },
+        "gender": { "type": "string" },
+        "household": { "type": "string" },
+        "certificate": { "type": "string" },
+        "remarks": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "requirementStates": {
+      "type": "object",
+      "required": [
+        "major",
+        "education",
+        "degree",
+        "politicalStatus",
+        "grassrootsYears",
+        "serviceProject",
+        "freshGraduate",
+        "age",
+        "gender",
+        "household",
+        "certificate",
+        "remarks"
+      ],
+      "additionalProperties": {
+        "enum": ["specified", "unrestricted", "missing", "unparsed"]
+      }
+    }
+  },
+  "additionalProperties": false
+}
