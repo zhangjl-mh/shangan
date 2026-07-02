@@ -51,7 +51,9 @@
     "recruitCount": { "type": "integer", "minimum": 0 },
     "requirements": { "$ref": "#/$defs/requirements" },
     "requirementStates": { "$ref": "#/$defs/requirementStates" },
-    "eligibility": { "enum": ["eligible", "needs_confirmation"] },
+    "eligibility": {
+      "enum": ["eligible", "needs_confirmation", "ineligible"]
+    },
     "matchReasons": {
       "type": "array",
       "items": { "type": "string" }

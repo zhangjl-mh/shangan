@@ -4,13 +4,16 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
 import io
 import json
 import os
 import re
 import shutil
+import sqlite3
 import sys
+import time
 import urllib.parse
 import urllib.request
 import zipfile
@@ -29,15 +32,20 @@ JOBS_DIR = ROOT / "data" / "jobs"
 SOURCES_CONFIG = JOBS_DIR / "sources.json"
 SOURCE_REGISTRY_PATH = JOBS_DIR / "source-registry.json"
 PROFILE_PATH = ROOT / "data" / "user-profile" / "profile.json"
-OLD_CATALOG_PATH = JOBS_DIR / "catalog" / "positions.jsonl"
-ELIGIBLE_CATALOG_PATH = JOBS_DIR / "catalog" / "eligible.jsonl"
-NEEDS_CONFIRMATION_CATALOG_PATH = JOBS_DIR / "catalog" / "needs-confirmation.jsonl"
-INDEX_PATH = JOBS_DIR / "index.json"
+DATABASE_PATH = JOBS_DIR / "jobs.sqlite"
+DATABASE_SCHEMA_PATH = ROOT / "schemas" / "job-database.sql"
+LEGACY_INDEX_PATH = JOBS_DIR / "index.json"
+LEGACY_CATALOG_DIR = JOBS_DIR / "catalog"
 SCHEMA_PATH = ROOT / "schemas" / "job-filter.schema.json"
 POSITION_SCHEMA_PATH = ROOT / "schemas" / "job-position.schema.json"
 SOURCES_SCHEMA_PATH = ROOT / "schemas" / "job-sources.schema.json"
 SOURCE_REGISTRY_SCHEMA_PATH = ROOT / "schemas" / "job-source-registry.schema.json"
-USER_AGENT = "shangan-job-pipeline/4.0"
+USER_AGENT = "shangan-job-pipeline/5.0"
+DATABASE_USER_VERSION = 500
+SUPPORTED_FORMATS = {"xlsx", "xls", "csv", "tsv", "zip"}
+MAX_ZIP_MEMBER_SIZE = 64 * 1024 * 1024
+MAX_ZIP_TOTAL_SIZE = 256 * 1024 * 1024
+SCHEMA_VALIDATORS: dict[Path, Draft202012Validator] = {}
 
 XLSX_NS = {
     "main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
@@ -46,29 +54,69 @@ XLSX_NS = {
 }
 
 COLUMN_ALIASES: dict[str, tuple[str, ...]] = {
-    "organization": ("部门名称", "招录机关", "单位名称", "机关名称", "招考单位", "部门"),
-    "department": ("用人司局", "用人单位", "用人部门", "招录单位", "职位所在部门", "招考部门", "单位"),
-    "title": ("招考职位", "职位名称", "职位", "岗位名称"),
+    "organization": (
+        "部门名称",
+        "招录机关",
+        "单位名称",
+        "用人单位名称",
+        "机关名称",
+        "招考单位",
+        "部门",
+    ),
+    "department": (
+        "用人司局",
+        "用人单位",
+        "用人部门",
+        "招录单位",
+        "职位所在部门",
+        "招考部门",
+        "岗位类别",
+        "单位",
+    ),
+    "title": ("招考职位", "职位名称", "职位", "岗位名称", "招聘岗位"),
     "positionCode": ("职位代码", "职位编码", "岗位代码", "招录职位代码", "代码"),
     "region": ("工作地点", "职位所在地", "工作地区", "行政区划", "地区", "考区"),
-    "recruitCount": ("招考人数", "计划招录人数", "招录人数", "人数"),
+    "recruitCount": (
+        "招考人数",
+        "计划招录人数",
+        "招录人数",
+        "招聘人数",
+        "拟招聘人数",
+        "计划招聘人数",
+        "招考数量",
+        "人数",
+    ),
     "majorRequirement": ("专业", "专业要求", "所学专业"),
-    "educationRequirement": ("学历", "学历要求", "学历低限"),
+    "educationRequirement": ("学历", "学历要求", "学历低限", "文化程度"),
     "degreeRequirement": ("学位", "学位要求", "学位低限"),
     "educationDegreeRequirement": ("学历学位",),
     "politicalRequirement": ("政治面貌", "政治面貌要求"),
-    "grassrootsRequirement": ("基层工作最低年限", "基层工作经历最低年限", "基层工作经历", "基层工作年限"),
+    "grassrootsRequirement": (
+        "基层工作最低年限",
+        "基层工作经历最低年限",
+        "基层工作经历",
+        "基层工作年限",
+        "专业工作年限",
+    ),
     "serviceProjectRequirement": ("服务基层项目工作经历", "服务基层项目经历"),
-    "freshGraduateRequirement": ("招录对象",),
+    "freshGraduateRequirement": ("招录对象", "招聘范围", "来源类别"),
     "ageRequirement": ("年龄", "年龄要求"),
     "genderRequirement": ("性别", "性别要求"),
     "householdRequirement": ("户别要求", "户籍要求", "户籍或生源要求"),
     "certificateRequirement": ("资格证书", "证书要求"),
     "additionalRequirement": ("其他条件", "其它条件"),
-    "remarks": ("备注", "其他条件", "其他要求", "职位要求", "其他资格条件"),
+    "remarks": (
+        "备注",
+        "其他条件",
+        "其他要求",
+        "职位要求",
+        "其他资格条件",
+        "任职要求",
+    ),
 }
 
 REQUIRED_COLUMNS = ("organization", "title", "positionCode")
+REQUIRED_HEADER_COLUMNS = ("organization", "title")
 REQUIRED_CATEGORIES = (
     "civil_service",
     "institution",
@@ -328,15 +376,69 @@ def canonical_header(value: str) -> str | None:
 def find_header(rows: list[list[str]]) -> tuple[int, dict[str, int]] | None:
     best: tuple[int, dict[str, int]] | None = None
     for row_index, row in enumerate(rows[:80]):
-        mapping = {
-            field: column_index_
-            for column_index_, value in enumerate(row)
-            if (field := canonical_header(value)) is not None
-        }
-        if all(field in mapping for field in REQUIRED_COLUMNS):
-            if best is None or len(mapping) > len(best[1]):
-                best = (row_index, mapping)
+        for depth in (1, 2, 3):
+            header_rows = rows[row_index : row_index + depth]
+            width = max((len(item) for item in header_rows), default=0)
+            mapping: dict[str, int] = {}
+            for column_index_ in range(width):
+                for header_row in reversed(header_rows):
+                    value = (
+                        header_row[column_index_]
+                        if column_index_ < len(header_row)
+                        else ""
+                    )
+                    field = canonical_header(value)
+                    if field is not None:
+                        mapping[field] = column_index_
+                        break
+            if all(field in mapping for field in REQUIRED_HEADER_COLUMNS):
+                if best is None or len(mapping) > len(best[1]):
+                    best = (row_index + depth - 1, mapping)
     return best
+
+
+def embedded_requirements(values: dict[str, str]) -> dict[str, str]:
+    text = "；".join(
+        value
+        for value in (
+            values.get("additionalRequirement", ""),
+            values.get("remarks", ""),
+        )
+        if value
+    )
+    extracted: dict[str, str] = {}
+    compact_text = compact(text)
+    if "专业不限" in compact_text:
+        extracted["major"] = "不限"
+    else:
+        major_match = re.search(
+            r"(?:学历|学位)[，,]\s*([^；;。]+?)(?:等)?相关专业",
+            text,
+        )
+        if major_match:
+            extracted["major"] = major_match.group(1).strip("，,；; ")
+
+    age_match = re.search(r"年龄\s*(\d+\s*周岁(?:及)?以下)", text)
+    if age_match:
+        extracted["age"] = age_match.group(1)
+
+    years_match = re.search(
+        r"(?:具有|有)(\d+\s*年(?:及)?以上(?:相关)?工作经验)",
+        text,
+    )
+    if years_match:
+        extracted["grassrootsYears"] = years_match.group(1)
+
+    if "应届毕业生" in text:
+        extracted["freshGraduate"] = "应届毕业生"
+    if re.search(r"(?:^|[;；，,])\s*男(?:[;；，,]|$)", text):
+        extracted["gender"] = "男"
+    elif re.search(r"(?:^|[;；，,])\s*女(?:[;；，,]|$)", text):
+        extracted["gender"] = "女"
+    political_match = re.search(r"中共(?:正式|预备)?党员", text)
+    if political_match:
+        extracted["politicalStatus"] = political_match.group()
+    return extracted
 
 
 def stable_id(source_id: str, cycle: str, organization: str, code: str, title: str) -> str:
@@ -349,8 +451,18 @@ def stable_id(source_id: str, cycle: str, organization: str, code: str, title: s
 def explicit_unlimited(value: Any) -> bool:
     text = compact(value)
     return bool(text) and (
-        text in {"无", "不限", "无限制", "无要求", "不限制", "否"}
-        or any(marker in text for marker in ("专业不限", "学历不限", "学位不限"))
+        text
+        in {
+            "无",
+            "不限",
+            "无限制",
+            "无要求",
+            "不限制",
+            "否",
+            "专业不限",
+            "学历不限",
+            "学位不限",
+        }
     )
 
 
@@ -398,14 +510,25 @@ def parse_source(source: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dic
                 )
                 continue
             header_index, mapping = header
+            forward_fill: dict[str, str] = {}
             for row_number, row in enumerate(rows[header_index + 1 :], start=header_index + 2):
                 values = {
                     field: display(row[index]) if index < len(row) else ""
                     for field, index in mapping.items()
                 }
+                for field in source.get("forwardFillFields", []):
+                    if values.get(field):
+                        forward_fill[field] = values[field]
+                    elif forward_fill.get(field):
+                        values[field] = forward_fill[field]
                 if not any(values.values()):
                     continue
-                if not all(values.get(field) for field in REQUIRED_COLUMNS):
+                required_columns = (
+                    REQUIRED_HEADER_COLUMNS
+                    if source.get("allowMissingPositionCode")
+                    else REQUIRED_COLUMNS
+                )
+                if not all(values.get(field) for field in required_columns):
                     errors.append(
                         {
                             "source": attachment["id"],
@@ -413,7 +536,14 @@ def parse_source(source: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dic
                         }
                     )
                     continue
-                code = values["positionCode"]
+                code = values.get("positionCode") or f"官方表第{row_number}行"
+                organization = values["organization"]
+                department = values.get("department", "")
+                if source.get("organizationColumnAsDepartment"):
+                    department = organization
+                    organization = source.get("defaultOrganization", "")
+                elif source.get("defaultOrganization"):
+                    organization = source["defaultOrganization"]
                 combined_education = values.get("educationDegreeRequirement", "")
                 education = values.get("educationRequirement", "")
                 degree = values.get("degreeRequirement", "")
@@ -430,6 +560,11 @@ def parse_source(source: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dic
                 if "应届" in compact(grassroots):
                     fresh_graduate = grassroots
                     grassroots = ""
+                extracted = embedded_requirements(values)
+                education = education or extracted.get("education", "")
+                degree = degree or extracted.get("degree", "")
+                grassroots = grassroots or extracted.get("grassrootsYears", "")
+                fresh_graduate = fresh_graduate or extracted.get("freshGraduate", "")
                 remarks = "；".join(
                     value
                     for value in (
@@ -444,15 +579,19 @@ def parse_source(source: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dic
                     if value and not is_unlimited(value)
                 )
                 requirements = {
-                    "major": values.get("majorRequirement", ""),
+                    "major": values.get("majorRequirement", "")
+                    or extracted.get("major", ""),
                     "education": education,
                     "degree": degree,
-                    "politicalStatus": values.get("politicalRequirement", ""),
+                    "politicalStatus": values.get("politicalRequirement", "")
+                    or extracted.get("politicalStatus", ""),
                     "grassrootsYears": grassroots,
                     "serviceProject": values.get("serviceProjectRequirement", ""),
                     "freshGraduate": fresh_graduate,
-                    "age": values.get("ageRequirement", ""),
-                    "gender": values.get("genderRequirement", ""),
+                    "age": values.get("ageRequirement", "")
+                    or extracted.get("age", ""),
+                    "gender": values.get("genderRequirement", "")
+                    or extracted.get("gender", ""),
                     "household": values.get("householdRequirement", ""),
                     "certificate": values.get("certificateRequirement", ""),
                     "remarks": remarks,
@@ -473,7 +612,7 @@ def parse_source(source: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dic
                         "id": stable_id(
                             source["sourceId"],
                             source["cycle"],
-                            values["organization"],
+                            organization,
                             code,
                             values["title"],
                         ),
@@ -483,8 +622,8 @@ def parse_source(source: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dic
                         "cycle": source["cycle"],
                         "batchStatus": source["selectionMode"],
                         "examAt": source.get("examAt"),
-                        "organization": values["organization"],
-                        "department": values.get("department", ""),
+                        "organization": organization,
+                        "department": department,
                         "title": values["title"],
                         "positionCode": code,
                         "region": values.get("region", source.get("region", "")),
@@ -1016,8 +1155,11 @@ def evaluate_position(
 
 
 def validate_schema(instance: Any, schema_path: Path, label: str) -> None:
-    schema = read_json(schema_path)
-    validator = Draft202012Validator(schema, format_checker=FormatChecker())
+    validator = SCHEMA_VALIDATORS.get(schema_path)
+    if validator is None:
+        schema = read_json(schema_path)
+        validator = Draft202012Validator(schema, format_checker=FormatChecker())
+        SCHEMA_VALIDATORS[schema_path] = validator
     failures = sorted(validator.iter_errors(instance), key=lambda item: list(item.path))
     if failures:
         raise ValueError(

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0",
-  "updatedAt": "2026-06-30T00:00:00+08:00",
+  "updatedAt": "2026-07-02T00:00:00+08:00",
   "requiredCategories": [
     "civil_service",
     "institution",
@@ -233,6 +233,23 @@
       ],
       "allowedHosts": [
         "sjz.gov.cn"
+      ]
+    },
+    {
+      "sourceId": "weihai-state-owned-enterprises",
+      "category": "state_owned_enterprise",
+      "label": "威海市属国企招聘",
+      "authority": "威海市人民政府国有资产监督管理委员会",
+      "recruitmentMode": "rolling",
+      "regions": [
+        "山东",
+        "威海"
+      ],
+      "discoveryUrls": [
+        "https://gzw.weihai.gov.cn/col/col15224/"
+      ],
+      "allowedHosts": [
+        "weihai.gov.cn"
       ]
     }
   ]

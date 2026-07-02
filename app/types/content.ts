@@ -265,6 +265,48 @@ export type JobRequirementState =
   | "missing"
   | "unparsed";
 
+export type JobRecruitmentStageId =
+  | "announcement"
+  | "registration"
+  | "exam"
+  | "result"
+  | "second_interview";
+
+export interface JobRecruitmentCalendar {
+  id: string;
+  category: "state_owned_enterprise";
+  title: string;
+  recruitmentMode: "rolling";
+  status: "forecast";
+  description: string;
+  sourcePortal: {
+    label: string;
+    url: string;
+  };
+  forecastBasis: Array<{
+    label: string;
+    url: string;
+    publishedAt: string;
+  }>;
+  stages: Array<{
+    id: JobRecruitmentStageId;
+    label: string;
+    timingType: "absolute_window" | "relative_window";
+    display: string;
+    startDate: string | null;
+    endDate: string | null;
+    status: "estimated";
+    note: string;
+  }>;
+  disclaimer: string;
+}
+
+export interface JobRecruitmentCalendarData {
+  schemaVersion: "1.0";
+  updatedAt: string;
+  calendars: JobRecruitmentCalendar[];
+}
+
 export interface JobPosition {
   id: string;
   sourceId: string;
@@ -367,6 +409,7 @@ export interface JobQuery {
   keyword?: string;
   page?: number;
   pageSize?: number;
+  paginate?: boolean;
 }
 
 export interface JobQueryResult {

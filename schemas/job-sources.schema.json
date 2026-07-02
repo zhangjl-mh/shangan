@@ -43,6 +43,16 @@
           "recruitmentMode": { "enum": ["exam", "rolling"] },
           "examAt": { "type": ["string", "null"], "format": "date-time" },
           "region": { "type": "string" },
+          "defaultOrganization": { "type": "string", "minLength": 1 },
+          "organizationColumnAsDepartment": { "type": "boolean" },
+          "allowMissingPositionCode": { "type": "boolean" },
+          "forwardFillFields": {
+            "type": "array",
+            "items": {
+              "enum": ["organization", "department"]
+            },
+            "uniqueItems": true
+          },
           "authority": { "type": "string", "minLength": 1 },
           "announcementTitle": { "type": "string", "minLength": 1 },
           "announcementUrl": { "type": "string", "format": "uri" },
@@ -73,10 +83,13 @@
             "minItems": 1,
             "items": {
               "type": "object",
-              "required": ["id", "kind", "title", "url", "path"],
+              "required": ["id", "kind", "format", "title", "url", "path"],
               "properties": {
                 "id": { "type": "string", "minLength": 1 },
                 "kind": { "enum": ["positions", "reference"] },
+                "format": {
+                  "enum": ["xlsx", "xls", "csv", "tsv", "zip"]
+                },
                 "title": { "type": "string", "minLength": 1 },
                 "url": { "type": "string", "format": "uri" },
                 "path": { "type": "string", "minLength": 1 },

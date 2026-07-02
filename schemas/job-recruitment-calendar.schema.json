@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shangan.local/schemas/job-recruitment-calendar.schema.json",
+  "title": "Job Recruitment Calendar",
+  "type": "object",
+  "required": ["schemaVersion", "updatedAt", "calendars"],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "calendars": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "category",
+          "title",
+          "recruitmentMode",
+          "status",
+          "description",
+          "sourcePortal",
+          "forecastBasis",
+          "stages",
+          "disclaimer"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "category": {
+            "const": "state_owned_enterprise"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "recruitmentMode": {
+            "const": "rolling"
+          },
+          "status": {
+            "const": "forecast"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sourcePortal": {
+            "type": "object",
+            "required": ["label", "url"],
+            "properties": {
+              "label": {
+                "type": "string",
+                "minLength": 1
+              },
+              "url": {
+                "type": "string",
+                "format": "uri"
+              }
+            },
+            "additionalProperties": false
+          },
+          "forecastBasis": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["label", "url", "publishedAt"],
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "publishedAt": {
+                  "type": "string",
+                  "format": "date"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "stages": {
+            "type": "array",
+            "minItems": 5,
+            "maxItems": 5,
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "label",
+                "timingType",
+                "display",
+                "startDate",
+                "endDate",
+                "status",
+                "note"
+              ],
+              "properties": {
+                "id": {
+                  "enum": [
+                    "announcement",
+                    "registration",
+                    "exam",
+                    "result",
+                    "second_interview"
+                  ]
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "timingType": {
+                  "enum": ["absolute_window", "relative_window"]
+                },
+                "display": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "startDate": {
+                  "type": ["string", "null"],
+                  "format": "date"
+                },
+                "endDate": {
+                  "type": ["string", "null"],
+                  "format": "date"
+                },
+                "status": {
+                  "const": "estimated"
+                },
+                "note": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "disclaimer": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

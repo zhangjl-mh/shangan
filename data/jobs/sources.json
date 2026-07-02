@@ -1,6 +1,6 @@
 {
   "schemaVersion": "2.0",
-  "asOf": "2026-06-30T00:00:00+08:00",
+  "asOf": "2026-07-02T00:00:00+08:00",
   "sources": [
     {
       "sourceId": "national-civil-service",
@@ -40,6 +40,7 @@
         {
           "id": "national-2026-positions",
           "kind": "positions",
+          "format": "zip",
           "title": "中央机关及其直属机构2026年度考试录用公务员招考简章",
           "url": "http://dl.scs.gov.cn/download/8a81f6d19780e4080199e13f881f0153",
           "path": "data/jobs/sources/national-civil-service/2026/positions.zip",
@@ -88,6 +89,7 @@
         {
           "id": "beijing-2026-positions",
           "kind": "positions",
+          "format": "xlsx",
           "title": "北京市各级机关2026年度考试录用公务员招考简章",
           "url": "https://www.beijing.gov.cn/gongkai/rsxx/gwyzk/202511/P020251110416491745191.xlsx",
           "path": "data/jobs/sources/beijing-civil-service/2026/positions.xlsx",
@@ -136,6 +138,7 @@
         {
           "id": "tianjin-2026-positions",
           "kind": "positions",
+          "format": "xlsx",
           "title": "天津市2026年度考试录用公务员职位表",
           "url": "https://www.tj.gov.cn/zwgk/zfxxgkzl/fdzdgknr/zkly/zk/202511/W020251105378392303487.xlsx",
           "path": "data/jobs/sources/tianjin-civil-service/2026/positions.xlsx",
@@ -184,6 +187,7 @@
         {
           "id": "hebei-2026-positions",
           "kind": "positions",
+          "format": "xlsx",
           "title": "招录职位及报考资格条件一览表",
           "url": "https://jtt.hebei.gov.cn/cms/ewebeditor/uploadfile/2026/02/04/20260204150827140.xlsx",
           "path": "data/jobs/sources/hebei-civil-service/2026/positions.xlsx",
@@ -192,6 +196,7 @@
         {
           "id": "hebei-2026-contacts",
           "kind": "reference",
+          "format": "xls",
           "title": "各招录单位地址、网站、联系电话一览表",
           "url": "https://jtt.hebei.gov.cn/cms/ewebeditor/uploadfile/2026/02/04/20260204150838739.xls",
           "path": "data/jobs/sources/hebei-civil-service/2026/contacts.xls",
@@ -200,6 +205,132 @@
       ],
       "notes": [
         "笔试时间为2026-03-14至03-15，本批次按上届参考使用。"
+      ]
+    },
+    {
+      "sourceId": "beijing-institutions",
+      "label": "2026年海淀区事业单位招聘",
+      "category": "institution",
+      "cycle": "2026",
+      "selectionMode": "previous_reference",
+      "recruitmentMode": "exam",
+      "examAt": "2026-04-18T09:00:00+08:00",
+      "region": "北京",
+      "authority": "北京市海淀区人力资源和社会保障局",
+      "announcementTitle": "海淀区2026年度事业单位公开招聘工作人员公告",
+      "announcementUrl": "https://rsj.beijing.gov.cn/xxgk/gkzp/202603/t20260317_4558902.html",
+      "portalUrl": "https://rsj.beijing.gov.cn/xxgk/gkzp/",
+      "evidenceUrl": "https://rsj.beijing.gov.cn/xxgk/gkzp/202603/t20260317_4558902.html",
+      "allowedHosts": [
+        "beijing.gov.cn"
+      ],
+      "registration": {
+        "opensAt": "2026-03-23T09:00:00+08:00",
+        "closesAt": "2026-03-27T17:00:00+08:00"
+      },
+      "blankMeansUnrestricted": [],
+      "attachments": [
+        {
+          "id": "beijing-haidian-2026-institution-positions",
+          "kind": "positions",
+          "format": "xlsx",
+          "title": "海淀区事业单位2026年度面向社会公开招聘工作人员职位及要求表",
+          "url": "https://rsj.beijing.gov.cn/xxgk/gkzp/202603/P020260507506366411303.xlsx",
+          "path": "data/jobs/sources/beijing-institutions/2026/haidian-positions.xlsx",
+          "sha256": "f45a2c830e35c1abbbfaeca549fae84f32642eeb9de9f4f564d3f35546629a82"
+        }
+      ],
+      "notes": [
+        "统一笔试已于2026-04-18举行，本批次按上届参考使用。"
+      ]
+    },
+    {
+      "sourceId": "military-civilian",
+      "label": "2026年军队文职公开招考",
+      "category": "military_civilian",
+      "cycle": "2026",
+      "selectionMode": "previous_reference",
+      "recruitmentMode": "exam",
+      "examAt": "2025-12-14T09:00:00+08:00",
+      "region": "全国",
+      "authority": "中央军委政治工作部",
+      "announcementTitle": "2026年军队文职人员公开招考工作全面展开",
+      "announcementUrl": "https://81rc.81.cn/wzry/gzdt/16419320.html",
+      "portalUrl": "https://81rc.81.cn/wzry/",
+      "evidenceUrl": "https://81rc.81.cn/wzry/gzdt/16419320.html",
+      "allowedHosts": [
+        "81.cn"
+      ],
+      "registration": {
+        "opensAt": "2025-11-03T08:00:00+08:00",
+        "closesAt": "2025-11-09T18:00:00+08:00"
+      },
+      "blankMeansUnrestricted": [],
+      "attachments": [
+        {
+          "id": "military-2026-standard-positions",
+          "kind": "positions",
+          "format": "xlsx",
+          "title": "2026年军队文职人员公开招考岗位计划（不含先面试后笔试岗位）",
+          "url": "https://81rc.81.cn/wzry/gzdt/_attachment/2025/11/02/16419320_4fea78778f3fd20608a7a5673500251c.xlsx",
+          "path": "data/jobs/sources/military-civilian/2026/standard-positions.xlsx",
+          "sha256": "bf1cc6e0c3c6af757d05ddce39a3631f5be995d1c068cc07f99e48d635ce053c"
+        },
+        {
+          "id": "military-2026-interview-first-positions",
+          "kind": "positions",
+          "format": "xlsx",
+          "title": "2026年军队文职人员公开招考岗位计划（先面试后笔试岗位）",
+          "url": "https://81rc.81.cn/wzry/gzdt/_attachment/2025/11/02/16419320_630173ebaf231e8a817dc4fb296f7b73.xlsx",
+          "path": "data/jobs/sources/military-civilian/2026/interview-first-positions.xlsx",
+          "sha256": "7c5cb6ba19224d09e6b9592f389f8d01c745f3f0b6d8a57403619ecf39412547"
+        }
+      ],
+      "notes": [
+        "全军统一笔试已于2025-12-14举行，本批次按上届参考使用。"
+      ]
+    },
+    {
+      "sourceId": "weihai-state-owned-enterprises",
+      "label": "2026年威海热电集团招聘",
+      "category": "state_owned_enterprise",
+      "cycle": "2026",
+      "selectionMode": "previous_reference",
+      "recruitmentMode": "rolling",
+      "examAt": null,
+      "region": "山东威海",
+      "defaultOrganization": "威海热电集团有限公司",
+      "organizationColumnAsDepartment": true,
+      "allowMissingPositionCode": true,
+      "forwardFillFields": [
+        "organization"
+      ],
+      "authority": "威海市人民政府国有资产监督管理委员会",
+      "announcementTitle": "威海热电集团有限公司招聘简章",
+      "announcementUrl": "https://gzw.weihai.gov.cn/art/2026/5/18/art_15224_6360526.html",
+      "portalUrl": "https://gzw.weihai.gov.cn/col/col15224/",
+      "evidenceUrl": "https://gzw.weihai.gov.cn/art/2026/5/18/art_15224_6360526.html",
+      "allowedHosts": [
+        "weihai.gov.cn"
+      ],
+      "registration": {
+        "opensAt": "2026-05-18T09:00:00+08:00",
+        "closesAt": "2026-05-22T16:00:00+08:00"
+      },
+      "blankMeansUnrestricted": [],
+      "attachments": [
+        {
+          "id": "weihai-heating-2026-positions",
+          "kind": "positions",
+          "format": "xls",
+          "title": "威海热电集团有限公司2026年度招聘岗位表",
+          "url": "https://gzw.weihai.gov.cn/module/download/downfile.jsp?classid=0&filename=caa0d59222a54a0192df2b84ff097279.xls&showname=%E9%99%84%E4%BB%B61%EF%BC%9A%E5%A8%81%E6%B5%B7%E7%83%AD%E7%94%B5%E9%9B%86%E5%9B%A2%E6%9C%89%E9%99%90%E5%85%AC%E5%8F%B82026%E5%B9%B4%E5%BA%A6%E6%8B%9B%E8%81%98%E5%B2%97%E4%BD%8D%E8%A1%A8.xls",
+          "path": "data/jobs/sources/weihai-state-owned-enterprises/2026/positions.xls",
+          "sha256": "abb051fe5a86ec2f2bf81757b26c59905db99ba0bd37ae64dc2b4b552989358e"
+        }
+      ],
+      "notes": [
+        "报名已于2026-05-22结束，本批次按上届参考使用。"
       ]
     }
   ],

@@ -9,6 +9,8 @@ import type {
   JobPosition,
   JobQuery,
   JobQueryResult,
+  JobRecruitmentCalendar,
+  JobRecruitmentCalendarData,
 } from "@/app/types/content";
 import { jobsDirectory } from "@/app/services/storage-paths";
 
@@ -22,6 +24,24 @@ const preferredRegions = ["北京", "天津", "雄安", "石家庄"];
 const eligibleCatalogPath = "data/jobs/catalog/eligible.jsonl";
 const confirmationCatalogPath =
   "data/jobs/catalog/needs-confirmation.jsonl";
+const recruitmentCalendarPath = path.join(
+  jobsDirectory,
+  "recruitment-calendar.json",
+);
+
+export async function getJobRecruitmentCalendar(
+  category: JobRecruitmentCalendar["category"],
+) {
+  try {
+    const value = JSON.parse(
+      await readFile(recruitmentCalendarPath, "utf8"),
+    ) as JobRecruitmentCalendarData;
+    if (value.schemaVersion !== "1.0") return null;
+    return value.calendars.find((calendar) => calendar.category === category) ?? null;
+  } catch {
+    return null;
+  }
+}
 
 async function loadIndex() {
   const indexPath = path.join(jobsDirectory, "index.json");
@@ -184,8 +204,11 @@ export async function queryJobs(query: JobQuery = {}): Promise<JobQueryResult> {
     })
     .sort(comparePositions);
 
-  const pageCount = Math.max(Math.ceil(filtered.length / pageSize), 1);
-  const normalizedPage = Math.min(page, pageCount);
+  const paginate = query.paginate ?? true;
+  const pageCount = paginate
+    ? Math.max(Math.ceil(filtered.length / pageSize), 1)
+    : 1;
+  const normalizedPage = paginate ? Math.min(page, pageCount) : 1;
   const exams =
     index?.sources.map((source) => ({
       id: source.sourceId,
@@ -200,10 +223,12 @@ export async function queryJobs(query: JobQuery = {}): Promise<JobQueryResult> {
       ).values(),
     );
   return {
-    items: filtered.slice(
-      startIndex(normalizedPage, pageSize),
-      normalizedPage * pageSize,
-    ),
+    items: paginate
+      ? filtered.slice(
+          startIndex(normalizedPage, pageSize),
+          normalizedPage * pageSize,
+        )
+      : filtered,
     total: filtered.length,
     page: normalizedPage,
     pageSize,

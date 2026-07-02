@@ -1,0 +1,88 @@
+{
+  "schemaVersion": "1.0",
+  "updatedAt": "2026-07-02T11:00:00+08:00",
+  "calendars": [
+    {
+      "id": "state-owned-enterprise-2027-autumn",
+      "category": "state_owned_enterprise",
+      "title": "2027届国央企秋招预计节奏",
+      "recruitmentMode": "rolling",
+      "status": "forecast",
+      "description": "国央企由各企业独立招聘，没有统一联考日期；以下窗口根据上一招聘季官方公告节奏整理，适合提前安排网申、笔试与面试准备。",
+      "sourcePortal": {
+        "label": "国务院国资委招聘专区",
+        "url": "https://www.sasac.gov.cn/n2588035/n2588325/n2588350/index.html"
+      },
+      "forecastBasis": [
+        {
+          "label": "中国石油启动2025年秋季高校毕业生招聘",
+          "url": "https://trxf.cnpc.com.cn/content/h/content_41504.shtml",
+          "publishedAt": "2025-09-15"
+        },
+        {
+          "label": "中广核2026校园招聘公告",
+          "url": "https://www.sasac.gov.cn/n2588035/n2588325/n2588350/c34358414/content.html",
+          "publishedAt": "2025-09-04"
+        },
+        {
+          "label": "国家电网有限公司2026年第二批招聘高校毕业生公告",
+          "url": "https://www.sasac.gov.cn/n2588035/n2588325/n2588350/c35354295/content.html",
+          "publishedAt": "2026-02-27"
+        }
+      ],
+      "stages": [
+        {
+          "id": "announcement",
+          "label": "岗位公布",
+          "timingType": "absolute_window",
+          "display": "预计 8月下旬—10月中旬",
+          "startDate": "2026-08-20",
+          "endDate": "2026-10-15",
+          "status": "estimated",
+          "note": "不同企业分批发布，能源、通信、建筑类央企通常较早启动。"
+        },
+        {
+          "id": "registration",
+          "label": "报名时间",
+          "timingType": "absolute_window",
+          "display": "预计 9月—10月底",
+          "startDate": "2026-09-01",
+          "endDate": "2026-10-31",
+          "status": "estimated",
+          "note": "岗位发布后即可网申，单家企业报名窗口常为数周。"
+        },
+        {
+          "id": "exam",
+          "label": "考试 / 测评",
+          "timingType": "absolute_window",
+          "display": "预计 9月下旬—11月底",
+          "startDate": "2026-09-20",
+          "endDate": "2026-11-30",
+          "status": "estimated",
+          "note": "可能采用统一笔试、线上测评或企业自主考试。"
+        },
+        {
+          "id": "result",
+          "label": "成绩通知",
+          "timingType": "relative_window",
+          "display": "通常笔试后 3—10 个工作日",
+          "startDate": null,
+          "endDate": null,
+          "status": "estimated",
+          "note": "部分企业只通知入围人员，需同步留意短信、邮件和招聘平台。"
+        },
+        {
+          "id": "second_interview",
+          "label": "二面 / 复试",
+          "timingType": "absolute_window",
+          "display": "预计 10月—12月",
+          "startDate": "2026-10-01",
+          "endDate": "2026-12-20",
+          "status": "estimated",
+          "note": "面试轮次由企业决定，部分岗位只有一轮面试。"
+        }
+      ],
+      "disclaimer": "以上为备考规划用预计窗口，不是统一官方日程；实际节点以各企业最新招聘公告和个人通知为准。"
+    }
+  ]
+}

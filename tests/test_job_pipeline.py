@@ -267,6 +267,47 @@ class JobPipelineTests(unittest.TestCase):
         self.assertEqual(result["eligibility"], "needs_confirmation")
         self.assertIn("serviceProject", result["confirmationFields"])
 
+    def test_multilevel_military_header_is_recognized(self):
+        rows = [
+            ["岗位代码", "用人单位及招考岗位", "", "", "", "招考条件"],
+            ["", "用人单位序号", "用人单位名称", "岗位类别", "岗位名称", "学历"],
+            ["", "", "", "", "", ""],
+            ["2026000001", "D260001", "测试单位", "工程技术", "助理工程师", "本科"],
+        ]
+        header = pipeline.find_header(rows)
+        self.assertIsNotNone(header)
+        header_index, mapping = header
+        self.assertEqual(header_index, 1)
+        self.assertEqual(mapping["positionCode"], 0)
+        self.assertEqual(mapping["organization"], 2)
+        self.assertEqual(mapping["title"], 4)
+
+    def test_embedded_enterprise_requirements_are_extracted_from_original_text(self):
+        extracted = pipeline.embedded_requirements(
+            {
+                "remarks": (
+                    "1.年龄30周岁以下；2.本科及以上学历，"
+                    "计算机科学与技术、自动化等相关专业；"
+                    "3.应届毕业生；4.具有3年以上相关工作经验。"
+                )
+            }
+        )
+        self.assertEqual(extracted["age"], "30周岁以下")
+        self.assertEqual(
+            extracted["major"],
+            "计算机科学与技术、自动化",
+        )
+        self.assertEqual(extracted["freshGraduate"], "应届毕业生")
+        self.assertEqual(extracted["grassrootsYears"], "3年以上相关工作经验")
+
+    def test_composite_requirement_is_not_mistaken_for_unrestricted_field(self):
+        self.assertFalse(
+            pipeline.explicit_unlimited(
+                "本科及以上学历，专业不限，具有3年以上工作经验"
+            )
+        )
+        self.assertTrue(pipeline.explicit_unlimited("专业不限"))
+
     def test_non_official_download_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "non-official"):
             pipeline.download_attachment(

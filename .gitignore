@@ -1,5 +1,11 @@
 node_modules/
+.python-deps/
 .next/
+.next-job.sqlite
+*.sqlite.next
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
 .env
 .env.local
 .env.*.local
